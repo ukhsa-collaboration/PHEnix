@@ -1,8 +1,6 @@
 """
 
 """
-def factory():
-    pass
 
 import abc
 
@@ -13,10 +11,10 @@ class Mapper(object):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, cmd_options=None):
-        pass
+        self._cmd_options = cmd_options
 
     @abc.abstractmethod
-    def make_sam(self):
+    def make_sam(self, **kwargs):
         raise NotImplementedError("make_same is not implemented yet.")
 
     @abc.abstractmethod
