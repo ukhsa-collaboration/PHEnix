@@ -9,5 +9,5 @@ class VariantCaller(object):
         pass
 
     @abc.abstractmethod
-    def make_vcf(self):
+    def make_vcf(self, *args, **kwargs):
         raise NotImplementedError("make_vcf is not implemented yet.")

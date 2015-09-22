@@ -30,7 +30,7 @@ class BWAMapper(Mapper):
 
         super(BWAMapper, self).__init__(cmd_options=cmd_options)
 
-    def make_sam(self, **kwargs):
+    def make_sam(self, *args, **kwargs):
 
         ref = kwargs.get("ref")
         R1 = kwargs.get("R1")

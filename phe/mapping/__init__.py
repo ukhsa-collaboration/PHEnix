@@ -14,7 +14,7 @@ class Mapper(object):
         self._cmd_options = cmd_options
 
     @abc.abstractmethod
-    def make_sam(self, **kwargs):
+    def make_sam(self, *args, **kwargs):
         raise NotImplementedError("make_same is not implemented yet.")
 
     @abc.abstractmethod
