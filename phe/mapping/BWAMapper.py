@@ -36,6 +36,7 @@ class BWAMapper(Mapper):
         R1 = kwargs.get("R1")
         R2 = kwargs.get("R2")
         out_file = kwargs.get("out_file")
+        sample_name = kwargs.get("sample_name", "test_sample")
 
         if ref is None or R1 is None or R2 is None or out_file is None:
             logging.error("One of the required parameters is not specified.")
@@ -46,14 +47,15 @@ class BWAMapper(Mapper):
              "ref": ref,
              "r1": R1,
              "r2": R2,
-             "out_sam": out_file
+             "out_sam": out_file,
+             "sample_name": sample_name
              }
 
         if os.system("bwa index %(ref)s" % d) != 0:
             logging.error("Computing index has failed. Abort")
             return None
 
-        cmd = "%(cmd)s -t %(threads)s %(ref)s %(r1)s %(r2)s > %(out_sam)s" % d
+        cmd = "%(cmd)s -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s' -t %(threads)s %(ref)s %(r1)s %(r2)s > %(out_sam)s" % d
 
         if os.system(cmd) != 0:
             logging.error("Mapping reads has failed.")

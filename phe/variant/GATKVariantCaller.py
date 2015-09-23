@@ -28,10 +28,16 @@ class GATKVariantCaller(VariantCaller):
         ref = kwargs.get("ref")
         bam = kwargs.get("bam")
         variant_dir = os.path.join(kwargs.get("out_dir"), ".")
-
+        ref_name, _ = os.path.splitext(ref)
         opts = {"ref": ref,
+                "ref_name": ref_name,
                 "bam": bam,
+                "picard_tools_path": os.path.join(os.environ["PICARD_TOOLS_PATH"], "CreateSequenceDictionary.jar"),
                 "all_variants_file": os.path.join(variant_dir, "variants.vcf")}
+
+        os.system("samtools faidx %(ref)s" % opts)
+
+        os.system("java -jar %(picard_tools_path)s R=%(ref)s O=%(ref_name)s.dict" % opts)
 
         #  call variants
         os.system("java -XX:+UseSerialGC -jar $GATK_JAR -T UnifiedGenotyper -R  %(ref)s --sample_ploidy 2 --genotype_likelihoods_model BOTH -rf BadCigar -out_mode EMIT_ALL_SITES -I %(bam)s -o %(all_variants_file)s" % opts)
