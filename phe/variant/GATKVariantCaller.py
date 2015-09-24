@@ -50,4 +50,4 @@ class GATKVariantCaller(VariantCaller):
         # select snps
         os.system("java -XX:+UseSerialGC -jar $GATK_JAR -T SelectVariants -R %(ref)s -V %(all_variants_file)s -o %(snp_vcf)s -selectType SNP" % opts)
 
-        return True
+        return opts["snp_vcf"]
