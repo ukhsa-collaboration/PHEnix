@@ -5,6 +5,10 @@ class VariantCaller(object):
 
     __metaclass__ = abc.ABCMeta
 
+    @abc.abstractproperty
+    def name(self):
+        return self.name
+
     def __init__(self, cmd_options=None):
         pass
 

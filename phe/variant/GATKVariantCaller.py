@@ -13,6 +13,8 @@ class GATKVariantCaller(VariantCaller):
     classdocs
     '''
 
+    name = "gatk"
+
     _default_options = None
     _threads = 1
 

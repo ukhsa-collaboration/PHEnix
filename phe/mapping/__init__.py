@@ -10,6 +10,10 @@ class Mapper(object):
     """
     __metaclass__ = abc.ABCMeta
 
+    @abc.abstractproperty
+    def name(self):
+        return self.name
+
     def __init__(self, cmd_options=None):
         self._cmd_options = cmd_options
 

@@ -18,6 +18,7 @@ class BWAMapper(Mapper):
     _default_options = ""
     _cmd = "bwa mem"
     _threads = 1
+    name = "bwa"
 
     def __init__(self, cmd_options=None):
         '''
