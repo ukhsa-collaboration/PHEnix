@@ -1,18 +1,28 @@
+from argparse import RawTextHelpFormatter
 import argparse
 import os
 import tempfile
 
 import vcf
 
-from phe.mapping.mapping_factory import factory as map_fac
-from phe.variant.variant_factory import factory as variant_fac
-from phe.variant_filters import filter_vcf, make_filters
+from phe.mapping.mapping_factory import factory as map_fac, available_mappers
+from phe.variant.variant_factory import factory as variant_fac, \
+    available_callers
+from phe.variant_filters import filter_vcf, make_filters, available_filters
+
 
 def pipeline():
     return 0
 
+desc = '''Run the snp pipeline with specified mapper, variant caller and some filters.
+Available mappers: %s
+
+Available variant callers: %s
+
+Available filters: %s''' % (available_mappers(), available_callers(), available_filters())
+
 def get_args():
-    args = argparse.ArgumentParser()
+    args = argparse.ArgumentParser(description=desc, formatter_class=RawTextHelpFormatter)
 
     args.add_argument("--workflow", "-w")
     args.add_argument("--input", "-i")
@@ -22,8 +32,8 @@ def get_args():
     args.add_argument("-r")
     args.add_argument("--outdir", "-o")
 
-    args.add_argument("--mapper", "-m", default="bwa")
-    args.add_argument("--variant", "-v", default="gatk")
+    args.add_argument("--mapper", "-m", default="bwa", help="Available mappers: %s" % available_mappers())
+    args.add_argument("--variant", "-v", default="gatk", help="Available variant callers: %s" % available_callers())
 
     return args.parse_args()
 

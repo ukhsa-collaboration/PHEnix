@@ -37,36 +37,6 @@ class PHEFilterBase(vcf.filters.Base):
     def short_desc(self):
         raise NotImplementedError("Get short description is not implemented.")
 
-
-def make_filters(*args, **kwargs):
-    """Create a list of filters from *config*.
-    
-    Parameters:
-    -----------
-    config: dict, optional
-        Dictionary with parameter: value pairs. For each parameter, an
-        appropriate Filter will be found and instanciated.
-        
-    Returns:
-    --------
-    list:
-        List of :py:class:`PHEFilterBase` filters.
-    """
-    config = kwargs.get("config")
-    avail_filters = dynamic_filter_loader()
-
-    filters = []
-
-    if config:
-        for custom_filter in config:
-            if custom_filter in avail_filters:
-                filters.append(avail_filters[custom_filter](config))
-            else:
-                logging.warn("Could not find appropriate filter for %s",
-                             custom_filter)
-
-    return filters
-
 def dynamic_filter_loader():
     """Fancy way of dynamically importing existing filters.
     
@@ -111,6 +81,39 @@ def dynamic_filter_loader():
     sys.path.remove(filter_dir)
 
     return avail_filters
+
+_avail_filters = dynamic_filter_loader()
+
+def available_filters():
+    return _avail_filters.keys()
+
+def make_filters(*args, **kwargs):
+    """Create a list of filters from *config*.
+    
+    Parameters:
+    -----------
+    config: dict, optional
+        Dictionary with parameter: value pairs. For each parameter, an
+        appropriate Filter will be found and instanciated.
+        
+    Returns:
+    --------
+    list:
+        List of :py:class:`PHEFilterBase` filters.
+    """
+    config = kwargs.get("config")
+
+    filters = []
+
+    if config:
+        for custom_filter in config:
+            if custom_filter in _avail_filters:
+                filters.append(_avail_filters[custom_filter](config))
+            else:
+                logging.warn("Could not find appropriate filter for %s",
+                             custom_filter)
+
+    return filters
 
 def filter_vcf(vcf_in, filters):
     """WIP This should go somewhere else."""
