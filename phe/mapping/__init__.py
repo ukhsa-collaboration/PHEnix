@@ -19,7 +19,11 @@ class Mapper(object):
 
     @abc.abstractmethod
     def make_sam(self, *args, **kwargs):
-        raise NotImplementedError("make_same is not implemented yet.")
+        raise NotImplementedError("make_sam is not implemented yet.")
+
+    @abc.abstractmethod
+    def make_bam(self, *args, **kwargs):
+        raise NotImplementedError("make_bam is not implemented yet.")
 
     @abc.abstractmethod
     def get_info(self):

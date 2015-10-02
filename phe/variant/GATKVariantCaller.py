@@ -14,42 +14,42 @@ class GATKVariantCaller(VariantCaller):
     '''
 
     name = "gatk"
-
-    _default_options = None
-    _threads = 1
+    _default_options = "-nt 1"
 
     def __init__(self, cmd_options=None):
         '''
         Constructor
         '''
-        super(GATKVariantCaller, self).__init__(cmd_options=cmd_options)
+        if cmd_options is None:
+            cmd_options = self._default_options
 
+        super(GATKVariantCaller, self).__init__(cmd_options=cmd_options)
 
     def make_vcf(self, *args, **kwargs):
 
         ref = kwargs.get("ref")
         bam = kwargs.get("bam")
-        variant_dir = os.path.join(kwargs.get("out_dir"), ".")
+
+        if kwargs.get("out_dir") is None:
+            kwargs["out_dir"] = "."
+
+        variant_dir = os.path.abspath(kwargs.get("out_dir"))
         ref_name, _ = os.path.splitext(ref)
         opts = {"ref": ref,
                 "ref_name": ref_name,
                 "bam": bam,
                 "picard_tools_path": os.path.join(os.environ["PICARD_TOOLS_PATH"], "CreateSequenceDictionary.jar"),
-                "all_variants_file": os.path.join(variant_dir, "variants.vcf")}
+                "ploidy": 2,
+                "glm": "BOTH",
+                "all_variants_file": os.path.join(variant_dir, "variants.vcf"),
+                "extra_cmd_options": self.cmd_options}
 
         os.system("samtools faidx %(ref)s" % opts)
 
         os.system("java -jar %(picard_tools_path)s R=%(ref)s O=%(ref_name)s.dict" % opts)
 
         #  call variants
-        os.system("java -XX:+UseSerialGC -jar $GATK_JAR -T UnifiedGenotyper -R  %(ref)s --sample_ploidy 2 --genotype_likelihoods_model BOTH -rf BadCigar -out_mode EMIT_ALL_SITES -I %(bam)s -o %(all_variants_file)s" % opts)
+        # FIXME: Sample ploidy = 2?
+        os.system("java -XX:+UseSerialGC -jar $GATK_JAR -T UnifiedGenotyper -R  %(ref)s --sample_ploidy %(ploidy)s --genotype_likelihoods_model %(glm)s -rf BadCigar -out_mode EMIT_ALL_SITES -I %(bam)s -o %(all_variants_file)s %(extra_cmd_options)s" % opts)
 
-        opts["non_snp_vcf"] = os.path.join(variant_dir, "variants.non_snp.vcf")
-        #  select non-snps
-        os.system("java -XX:+UseSerialGC -jar $GATK_JAR -T SelectVariants -R %(ref)s -V %(all_variants_file)s -o %(non_snp_vcf)s  -selectType SYMBOLIC -selectType MNP -selectType INDEL -selectType MIXED -selectType NO_VARIATION" % opts)
-
-        opts["snp_vcf"] = os.path.join(variant_dir, "variants.snp.vcf")
-        # select snps
-        os.system("java -XX:+UseSerialGC -jar $GATK_JAR -T SelectVariants -R %(ref)s -V %(all_variants_file)s -o %(snp_vcf)s -selectType SNP" % opts)
-
-        return opts["snp_vcf"]
+        return opts["all_variants_file"]

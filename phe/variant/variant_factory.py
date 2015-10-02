@@ -61,12 +61,12 @@ _avail_variant_callers = dynamic_caller_loader()
 def available_callers():
     return _avail_variant_callers.keys()
 
-def factory(config=None, variant=None, threahds=1):
+def factory(config=None, variant=None, custom_options=None):
     if variant is not None and isinstance(variant, str):
 
         variant = variant.lower()
         if variant in _avail_variant_callers:
-            return _avail_variant_callers[variant]()
+            return _avail_variant_callers[variant](cmd_options=custom_options)
         else:
             logging.error("No implementation for %s mapper.")
             return None

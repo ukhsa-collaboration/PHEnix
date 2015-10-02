@@ -6,6 +6,7 @@ Created on 17 Sep 2015
 import logging
 import os
 import sys
+import tempfile
 
 from phe.mapping import Mapper
 
@@ -29,6 +30,33 @@ class BWAMapper(Mapper):
             cmd_options = self._default_options
 
         super(BWAMapper, self).__init__(cmd_options=cmd_options)
+
+    def make_bam(self, *args, **kwargs):
+        with tempfile.NamedTemporaryFile(suffix=".sam") as tmp:
+            out_file = kwargs.get("out_file").replace(".bam", "")
+
+            kwargs["out_file"] = tmp.name
+
+            success = self.make_sam(*args, **kwargs)
+            if not success:
+                logging.warn("Could not map reads to the reference.")
+                return False
+
+            cmd = "samtools view -bhS %s | samtools view -bq 2 - | samtools sort - %s" % (tmp.name, out_file)
+            success = os.system(cmd)
+            if success != 0:
+                logging.warn("Could not convert to BAM")
+                logging.warn("CMD: %s", cmd)
+                return False
+
+            cmd = "samtools index %s.bam" % out_file
+            success = os.system(cmd)
+            if success != 0:
+                logging.warn("Could not index the BAM.")
+                logging.warn("CMD: %s", cmd)
+                return False
+        return True
+
 
     def make_sam(self, *args, **kwargs):
 
