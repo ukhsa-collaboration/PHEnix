@@ -15,7 +15,7 @@ class Mapper(object):
         return self.name
 
     def __init__(self, cmd_options=None):
-        self._cmd_options = cmd_options
+        self.cmd_options = cmd_options
 
     @abc.abstractmethod
     def make_sam(self, *args, **kwargs):

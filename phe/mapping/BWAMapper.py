@@ -15,9 +15,9 @@ class BWAMapper(Mapper):
     classdocs
     '''
 
-    _default_options = ""
+    _default_options = "-t 1"
     _cmd = "bwa mem"
-    _threads = 1
+
     name = "bwa"
 
     def __init__(self, cmd_options=None):
@@ -25,7 +25,6 @@ class BWAMapper(Mapper):
         Constructor
         '''
 
-        # Call the
         if not cmd_options:
             cmd_options = self._default_options
 
@@ -41,26 +40,26 @@ class BWAMapper(Mapper):
 
         if ref is None or R1 is None or R2 is None or out_file is None:
             logging.error("One of the required parameters is not specified.")
-            return None
+            return False
 
         d = {"cmd": self._cmd,
-             "threads": self._threads,
              "ref": ref,
              "r1": R1,
              "r2": R2,
              "out_sam": out_file,
-             "sample_name": sample_name
+             "sample_name": sample_name,
+             "extra_options": self.cmd_options
              }
 
         if os.system("bwa index %(ref)s" % d) != 0:
             logging.error("Computing index has failed. Abort")
-            return None
+            return False
 
-        cmd = "%(cmd)s -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s' -t %(threads)s %(ref)s %(r1)s %(r2)s > %(out_sam)s" % d
+        cmd = "%(cmd)s -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s' %(extra_options)s %(ref)s %(r1)s %(r2)s > %(out_sam)s" % d
 
         if os.system(cmd) != 0:
             logging.error("Mapping reads has failed.")
-            return None
+            return False
 
         return True
 

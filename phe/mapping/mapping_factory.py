@@ -61,13 +61,13 @@ _avail_mappers = dynamic_mapper_loader()
 def available_mappers():
     return _avail_mappers.keys()
 
-def factory(config=None, mapper=None, threahds=1):
+def factory(config=None, mapper=None, custom_options=None):
 
     if mapper is not None and isinstance(mapper, str):
 
         mapper = mapper.lower()
         if mapper in _avail_mappers:
-            return _avail_mappers[mapper]()
+            return _avail_mappers[mapper](cmd_options=custom_options)
         else:
             logging.error("No implementation for %s mapper.")
             return None
