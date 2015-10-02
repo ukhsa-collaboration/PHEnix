@@ -37,6 +37,10 @@ class PHEFilterBase(vcf.filters.Base):
     def short_desc(self):
         raise NotImplementedError("Get short description is not implemented.")
 
+    def get_config(self):
+        """This is used for reconstructing filter."""
+        return {self.parameter: self.threshold}
+
 def dynamic_filter_loader():
     """Fancy way of dynamically importing existing filters.
     
