@@ -17,8 +17,8 @@ class PHEFilterBase(vcf.filters.Base):
     __meta__ = abc.ABCMeta
 
     @abc.abstractproperty
-    def _parameter(self):
-        return self._parameter
+    def parameter(self):
+        return self.parameter
 
     @abc.abstractproperty
     def _default_threshold(self):
@@ -31,7 +31,7 @@ class PHEFilterBase(vcf.filters.Base):
         self.threshold = self._default_threshold
 
         if isinstance(args, dict):
-            self.threshold = args.get(self._parameter)
+            self.threshold = args.get(self.parameter)
 
     @abc.abstractmethod
     def short_desc(self):
@@ -76,7 +76,7 @@ def dynamic_filter_loader():
             # For each class, if it is a sublass of PHEFilterBase, add it.
             if cls_name != "PHEFilterBase" and issubclass(cls, PHEFilterBase):
                 # The parameters are inherited and defined within each filter.
-                avail_filters[cls._parameter] = cls
+                avail_filters[cls.parameter] = cls
 
     sys.path.remove(filter_dir)
 
@@ -115,56 +115,4 @@ def make_filters(*args, **kwargs):
 
     return filters
 
-def filter_vcf(vcf_in, filters):
-    """WIP This should go somewhere else."""
 
-    # Make filters.
-    good_records = []
-    bad_records = []
-
-    # Create a reader class from input VCF.
-    reader = vcf.Reader(filename=vcf_in)
-
-    # Add each filter we are going to use to the record.
-    # This is needed for writing out proper #FILTER header in VCF.
-    for record_filter in filters:
-        # We know that each filter has short description method.
-        short_doc = record_filter.short_desc()
-        short_doc = short_doc.split('\n')[0].lstrip()
-
-        reader.filters[record_filter.filter_name()] = _Filter(record_filter.filter_name(), short_doc)
-
-    # For each record (POSITION) apply set of filters.
-    for record in reader:
-        for record_filter in filters:
-
-            # Call to __call__ method in each filter.
-            result = record_filter(record)
-
-            # Record is KEPT if filter returns None
-            if result == None:
-                continue
-
-            # save some work by skipping the rest of the code
-#             if drop_filtered:
-#                 output_record = False
-#                 break
-
-            # If we got this far, then record is filtered OUT.
-            record.add_filter(record_filter.filter_name())
-#             if short_circuit: break
-
-#         if output_record:
-#             # use PASS only if other filter names appear in the FILTER column
-#             # FIXME: is this good idea?
-#             if record.FILTER is None or record.FILTER = 'PASS':
-#             output.write_record(record)
-        # After applying all filters, check if FILTER is None.
-        # If it is, then record PASSED all filters.
-        if record.FILTER is None:
-            record.FILTER = 'PASS'
-            good_records.append(record)
-        else:
-            bad_records.append(record)
-
-    return good_records, bad_records, reader

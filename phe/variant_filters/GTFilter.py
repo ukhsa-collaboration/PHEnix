@@ -10,23 +10,23 @@ import logging
 from phe.variant_filters import PHEFilterBase
 
 
-class GQFilter(PHEFilterBase):
-    '''Filter sites by GQ score.'''
+class UncallableGTFilter(PHEFilterBase):
+    '''Filter uncallable genotypes'''
 
-    name = "MinGQ"
-    _default_threshold = 0
-    parameter = "gq_score"
+    name = "UncallGT"
+    _default_threshold = None
+    parameter = "uncall_gt"
 
     @classmethod
     def customize_parser(self, parser):
         arg_name = self.parameter.replace("_", "-")
-        parser.add_argument("--%s" % arg_name, type=int, default=self._default_threshold,
+        parser.add_argument("--%s" % arg_name, type=str, default=self._default_threshold,
                 help="Filter sites below given GQ score (default: %s)" % self._default_threshold)
 
     def __init__(self, args):
         """Min Depth constructor."""
         # This needs to happen first, because threshold is initialised here.
-        super(GQFilter, self).__init__(args)
+        super(UncallableGTFilter, self).__init__(args)
 
         # Change the threshold to custom gq value.
         self.threshold = self._default_threshold
@@ -34,7 +34,7 @@ class GQFilter(PHEFilterBase):
             self.threshold = args.gq_score
         elif isinstance(args, dict):
             try:
-                self.threshold = int(args.get(self.parameter))
+                self.threshold = str(args.get(self.parameter))
             except TypeError:
                 logging.error("Could not retrieve threshold from %s", args.get(self.parameter))
                 self.threshold = None
@@ -42,21 +42,17 @@ class GQFilter(PHEFilterBase):
     def __call__(self, record):
         """Filter a :py:class:`vcf.model._Record`."""
 
-        if not record.is_snp:
-            return None
-
         if len(record.samples) > 1:
             logging.warn("More than 1 sample detected. Only first is considered.")
 
         try:
-            record_gq = record.samples[0].data.GQ
+            record_gt = record.samples[0].data.GT
         except AttributeError:
             logging.error("Could not retrieve GQ score POS %i", record.POS)
-            record_gq = None
+            record_gt = None
 
-        if record_gq is None or record_gq < self.threshold:
-            # FIXME: when record_gq is None, i,e, error, what do you do?
-            return record_gq or False
+        if record_gt is None:
+            return False
         else:
             return None
 
@@ -64,6 +60,6 @@ class GQFilter(PHEFilterBase):
         short_desc = self.__doc__ or ''
 
         if short_desc:
-            short_desc = "%s (GQ > %s)" % (short_desc, self.threshold)
+            short_desc = "%s (GT != ./. )" % (short_desc)
 
         return short_desc

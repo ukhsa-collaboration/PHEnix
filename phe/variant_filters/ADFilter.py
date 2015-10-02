@@ -16,11 +16,11 @@ class ADFilter(PHEFilterBase):
 
     name = "ADRatio"
     _default_threshold = 0.9
-    _parameter = "ad_ratio"
+    parameter = "ad_ratio"
 
     @classmethod
     def customize_parser(self, parser):
-        arg_name = self._parameter.replace("_", "-")
+        arg_name = self.parameter.replace("_", "-")
         parser.add_argument("--%s" % arg_name, type=float, default=self._default_threshold,
                 help="Filter sites below minimum ad ratio (default: %s)" % self._default_threshold)
 
@@ -34,10 +34,18 @@ class ADFilter(PHEFilterBase):
         if isinstance(args, argparse.Namespace):
             self.threshold = args.ad_ratio
         elif isinstance(args, dict):
-            self.threshold = args.get(self._parameter)
+            try:
+                self.threshold = float(args.get(self.parameter))
+            except TypeError:
+                logging.error("Could not retrieve threshold from %s", args.get(self.parameter))
+                self.threshold = None
+
 
     def __call__(self, record):
         """Filter a :py:class:`vcf.model._Record`."""
+
+        if not record.is_snp:
+            return None
 
         if len(record.samples) > 1:
             logging.warn("More than 1 sample detected. Only first is considered.")
@@ -55,7 +63,7 @@ class ADFilter(PHEFilterBase):
 
         if ratio is None or ratio < self.threshold:
             # FIXME: When ratio is None, i.e. error, what do you do?
-            return ratio or ""
+            return ratio or False
         else:
             return None
 

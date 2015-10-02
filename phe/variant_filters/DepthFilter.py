@@ -4,19 +4,21 @@ Created on 24 Sep 2015
 @author: alex
 '''
 import argparse
+import logging
 
 from phe.variant_filters import PHEFilterBase
+
 
 class DepthFilter(PHEFilterBase):
     """Filter sites by depth."""
 
     name = "MinDepth"
     _default_threshold = 5
-    _parameter = "min_depth"
+    parameter = "min_depth"
 
     @classmethod
     def customize_parser(self, parser):
-        arg_name = self._parameter.replace("_", "-")
+        arg_name = self.parameter.replace("_", "-")
         parser.add_argument("--" % arg_name, type=int, default=self._default_threshold,
                 help="Filter sites below minimum depth (default: %s)" % self._default_threshold)
 
@@ -30,13 +32,19 @@ class DepthFilter(PHEFilterBase):
         if isinstance(args, argparse.Namespace):
             self.threshold = args.min_depth
         elif isinstance(args, dict):
-            self.threshold = args.get(self._parameter)
+            try:
+                self.threshold = int(args.get(self.parameter))
+            except TypeError:
+                logging.error("Could not retrieve threshold from %s", args.get(self.parameter))
+                self.threshold = None
 
     def __call__(self, record):
         """Filter a :py:class:`vcf.model._Record`."""
+
         record_dp = record.INFO.get("DP")
+
         if record_dp is None or record_dp < self.threshold:
-            return record_dp
+            return record_dp or False
         else:
             return None
 
