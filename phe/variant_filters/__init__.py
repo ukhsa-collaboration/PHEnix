@@ -41,6 +41,9 @@ class PHEFilterBase(vcf.filters.Base):
         if isinstance(args, dict):
             self.threshold = args.get(self.parameter)
 
+    def __str__(self):
+        return self.filter_name()
+
     @abc.abstractmethod
     def short_desc(self):
         """Short description of the filter (included in VCF)."""
