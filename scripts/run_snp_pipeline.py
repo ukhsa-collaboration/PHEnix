@@ -32,7 +32,7 @@ def get_args():
     args.add_argument("-r1", help="R1/Forward read in Fastq format.")
     args.add_argument("-r2", help="R2/Reverse read in Fastq format.")
     args.add_argument("-r", help="Rerefence to use for mapping.")
-    args.add_argument("--sample_name", default="test_sample", help="Name of the sample for mapper to include as read groups.")
+    args.add_argument("--sample-name", default="test_sample", help="Name of the sample for mapper to include as read groups.")
     args.add_argument("--outdir", "-o")
 
     args.add_argument("--mapper", "-m", default="bwa", help="Available mappers: %s" % available_mappers())

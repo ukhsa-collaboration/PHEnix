@@ -71,6 +71,12 @@ class PHEFilterBase(vcf.filters.Base):
             conf[info[0]] = info[1]
         return conf
 
+    def is_gap(self):
+        return False
+
+    def is_n(self):
+        return True
+
 def dynamic_filter_loader():
     """Fancy way of dynamically importing existing filters.
     

@@ -64,3 +64,9 @@ class UncallableGTFilter(PHEFilterBase):
             short_desc = "%s (GT != ./. )" % (short_desc)
 
         return short_desc
+
+    def is_gap(self):
+        return True
+
+    def is_n(self):
+        return False
