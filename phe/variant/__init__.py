@@ -6,7 +6,8 @@ from vcf import filters
 import vcf
 from vcf.parser import _Filter
 
-from phe.variant_filters import make_filters
+from phe.variant_filters import make_filters, PHEFilterBase
+
 
 class VCFTemplate(object):
     """This is a small hack class for the Template used in generating
@@ -44,6 +45,14 @@ class VariantSet(object):
         self.filters = []
         if filters is not None:
             self.filters = make_filters(config=filters)
+        else:
+            reader = vcf.Reader(filename=self.vcf_in)
+            filters = {}
+            for filter_id in reader.filters:
+                filters.update(PHEFilterBase.decode(filter_id))
+
+            if filters:
+                self.filters = make_filters(config=filters)
 
         self.variants = []
 

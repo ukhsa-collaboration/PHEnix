@@ -20,7 +20,7 @@ class PHEFilterBase(vcf.filters.Base):
     """Base class for VCF filters."""
     __meta__ = abc.ABCMeta
 
-    magic_name = "pconf"
+    magic_sep = ":"
 
     @abc.abstractproperty
     def parameter(self):
@@ -50,23 +50,22 @@ class PHEFilterBase(vcf.filters.Base):
         """This is used for reconstructing filter."""
         return {self.parameter: self.threshold}
 
-    def encode(self):
-        return ":%s:%s:%s:" % (self.magic_name, self.parameter, self.threshold)
+    def filter_name(self):
+        """Create filter names by their parameter separated by magic.
+        E.g. if filter parameter is ad_ratio and threshold is 0.9 then
+        ad_ratio:0.9 if the filter name.
+        """
+        return "%s%s%s" % (self.parameter, self.magic_sep, self.threshold)
 
-    def decode(self, desc):
-        conf = None
+    @staticmethod
+    def decode(filter_id):
+        """Decode name of filter."""
+        conf = {}
 
-        pattern = re.compile("\:%s\:(.+)\:(.*)\:" % (self.magic_name))
-
-        matches = pattern.match(desc)
-
-        matches.group(0)
-
-        if self.magic_name in desc:
-            pass
-        else:
-            conf = None
-
+        if PHEFilterBase.magic_sep in filter_id:
+            info = filter_id.split(PHEFilterBase.magic_sep)
+            assert len(info) == 2
+            conf[info[0]] = info[1]
         return conf
 
 def dynamic_filter_loader():

@@ -86,7 +86,7 @@ def main():
 
     if args.filters:
         logging.info("Applying filters: %s", args.filters)
-        var_set = VariantSet(vcf_file, args.filters)
+        var_set = VariantSet(vcf_file, filters=args.filters)
 
         var_set.filter_variants()
 

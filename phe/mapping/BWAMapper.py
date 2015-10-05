@@ -41,7 +41,8 @@ class BWAMapper(Mapper):
                 logging.warn("Could not map reads to the reference.")
                 return False
 
-            cmd = "samtools view -bhS %s | samtools view -bq 2 - | samtools sort - %s" % (tmp.name, out_file)
+            # Convert reads sam to bam filtering on MQ > 0.
+            cmd = "samtools view -bhS %s | samtools view -bq 1 - | samtools sort - %s" % (tmp.name, out_file)
             success = os.system(cmd)
             if success != 0:
                 logging.warn("Could not convert to BAM")
