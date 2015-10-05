@@ -86,11 +86,13 @@ def main():
 
             var_set.make_variant_set()
 
-            var_set.write_variants("filtered.vcf", only_snps=True)
+            var_set.write_variants("filtered.vcf", only_snps=True, only_good=True)
+
+            var_set.write_variants("filtered.all.vcf")
 
             var_set._write_bad_variants("filtered.bad.vcf")
 
-#             var_set.serialise("var_set.pkl")
+            var_set.serialise("var_set.vcf")
 
     return 0
 

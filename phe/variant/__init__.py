@@ -28,8 +28,7 @@ class VariantSet(object):
         self.out_template = None
 
         self.filters = make_filters(config=filters)
-        self.good_vars = []
-        self.bad_vars = []
+        self.variants = []
 
     def make_variant_set(self, keep_only_snps=True):
         """WIP This should go somewhere else."""
@@ -77,27 +76,26 @@ class VariantSet(object):
                 record.FILTER = 'PASS'
                 # FIXME: Does this work for indels?
                 if keep_only_snps and record.is_snp:
-                    self.good_vars.append(record)
+                    self.variants.append(record)
             else:
-                self.bad_vars.append(record)
+                self.variants.append(record)
+
 
         self.out_template = VCFTemplate(reader)
 
-        return self.good_vars
+        return [ variant for variant in self.variants if variant.FILTER == "PASS"]
 
 
-    def write_variants(self, vcf_out, only_snps=False):
-        # Write records to VCF file.
-#         with open("filtered_bad.vcf", "w") as out_vcf:
-#             writer = vcf.Writer(out_vcf, template)
-#             for record in bad_var:
-#                 writer.write_record(record)
+    def write_variants(self, vcf_out, only_snps=False, only_good=False):
 
         with open(vcf_out, "w") as out_vcf:
             writer = vcf.Writer(out_vcf, self.out_template)
-            for record in self.good_vars:
+            for record in self.variants:
 
                 if only_snps and not record.is_snp:
+                    continue
+
+                if only_good and record.FILTER != "PASS":
                     continue
 
                 writer.write_record(record)
@@ -105,23 +103,16 @@ class VariantSet(object):
     def _write_bad_variants(self, vcf_out):
         with open(vcf_out, "w") as out_vcf:
             writer = vcf.Writer(out_vcf, self.out_template)
-            for record in self.bad_vars:
-                writer.write_record(record)
+            for record in self.variants:
+                if record.FILTER != "PASS":
+                    writer.write_record(record)
 
     def serialise(self, out_file):
+        with open(out_file, "w") as out_vcf:
+            writer = vcf.Writer(out_vcf, self.out_template)
+            for record in self.variants:
+                writer.write_record(record)
 
-        filter_conf = {}
-        for custom_filter in self.filters:
-            filter_conf.update(custom_filter.get_config())
-
-        d = {"template": self.out_template,
-             "filter_conf": filter_conf,
-             "good_vars": self.good_vars,
-             "bad_vars": self.bad_vars
-             }
-
-        with open(out_file, "wb") as fp:
-            pickle.dump(d, fp, -1)
 
 class VariantCaller(object):
 
