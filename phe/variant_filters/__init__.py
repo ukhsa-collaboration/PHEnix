@@ -1,3 +1,5 @@
+"""Classes and functions for working with variant filters."""
+
 from __builtin__ import __import__
 from abc import abstractproperty
 import abc
@@ -6,22 +8,28 @@ import glob
 import inspect
 import logging
 import os
+import re
 import sys
 
 import vcf
 import vcf.filters
 from vcf.parser import _Filter
 
-class PHEFilterBase(vcf.filters.Base):
 
+class PHEFilterBase(vcf.filters.Base):
+    """Base class for VCF filters."""
     __meta__ = abc.ABCMeta
+
+    magic_name = "pconf"
 
     @abc.abstractproperty
     def parameter(self):
+        """Short name of parameter being filtered."""
         return self.parameter
 
     @abc.abstractproperty
     def _default_threshold(self):
+        """Default threshold for filtering."""
         return self._default_threshold
 
     def __init__(self, args):
@@ -35,11 +43,31 @@ class PHEFilterBase(vcf.filters.Base):
 
     @abc.abstractmethod
     def short_desc(self):
+        """Short description of the filter (included in VCF)."""
         raise NotImplementedError("Get short description is not implemented.")
 
     def get_config(self):
         """This is used for reconstructing filter."""
         return {self.parameter: self.threshold}
+
+    def encode(self):
+        return ":%s:%s:%s:" % (self.magic_name, self.parameter, self.threshold)
+
+    def decode(self, desc):
+        conf = None
+
+        pattern = re.compile("\:%s\:(.+)\:(.*)\:" % (self.magic_name))
+
+        matches = pattern.match(desc)
+
+        matches.group(0)
+
+        if self.magic_name in desc:
+            pass
+        else:
+            conf = None
+
+        return conf
 
 def dynamic_filter_loader():
     """Fancy way of dynamically importing existing filters.
@@ -89,9 +117,10 @@ def dynamic_filter_loader():
 _avail_filters = dynamic_filter_loader()
 
 def available_filters():
+    """Return list of available filters."""
     return _avail_filters.keys()
 
-def make_filters(*args, **kwargs):
+def make_filters(**kwargs):
     """Create a list of filters from *config*.
     
     Parameters:
@@ -118,5 +147,3 @@ def make_filters(*args, **kwargs):
                              custom_filter)
 
     return filters
-
-

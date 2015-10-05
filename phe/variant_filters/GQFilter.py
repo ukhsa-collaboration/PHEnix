@@ -1,4 +1,4 @@
-'''
+'''Filter VCF on GQ parameter.
 Created on 24 Sep 2015
 
 @author: alex

@@ -59,10 +59,25 @@ def dynamic_mapper_loader():
 _avail_mappers = dynamic_mapper_loader()
 
 def available_mappers():
+    """Return a list of available mappers."""
     return _avail_mappers.keys()
 
-def factory(config=None, mapper=None, custom_options=None):
-
+def factory(mapper=None, custom_options=None):
+    """Create an instance of a mapper from _config_.
+    
+    Parameters:
+    -----------
+    mapper: str, optional
+        Name of the mapper to initialise.
+    custom_options: str, optional
+        Custom options to be passed to the mapper.
+        
+    Returns:
+    --------
+    :py:class:`phe.mapping.Mapper`:
+        Instance of a :py:class:`phe.mapping.Mapper` with provided name, or
+        None if the mapper could not be found.
+    """
     if mapper is not None and isinstance(mapper, str):
 
         mapper = mapper.lower()

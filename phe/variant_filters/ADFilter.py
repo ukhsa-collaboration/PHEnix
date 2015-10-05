@@ -1,4 +1,5 @@
-'''
+'''Filter VCFs on AD ratio.
+
 Created on 24 Sep 2015
 
 @author: alex
@@ -25,7 +26,7 @@ class ADFilter(PHEFilterBase):
                 help="Filter sites below minimum ad ratio (default: %s)" % self._default_threshold)
 
     def __init__(self, args):
-        """Min Depth constructor."""
+        """AD Ratio constructor."""
         # This needs to happen first, because threshold is initialised here.
         super(ADFilter, self).__init__(args)
 
@@ -71,6 +72,6 @@ class ADFilter(PHEFilterBase):
         short_desc = self.__doc__ or ''
 
         if short_desc:
-            short_desc = "%s (AD ratio > %s)" % (short_desc, self.threshold)
+            short_desc = "%s (AD ratio > %s )" % (short_desc, self.threshold)
 
         return short_desc

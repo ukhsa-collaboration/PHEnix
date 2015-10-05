@@ -1,4 +1,5 @@
-'''
+'''Filter VCF on depth of coverage.
+
 Created on 24 Sep 2015
 
 @author: alex

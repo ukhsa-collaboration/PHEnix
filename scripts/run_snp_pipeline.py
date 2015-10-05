@@ -29,9 +29,9 @@ def get_args():
     args.add_argument("--workflow", "-w")
     args.add_argument("--input", "-i")
 
-    args.add_argument("-r1")
-    args.add_argument("-r2")
-    args.add_argument("-r")
+    args.add_argument("-r1", help="R1/Forward read in Fastq format.")
+    args.add_argument("-r2", help="R2/Reverse read in Fastq format.")
+    args.add_argument("-r", help="Rerefence to use for mapping.")
     args.add_argument("--sample_name", default="test_sample", help="Name of the sample for mapper to include as read groups.")
     args.add_argument("--outdir", "-o")
 
@@ -66,33 +66,37 @@ def main():
 
         args.filters = filters
 
+    logging.info("Mapping data file.")
+    out_file = os.path.join(args.outdir, "%s.bam" % args.sample_name)
+    success = mapper.make_bam(ref=args.r, R1=args.r1, R2=args.r2, out_file=out_file, sample_name=args.sample_name)
 
-    with tempfile.NamedTemporaryFile(suffix=".bam") as tmp:
-        logging.info("Mapping data file.")
-        success = mapper.make_bam(ref=args.r, R1=args.r1, R2=args.r2, out_file="%s.bam" % args.sample_name, sample_name=args.sample_name)
-
-        if not success:
-            logging.warn("Could not map reads to the reference. Aborting.")
-            return 1
+    if not success:
+        logging.warn("Could not map reads to the reference. Aborting.")
+        return 1
 
 #         vcf_file = os.path.abspath("all_variants.vcf")
-        logging.info("Creating digitised variants.")
+    logging.info("Creating digitised variants.")
 
-        vcf_file = variant.make_vcf(ref=args.r, bam="%s.bam" % args.sample_name, out_dir=args.outdir)
+    vcf_file = os.path.join(args.outdir, "%s.vcf" % args.sample_name)
 
-        if args.filters:
-            logging.info("Applying filters: %s", args.filters)
-            var_set = VariantSet(vcf_file, args.filters)
+    if not variant.make_vcf(ref=args.r, bam="%s.bam" % args.sample_name, vcf_file=vcf_file):
+        logging.error("VCF was not created.")
+        return 2
 
-            var_set.make_variant_set()
 
-            var_set.write_variants("filtered.vcf", only_snps=True, only_good=True)
+    if args.filters:
+        logging.info("Applying filters: %s", args.filters)
+        var_set = VariantSet(vcf_file, args.filters)
 
-            var_set.write_variants("filtered.all.vcf")
+        var_set.filter_variants()
 
-            var_set._write_bad_variants("filtered.bad.vcf")
+        var_set.write_variants("filtered.vcf", only_snps=True, only_good=True)
 
-            var_set.serialise("var_set.vcf")
+        var_set.write_variants("filtered.all.vcf")
+
+        var_set._write_bad_variants("filtered.bad.vcf")
+
+        var_set.serialise("var_set.vcf")
 
     return 0
 

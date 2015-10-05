@@ -26,7 +26,6 @@ class GATKVariantCaller(VariantCaller):
         super(GATKVariantCaller, self).__init__(cmd_options=cmd_options)
 
     def make_vcf(self, *args, **kwargs):
-
         ref = kwargs.get("ref")
         bam = kwargs.get("bam")
 
@@ -42,7 +41,7 @@ class GATKVariantCaller(VariantCaller):
 
         if not self.create_aux_files(ref):
             logging.warn("Auxiliary files were not created.")
-            return False
+#             return False
 
         # Call variants
         # FIXME: Sample ploidy = 2?

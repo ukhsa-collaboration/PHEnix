@@ -1,30 +1,29 @@
-'''
+'''Implementation of the Mapper class using BWA (Heng Li) mapper.
+
 Created on 17 Sep 2015
 
 @author: alex
 '''
 import logging
 import os
-import sys
 import tempfile
 
 from phe.mapping import Mapper
 
 
 class BWAMapper(Mapper):
-    '''
-    classdocs
-    '''
+    '''BWA mapper developed by Heng Li.'''
 
     _default_options = "-t 1"
+    """Default options for the mapper."""
     _cmd = "bwa mem"
+    """Command for calling mapper."""
 
     name = "bwa"
+    """Plain text name of the mapper."""
 
     def __init__(self, cmd_options=None):
-        '''
-        Constructor
-        '''
+        """Constructor for BWA mapper."""
 
         if not cmd_options:
             cmd_options = self._default_options
@@ -59,21 +58,20 @@ class BWAMapper(Mapper):
 
 
     def make_sam(self, *args, **kwargs):
-
         ref = kwargs.get("ref")
-        R1 = kwargs.get("R1")
-        R2 = kwargs.get("R2")
+        r1 = kwargs.get("R1")
+        r2 = kwargs.get("R2")
         out_file = kwargs.get("out_file")
         sample_name = kwargs.get("sample_name", "test_sample")
 
-        if ref is None or R1 is None or R2 is None or out_file is None:
+        if ref is None or r1 is None or r2 is None or out_file is None:
             logging.error("One of the required parameters is not specified.")
             return False
 
         d = {"cmd": self._cmd,
              "ref": ref,
-             "r1": R1,
-             "r2": R2,
+             "r1": r1,
+             "r2": r2,
              "out_sam": out_file,
              "sample_name": sample_name,
              "extra_options": self.cmd_options

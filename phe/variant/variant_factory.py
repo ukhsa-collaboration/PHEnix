@@ -1,4 +1,5 @@
-'''
+'''Classes and functions for working with variant callers.
+
 Created on 22 Sep 2015
 
 @author: alex
@@ -59,9 +60,25 @@ def dynamic_caller_loader():
 _avail_variant_callers = dynamic_caller_loader()
 
 def available_callers():
+    """Return list of available variant callers."""
     return _avail_variant_callers.keys()
 
-def factory(config=None, variant=None, custom_options=None):
+def factory(variant=None, custom_options=None):
+    """Make an instance of a variant class.
+    
+    Parameters:
+    -----------
+    variant: str, optional
+        Name of the variant class to instantiate.
+    custom_options: str, optional
+        Custom options to be passed directly to the implementing class.
+    
+    Returns:
+    --------
+    :py:class:`phe.variant.VariantCaller`:
+        Instance of the :py:class:`phe.variant.VariantCaller` for given
+        variant name, or None if one couldn't be found.
+    """
     if variant is not None and isinstance(variant, str):
 
         variant = variant.lower()
