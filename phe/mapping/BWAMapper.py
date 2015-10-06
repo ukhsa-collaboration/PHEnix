@@ -42,7 +42,7 @@ class BWAMapper(Mapper):
                 return False
 
             # Convert reads sam to bam filtering on MQ > 0.
-            cmd = "samtools view -bhS %s | samtools view -bq 1 - | samtools sort - %s" % (tmp.name, out_file)
+            cmd = "samtools view -bhS %s | samtools sort - %s" % (tmp.name, out_file)  #  samtools view -bq 1 -
             success = os.system(cmd)
             if success != 0:
                 logging.warn("Could not convert to BAM")
@@ -78,9 +78,9 @@ class BWAMapper(Mapper):
              "extra_options": self.cmd_options
              }
 
-        if os.system("bwa index %(ref)s" % d) != 0:
-            logging.error("Computing index has failed. Abort")
-            return False
+#         if os.system("bwa index %(ref)s" % d) != 0:
+#             logging.error("Computing index has failed. Abort")
+#             return False
 
         cmd = "%(cmd)s -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s' %(extra_options)s %(ref)s %(r1)s %(r2)s > %(out_sam)s" % d
 

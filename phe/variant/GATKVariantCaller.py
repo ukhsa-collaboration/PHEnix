@@ -39,8 +39,8 @@ class GATKVariantCaller(VariantCaller):
                 "all_variants_file": kwargs.get("vcf_file"),
                 "extra_cmd_options": self.cmd_options}
 
-        if not self.create_aux_files(ref):
-            logging.warn("Auxiliary files were not created.")
+#         if not self.create_aux_files(ref):
+#             logging.warn("Auxiliary files were not created.")
 #             return False
 
         # Call variants
