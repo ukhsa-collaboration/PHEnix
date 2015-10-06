@@ -57,7 +57,7 @@ class ADFilter(PHEFilterBase):
             # FIXME: when record length is > 2, what do you do?
             assert len(record_ad) == 2, "AD data is incomplete POS: %i" % record.POS
 
-            ratio = float(record_ad[1]) / (record_ad[1] + record_ad[0])
+            ratio = float(record_ad[1]) / record.INFO.get("DP")
         except Exception:
             logging.error("Could not calculate AD ratio from %s POS: %s", record_ad, record.POS)
             ratio = None
