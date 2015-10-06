@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from argparse import RawTextHelpFormatter
 import argparse
 import logging
@@ -67,8 +69,8 @@ def main():
         args.filters = filters
 
     logging.info("Mapping data file.")
-    out_file = os.path.join(args.outdir, "%s.bam" % args.sample_name)
-    success = mapper.make_bam(ref=args.r, R1=args.r1, R2=args.r2, out_file=out_file, sample_name=args.sample_name)
+    bam_file = os.path.join(args.outdir, "%s.bam" % args.sample_name)
+    success = mapper.make_bam(ref=args.r, R1=args.r1, R2=args.r2, bam_file=bam_file, sample_name=args.sample_name)
 
     if not success:
         logging.warn("Could not map reads to the reference. Aborting.")
@@ -79,7 +81,7 @@ def main():
 
     vcf_file = os.path.join(args.outdir, "%s.vcf" % args.sample_name)
 
-    if not variant.make_vcf(ref=args.r, bam="%s.bam" % args.sample_name, vcf_file=vcf_file):
+    if not variant.make_vcf(ref=args.r, bam=bam_file, vcf_file=vcf_file):
         logging.error("VCF was not created.")
         return 2
 
@@ -90,13 +92,14 @@ def main():
 
         var_set.filter_variants()
 
-        var_set.write_variants("filtered.vcf", only_snps=True, only_good=True)
+#         var_set.write_variants("filtered.vcf", only_snps=True, only_good=True)
+#
+#         var_set.write_variants("filtered.all.vcf")
+#
+#         var_set._write_bad_variants("filtered.bad.vcf")
 
-        var_set.write_variants("filtered.all.vcf")
-
-        var_set._write_bad_variants("filtered.bad.vcf")
-
-        var_set.serialise("var_set.vcf")
+        final_vcf = os.path.join(args.outdir, "%s.filtered.vcf" % args.sample_name)
+        var_set.serialise(final_vcf)
 
     return 0
 
