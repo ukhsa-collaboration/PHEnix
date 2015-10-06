@@ -53,7 +53,7 @@ class UncallableGTFilter(PHEFilterBase):
             record_gt = None
 
         if record_gt is None:
-            return "./." or False
+            return "./."
         else:
             return None
 
