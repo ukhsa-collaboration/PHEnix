@@ -13,8 +13,10 @@ file. If you omit it, **test_sample** will be used.
 One of the key parts of the VCF processing is to filter quality calls. To do this we have created a flexible interface with
 variaety of filters avaialble:
 
+- **qual_score** - Filter records where QUAL score is below given threshold.
 - **ad_ration** - Filter records where allele ration is below given fraction.
 - **mq_score** - Filter records that fall below specified MQ score.
+- **mq0_score** - Filter records with MQ0 to DP ratio _above_ given threshold.
 - **qg_score** - Filter records that fall below specified GQ score.
 - **min_depth** - Filter records with mean depth below specified threshold.
 - **uncall_gt** - Filter records with uncallable genotypes in VCF.
