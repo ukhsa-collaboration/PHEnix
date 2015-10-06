@@ -1,0 +1,36 @@
+#%Module1.0#####################################################################
+##
+## modules modulefile
+##
+## modulefiles/modules.  Generated from modules.in by configure.
+##
+
+set     name            snp_pipeline
+set     version         dev
+set     modroot         /phengs/hpc_software/${name}/$version
+
+proc ModulesHelp { } {
+        global name version modroot comp compversion
+
+        puts stderr "\t$name - loads the $name software & application environment"
+        puts stderr "\n\tThis adds $modroot/* to several of the"
+        puts stderr "\tenvironment variables."
+        puts stderr "\n\tVersion $version\n"
+
+}
+
+module-whatis "loads the $name environment"
+
+module load jdk/1.7.0_25
+module load picard-tools
+module load gatk
+module load samtools/stable
+module load bwa/0.7.12
+module load pyvcf/python2.7.6
+
+prepend-path PATH $modroot/scripts
+prepend-path PYTHONPATH $modroot
+
+prereq python
+
+conflict    snp_pipeline
