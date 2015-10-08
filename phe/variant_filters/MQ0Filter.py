@@ -46,6 +46,7 @@ class MQ0Filter(PHEFilterBase):
         record_mq = record.INFO.get("MQ0")
 
         if record_mq:
+            # We consider DO from INFO not samples because MQ0 is also from INFO.
             record_mq /= float(record.INFO.get("DP"))
 
         if record_mq is None or record_mq > self.threshold:
