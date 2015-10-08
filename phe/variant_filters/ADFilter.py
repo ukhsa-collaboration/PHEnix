@@ -51,13 +51,13 @@ class ADFilter(PHEFilterBase):
         if len(record.samples) > 1:
             logging.warn("More than 1 sample detected. Only first is considered.")
 
-        record_ad = record.samples[0].data.AD
         try:
+            record_ad = record.samples[0].data.AD
 
             # FIXME: when record length is > 2, what do you do?
             assert len(record_ad) == 2, "AD data is incomplete POS: %i" % record.POS
 
-            ratio = float(record_ad[1]) / record.INFO.get("DP")
+            ratio = float(record_ad[1]) / record.samples[0].data.DP
         except Exception:
             logging.error("Could not calculate AD ratio from %s POS: %s", record_ad, record.POS)
             ratio = None

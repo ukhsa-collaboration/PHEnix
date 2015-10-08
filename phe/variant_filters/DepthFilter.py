@@ -42,7 +42,14 @@ class DepthFilter(PHEFilterBase):
     def __call__(self, record):
         """Filter a :py:class:`vcf.model._Record`."""
 
-        record_dp = record.INFO.get("DP")
+        if len(record.samples) > 1:
+            logging.warn("Currently we only filter VCFs with 1 sample. Only first sample will be used.")
+
+        try:
+            record_dp = record.samples[0].data.DP
+        except AttributeError:
+            logging.error("Could not retrieve depth for %i", record.POS)
+            record_dp = None
 
         if record_dp is None or record_dp < self.threshold:
             return record_dp or False
