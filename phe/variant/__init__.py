@@ -68,6 +68,15 @@ class VariantSet(object):
         # Create a reader class from input VCF.
         reader = vcf.Reader(filename=self.vcf_in)
 
+        # get list of existing filters.
+        existing_filters = {}
+        removed_filters = []
+
+        for filter_id in reader.filters:
+            conf = PHEFilterBase.decode(filter_id)
+            tuple(conf.keys())
+            existing_filters.update({tuple(conf.keys()):filter_id})
+
         # Add each filter we are going to use to the record.
         # This is needed for writing out proper #FILTER header in VCF.
         for record_filter in self.filters:
@@ -75,10 +84,27 @@ class VariantSet(object):
             short_doc = record_filter.short_desc()
             short_doc = short_doc.split('\n')[0].lstrip()
 
+            filter_name = PHEFilterBase.decode(record_filter.filter_name())
+
+            # Check if the sample has been filtered for this type of filter
+            #    in the past. If so remove is, because it is going to be refiltered.
+            if tuple(filter_name) in existing_filters:
+                logging.info("Removing existing filter: %s", existing_filters[tuple(filter_name)])
+                removed_filters.append(existing_filters[tuple(filter_name)])
+                del reader.filters[existing_filters[tuple(filter_name)]]
+
             reader.filters[record_filter.filter_name()] = _Filter(record_filter.filter_name(), short_doc)
 
         # For each record (POSITION) apply set of filters.
         for record in reader:
+
+            # If this record failed filters and we removed some,
+            #    check is they need to be removed from record.
+            if isinstance(record.FILTER, list) and len(record.FILTER) > 0:
+                for filter_id in removed_filters:
+                    if filter_id in record.FILTER:
+                        record.FILTER.remove(filter_id)
+
             for record_filter in self.filters:
 
                 # Call to __call__ method in each filter.
@@ -93,7 +119,7 @@ class VariantSet(object):
 
             # After applying all filters, check if FILTER is None.
             # If it is, then record PASSED all filters.
-            if record.FILTER is None:
+            if record.FILTER is None or record.FILTER == []:
                 record.FILTER = 'PASS'
                 # FIXME: Does this work for indels?
                 if keep_only_snps and record.is_snp:
