@@ -128,7 +128,33 @@ def available_filters():
     """Return list of available filters."""
     return _avail_filters.keys()
 
-def make_filters(**kwargs):
+def str_to_filters(filters):
+    """Convert from filter string to array of filters.
+    E.g. ad_ration:0.9,min_depth:5
+    
+    Parameters:
+    -----------
+    filters: str
+        String version of filters, separated by comma.
+    
+    Returns:
+    --------
+    list:
+        List of :py:class:`phe.variant_filters.PHEFilterBase` instances.
+    """
+
+    config = {}
+    for kv_pair in filters.split(","):
+        pair = kv_pair.split(":")
+        assert len(pair) == 2, "Filters should be separated by ':' %s" % kv_pair
+
+        # We don't care about casting them to correct type because Filters
+        #    will do it for us.
+        config[pair[0]] = pair[1]
+
+    return make_filters(config)
+
+def make_filters(config):
     """Create a list of filters from *config*.
     
     Parameters:
@@ -142,8 +168,6 @@ def make_filters(**kwargs):
     list:
         List of :py:class:`PHEFilterBase` filters.
     """
-    config = kwargs.get("config")
-
     filters = []
 
     if config:

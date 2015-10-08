@@ -55,19 +55,6 @@ def main():
     mapper = map_fac(mapper=args.mapper, custom_options=args.mapper_options)
     variant = variant_fac(variant=args.variant, custom_options=args.variant_options)
 
-    logging.info("Computing registry information.")
-    if args.filters is not None:
-        filters = {}
-        for kv_pair in args.filters.split(","):
-            pair = kv_pair.split(":")
-            assert len(pair) == 2, "Filters should be separated by ':' %s" % kv_pair
-
-            # We don't care about casting them to correct type because Filters
-            #    will do it for us.
-            filters[pair[0]] = pair[1]
-
-        args.filters = filters
-
     logging.info("Mapping data file.")
     bam_file = os.path.join(args.outdir, "%s.bam" % args.sample_name)
     success = mapper.make_bam(ref=args.r, R1=args.r1, R2=args.r2, bam_file=bam_file, sample_name=args.sample_name)

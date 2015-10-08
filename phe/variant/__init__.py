@@ -1,12 +1,13 @@
 """Classes and methods to work with variants and such."""
 import abc
+import logging
 import pickle
 
 from vcf import filters
 import vcf
 from vcf.parser import _Filter
 
-from phe.variant_filters import make_filters, PHEFilterBase
+from phe.variant_filters import make_filters, PHEFilterBase, str_to_filters
 
 
 class VCFTemplate(object):
@@ -35,8 +36,8 @@ class VariantSet(object):
         -----------
         vcf_in: str
             Path to the VCF file for loading information.
-        filters: dict, optional
-            Dictionary of the filter, threshold key value pairs.
+        filters: str or dict, optional
+            Dictionary or string of the filter:threshold key value pairs.
         """
         self.vcf_in = vcf_in
 
@@ -44,7 +45,12 @@ class VariantSet(object):
 
         self.filters = []
         if filters is not None:
-            self.filters = make_filters(config=filters)
+            if isinstance(filters, str):
+                self.filters = str_to_filters(filters)
+            elif isinstance(filters, dict):
+                self.filters = make_filters(config=filters)
+            else:
+                logging.warn("Could not create filters from %s", filters)
         else:
             reader = vcf.Reader(filename=self.vcf_in)
             filters = {}
