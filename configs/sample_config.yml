@@ -1,0 +1,10 @@
+mapper: bwa
+mapper-options:
+variant: gatk
+variant-options:
+
+filters:
+  ad_ratio: 0.9
+  min_depth: 5
+  qual_score: 30
+  mq_score: 30

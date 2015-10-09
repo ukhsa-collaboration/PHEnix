@@ -4,9 +4,11 @@ from argparse import RawTextHelpFormatter
 import argparse
 import logging
 import os
+import sys
 import tempfile
 
 import vcf
+import yaml
 
 from phe.mapping.mapping_factory import factory as map_fac, available_mappers
 from phe.variant import VariantSet
@@ -37,6 +39,8 @@ def get_args():
     args.add_argument("--sample-name", default="test_sample", help="Name of the sample for mapper to include as read groups.")
     args.add_argument("--outdir", "-o")
 
+    args.add_argument("--config", "-c")
+
     args.add_argument("--mapper", "-m", default="bwa", help="Available mappers: %s" % available_mappers())
     args.add_argument("--mapper-options", help="Custom maper options (advanced)")
     args.add_argument("--variant", "-v", default="gatk", help="Available variant callers: %s" % available_callers())
@@ -45,12 +49,34 @@ def get_args():
 
     return args.parse_args()
 
+def load_config(args):
+
+    with open(args.config) as fp:
+        config = yaml.load(fp)
+
+    args.mapper = config.get("mapper")
+    args.mapper_options = config.get("mapper-options")
+
+    args.variant = config.get("variant")
+    args.variant_options = config.get("variant-options")
+
+    args.filters = config.get("filters")
+
+
 def main():
 
     logging.basicConfig(level=logging.DEBUG,)
 
     logging.info("Initialising data matrix.")
     args = get_args()
+
+    if args.outdir is None:
+        sys.stdout.write("Plese provide output directory.")
+        return -1
+
+    # If config is specified, then load data from that.
+    if args.config:
+        load_config(args)
 
     mapper = map_fac(mapper=args.mapper, custom_options=args.mapper_options)
     variant = variant_fac(variant=args.variant, custom_options=args.variant_options)

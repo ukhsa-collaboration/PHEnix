@@ -44,6 +44,7 @@ Python:
 
 - argparse
 - PyVCF
+- PyYAML
 
 ## 3rd Party Requirements
 
