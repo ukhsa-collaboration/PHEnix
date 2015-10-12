@@ -2,7 +2,9 @@
 
 If you have a sample and you want to have one-stop-shop analysis run the following:
 
-```run_snp_pipeline.py -r1 <path to R1.fastq> -r2 <path to R2.fastq> -r <path to reference> --sample-name --mapper bwa --variant gatk --filters min_depth:5,mq_score:30```
+```
+run_snp_pipeline.py -r1 <path to R1.fastq> -r2 <path to R2.fastq> -r <path to reference> --sample-name --mapper bwa --variant gatk --filters min_depth:5,mq_score:30
+```
 
 This will map with **BWA** and call variants with **GATK**. Intermediate files are written into the same directory you run this 
 command from. **--sample-name** option is very important, it specifies what output files will be called and the read group in the BAM
@@ -42,9 +44,14 @@ run through Java archives, please set appropriate environment variable (see belo
 
 Python:
 
+- Python >= 2.7
 - argparse
 - PyVCF
 - PyYAML
+- matplotlib (_optional_)
+- numpy (_optional_)
+- matplotlib.venn (_optional_)
+- psycopg2 (_optional_)
 
 ## 3rd Party Requirements
 
@@ -70,5 +77,5 @@ Older Picard distributions have many different jars (use first suggestion), wher
 
 In the beginning there were 2 pipelines to call SNPs: upstairs and downstairs.
 One day we decided it was a bad idea to have 2 pieplines that did similar things.
-The existing pipelines died quiet software death and new pipeline was born, to rule
-them all.
+The existing pipelines died, quiet software death, and new pipeline was born, to rule
+them all. Just like the ring.

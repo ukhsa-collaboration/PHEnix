@@ -1,8 +1,12 @@
 """Mapping related classes and functions."""
 
 import abc
+from collections import OrderedDict
 
-class Mapper(object):
+from phe.metadata import PHEMetaData
+
+
+class Mapper(PHEMetaData):
     """Abstract Mapper class that provides generic interface to the 
     mapping implementation for a particular mapper.
     """
@@ -21,6 +25,8 @@ class Mapper(object):
         cmd_options: str, optional
             Command options for the mapper.
         """
+        super(Mapper, self).__init__()
+
         self.cmd_options = cmd_options
 
     @abc.abstractmethod
@@ -73,6 +79,16 @@ class Mapper(object):
         raise NotImplementedError("make_bam is not implemented yet.")
 
     @abc.abstractmethod
-    def get_info(self):
+    def get_info(self, plain=False):
         """Get information about the mapper."""
         raise NotImplementedError("get_info is not implemented yet.")
+
+    def get_meta(self):
+        od = self.get_info()
+        od["ID"] = "Mapper"
+        return OrderedDict({"PHEMapperMetaData": [od]})
+
+    @abc.abstractmethod
+    def get_version(self):
+        """Get the version of the underlying command used."""
+        raise NotImplementedError("Get version has not been implemented yet.")

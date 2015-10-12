@@ -48,7 +48,6 @@ class DepthFilter(PHEFilterBase):
         try:
             record_dp = record.samples[0].data.DP
         except AttributeError:
-            logging.error("Could not retrieve depth for %i", record.POS)
             record_dp = None
 
         if record_dp is None or record_dp < self.threshold:

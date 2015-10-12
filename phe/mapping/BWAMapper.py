@@ -4,8 +4,10 @@ Created on 17 Sep 2015
 
 @author: alex
 '''
+from collections import OrderedDict
 import logging
 import os
+import subprocess
 import tempfile
 
 from phe.mapping import Mapper
@@ -30,6 +32,8 @@ class BWAMapper(Mapper):
 
         super(BWAMapper, self).__init__(cmd_options=cmd_options)
 
+        self.last_command = ""
+
     def make_bam(self, *args, **kwargs):
         with tempfile.NamedTemporaryFile(suffix=".sam") as tmp:
             out_file = kwargs.get("out_file").replace(".bam", "")
@@ -49,7 +53,9 @@ class BWAMapper(Mapper):
                 logging.warn("CMD: %s", cmd)
                 return False
 
+            self.last_command += " && %s" % cmd
             cmd = "samtools index %s.bam" % out_file
+
             success = os.system(cmd)
             if success != 0:
                 logging.warn("Could not index the BAM.")
@@ -70,10 +76,10 @@ class BWAMapper(Mapper):
             return False
 
         d = {"cmd": self._cmd,
-             "ref": ref,
-             "r1": r1,
-             "r2": r2,
-             "out_sam": out_file,
+             "ref": os.path.abspath(ref),
+             "r1": os.path.abspath(r1),
+             "r2": os.path.abspath(r2),
+             "out_sam": os.path.abspath(out_file),
              "sample_name": sample_name,
              "extra_options": self.cmd_options
              }
@@ -86,9 +92,34 @@ class BWAMapper(Mapper):
 
         if os.system(cmd) != 0:
             logging.error("Mapping reads has failed.")
+
             return False
 
+        self.last_command = cmd
         return True
 
-    def get_info(self):
-        return None
+    def get_version(self):
+
+        version = "n/a"
+
+        p = subprocess.Popen(["bwa"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        (output, _) = p.communicate()
+
+        for line in output.split("\n"):
+            if "Version:" in line:
+                line = line.replace("Version:", "")
+                version = line.strip()
+                break
+
+        return version
+
+    def get_info(self, plain=False):
+
+        d = {"name": "bwa", "version": self.get_version(), "command": self.last_command}
+
+        if plain:
+            result = "BWA(%(version)s): %(command)s" % d
+        else:
+            result = OrderedDict(d)
+
+        return result

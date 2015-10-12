@@ -79,22 +79,23 @@ def main():
         load_config(args)
 
     mapper = map_fac(mapper=args.mapper, custom_options=args.mapper_options)
-    variant = variant_fac(variant=args.variant, custom_options=args.variant_options)
+
+    variant = None
+    if args.variant:
+        variant = variant_fac(variant=args.variant, custom_options=args.variant_options)
 
     logging.info("Mapping data file.")
     bam_file = os.path.join(args.outdir, "%s.bam" % args.sample_name)
-    success = mapper.make_bam(ref=args.r, R1=args.r1, R2=args.r2, bam_file=bam_file, sample_name=args.sample_name)
+    success = mapper.make_bam(ref=args.r, R1=args.r1, R2=args.r2, out_file=bam_file, sample_name=args.sample_name)
 
     if not success:
         logging.warn("Could not map reads to the reference. Aborting.")
         return 1
 
-#         vcf_file = os.path.abspath("all_variants.vcf")
     logging.info("Creating digitised variants.")
-
     vcf_file = os.path.join(args.outdir, "%s.vcf" % args.sample_name)
 
-    if not variant.make_vcf(ref=args.r, bam=bam_file, vcf_file=vcf_file):
+    if variant and not variant.make_vcf(ref=args.r, bam=bam_file, vcf_file=vcf_file):
         logging.error("VCF was not created.")
         return 2
 
@@ -102,6 +103,9 @@ def main():
     if args.filters:
         logging.info("Applying filters: %s", args.filters)
         var_set = VariantSet(vcf_file, filters=args.filters)
+
+        var_set.add_metadata(mapper.get_meta())
+        var_set.add_metadata(variant.get_meta())
 
         var_set.filter_variants()
 

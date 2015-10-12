@@ -1,5 +1,6 @@
 """Classes and methods to work with variants and such."""
 import abc
+from collections import OrderedDict
 import logging
 import pickle
 
@@ -7,6 +8,7 @@ from vcf import filters
 import vcf
 from vcf.parser import _Filter
 
+from phe.metadata import PHEMetaData
 from phe.variant_filters import make_filters, PHEFilterBase, str_to_filters
 
 
@@ -41,7 +43,7 @@ class VariantSet(object):
         """
         self.vcf_in = vcf_in
 
-        self.out_template = None
+        self.out_template = VCFTemplate(vcf.Reader(filename=vcf_in))
 
         self.filters = []
         if filters is not None:
@@ -127,10 +129,11 @@ class VariantSet(object):
             else:
                 self.variants.append(record)
 
-        self.out_template = VCFTemplate(reader)
-
         return [ variant for variant in self.variants if variant.FILTER == "PASS"]
 
+    def add_metadata(self, info):
+        for info_key, metadata in info.items():
+            self.out_template.metadata[info_key] = metadata
 
     def write_variants(self, vcf_out, only_snps=False, only_good=False):
         """Write variants to a VCF file.
@@ -199,7 +202,7 @@ class VariantSet(object):
         return written_variants
 
 
-class VariantCaller(object):
+class VariantCaller(PHEMetaData):
     """Abstract class used for access to the implemented variant callers."""
 
     __metaclass__ = abc.ABCMeta
@@ -213,6 +216,8 @@ class VariantCaller(object):
             Command options to pass to the variant command.
         """
         self.cmd_options = cmd_options
+
+        super(VariantCaller, self).__init__()
 
     @abc.abstractmethod
     def make_vcf(self, *args, **kwargs):
@@ -240,3 +245,19 @@ class VariantCaller(object):
         These files are required for proper functioning of the variant caller.
         """
         raise NotImplementedError("create_aux_files is not implemeted.")
+
+    @abc.abstractmethod
+    def get_info(self, plain=False):
+        """Get information about this variant caller."""
+        raise NotImplementedError("Get info has not been implemented yet."
+                                  )
+    def get_meta(self):
+        """Get the metadata about this variant caller."""
+        od = self.get_info()
+        od["ID"] = "VariantCaller"
+        return OrderedDict({"PHEVariantMetaData": [od]})
+
+    @abc.abstractmethod
+    def get_version(self):
+        """Get the version of the underlying command used."""
+        raise NotImplementedError("Get version has not been implemented yet.")

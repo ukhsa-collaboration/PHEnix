@@ -1,7 +1,7 @@
 mapper: bwa
-mapper-options:
+mapper-options: -t 4
 variant: gatk
-variant-options:
+variant-options: -nt 4
 
 filters:
   ad_ratio: 0.9

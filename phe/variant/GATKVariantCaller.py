@@ -3,8 +3,10 @@ Created on 22 Sep 2015
 
 @author: alex
 '''
+from collections import OrderedDict
 import logging
 import os
+import subprocess
 
 from phe.variant import VariantCaller
 
@@ -25,6 +27,28 @@ class GATKVariantCaller(VariantCaller):
 
         super(GATKVariantCaller, self).__init__(cmd_options=cmd_options)
 
+        self.last_command = None
+
+    def get_info(self, plain=False):
+        d = {"name": "gatk", "version": self.get_version(), "command": self.last_command}
+
+        if plain:
+            result = "GATK(%(version)s): %(command)s" % d
+        else:
+            result = OrderedDict(d)
+
+        return result
+
+    def get_version(self):
+
+        p = subprocess.Popen(["java", "-jar", os.environ["GATK_JAR"], "-version"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        (output, _) = p.communicate()
+
+        # last character is EOL.
+        version = output.split("\n")[-2]
+
+        return version
+
     def make_vcf(self, *args, **kwargs):
         ref = kwargs.get("ref")
         bam = kwargs.get("bam")
@@ -32,11 +56,12 @@ class GATKVariantCaller(VariantCaller):
         if kwargs.get("vcf_file") is None:
             kwargs["vcf_file"] = "variants.vcf"
 
-        opts = {"ref": ref,
-                "bam": bam,
+        opts = {"ref": os.path.abspath(ref),
+                "bam": os.path.abspath(bam),
                 "ploidy": 2,
+                "gatk_jar": os.environ["GATK_JAR"],
                 "glm": "BOTH",
-                "all_variants_file": kwargs.get("vcf_file"),
+                "all_variants_file": os.path.abspath(kwargs.get("vcf_file")),
                 "extra_cmd_options": self.cmd_options}
 
 #         if not self.create_aux_files(ref):
@@ -45,11 +70,15 @@ class GATKVariantCaller(VariantCaller):
 
         # Call variants
         # FIXME: Sample ploidy = 2?
-        success = os.system("java -XX:+UseSerialGC -jar $GATK_JAR -T UnifiedGenotyper -R  %(ref)s --sample_ploidy %(ploidy)s --genotype_likelihoods_model %(glm)s -rf BadCigar -out_mode EMIT_ALL_SITES -I %(bam)s -o %(all_variants_file)s %(extra_cmd_options)s" % opts)
+        os.environ["GATK_JAR"]
+        cmd = "java -XX:+UseSerialGC -jar %(gatk_jar)s -T UnifiedGenotyper -R  %(ref)s --sample_ploidy %(ploidy)s --genotype_likelihoods_model %(glm)s -rf BadCigar -out_mode EMIT_ALL_SITES -I %(bam)s -o %(all_variants_file)s %(extra_cmd_options)s" % opts
+        success = os.system(cmd)
 
         if success != 0:
             logging.warn("Calling variants returned non-zero exit status.")
             return False
+
+        self.last_command = cmd
 
         return True
 
