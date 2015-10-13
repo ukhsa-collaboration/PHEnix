@@ -31,6 +31,8 @@ class VariantSet(object):
     TODO: Implement iterator and generator for the variant set.
     """
 
+    _reader = None
+
     def __init__(self, vcf_in, filters=None):
         """Constructor of variant set.
         
@@ -42,8 +44,8 @@ class VariantSet(object):
             Dictionary or string of the filter:threshold key value pairs.
         """
         self.vcf_in = vcf_in
-
-        self.out_template = VCFTemplate(vcf.Reader(filename=vcf_in))
+        self._reader = vcf.Reader(filename=vcf_in)
+        self.out_template = VCFTemplate(self._reader)
 
         self.filters = []
         if filters is not None:
@@ -67,14 +69,15 @@ class VariantSet(object):
     def filter_variants(self, keep_only_snps=True):
         """Create a variant """
 
-        # Create a reader class from input VCF.
-        reader = vcf.Reader(filename=self.vcf_in)
+        if self._reader is None:
+            # Create a reader class from input VCF.
+            self._reader = vcf.Reader(filename=self.vcf_in)
 
         # get list of existing filters.
         existing_filters = {}
         removed_filters = []
 
-        for filter_id in reader.filters:
+        for filter_id in self._reader.filters:
             conf = PHEFilterBase.decode(filter_id)
             tuple(conf.keys())
             existing_filters.update({tuple(conf.keys()):filter_id})
@@ -93,12 +96,12 @@ class VariantSet(object):
             if tuple(filter_name) in existing_filters:
                 logging.info("Removing existing filter: %s", existing_filters[tuple(filter_name)])
                 removed_filters.append(existing_filters[tuple(filter_name)])
-                del reader.filters[existing_filters[tuple(filter_name)]]
+                del self._reader.filters[existing_filters[tuple(filter_name)]]
 
-            reader.filters[record_filter.filter_name()] = _Filter(record_filter.filter_name(), short_doc)
+            self._reader.filters[record_filter.filter_name()] = _Filter(record_filter.filter_name(), short_doc)
 
         # For each record (POSITION) apply set of filters.
-        for record in reader:
+        for record in self._reader:
 
             # If this record failed filters and we removed some,
             #    check is they need to be removed from record.
@@ -129,9 +132,18 @@ class VariantSet(object):
             else:
                 self.variants.append(record)
 
+        self.update_filters(self._reader.filters)
+
         return [ variant for variant in self.variants if variant.FILTER == "PASS"]
 
     def add_metadata(self, info):
+        """Add metadata to the variant set.
+        
+        Parameters:
+        -----------
+        info: dict
+            Dictionary of key value pairs to be inserted into metadata.
+        """
         for info_key, metadata in info.items():
             self.out_template.metadata[info_key] = metadata
 
@@ -200,6 +212,11 @@ class VariantSet(object):
                 written_variants += 1
 
         return written_variants
+
+    def update_filters(self, new_filters):
+        """Update internal filters in the output template."""
+        for new_filter, filter_data in new_filters.items():
+            self.out_template.filters[new_filter] = filter_data
 
 
 class VariantCaller(PHEMetaData):

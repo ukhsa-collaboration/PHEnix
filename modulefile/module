@@ -23,9 +23,7 @@ module-whatis "loads the $name environment"
 
 module load jdk/1.7.0_25
 module load picard-tools
-module load gatk
 module load samtools/stable
-module load bwa/0.7.12
 module load pyvcf/python2.7.6
 
 prepend-path PATH $modroot/scripts
