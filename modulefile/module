@@ -25,6 +25,7 @@ module load jdk/1.7.0_25
 module load picard-tools
 module load samtools/stable
 module load pyvcf/python2.7.6
+module load yaml
 
 prepend-path PATH $modroot/scripts
 prepend-path PYTHONPATH $modroot
