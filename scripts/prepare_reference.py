@@ -15,8 +15,8 @@ def get_args():
 
     args.add_argument("--reference", "-r", required=True, help="Path to reference file to prepare.")
 
-    args.add_argument("--mapper", required=True, help="Available mappers: %s" % available_mappers())
-    args.add_argument("--variant", required=True, help="Available variants: %s" % available_callers())
+    args.add_argument("--mapper", help="Available mappers: %s" % available_mappers())
+    args.add_argument("--variant", help="Available variants: %s" % available_callers())
 
     return args.parse_args()
 
@@ -24,14 +24,14 @@ def main():
 
     args = get_args()
 
-    mapper = map_fac(args.mapper)
-    variant = var_fac(args.variant)
+    if args.mapper:
+        if not map_fac(args.mapper).create_aux_files(args.reference):
+            logging.error("Auxiliary files for %s mapper could not be created", args.mapper)
 
-    if not mapper.create_aux_files(args.reference):
-        logging.error("Auxiliary files for %s mapper could not be created", args.mapper)
+    if args.variant:
 
-    if not variant.create_aux_files(args.reference):
-        logging.error("Auxiliary files for %s variant caller could not be created", args.variant)
+        if not var_fac(args.variant).create_aux_files(args.reference):
+            logging.error("Auxiliary files for %s variant caller could not be created", args.variant)
 
     return 0
 
