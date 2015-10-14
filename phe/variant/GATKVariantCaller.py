@@ -17,7 +17,7 @@ class GATKVariantCaller(VariantCaller):
     name = "gatk"
     """Plain text name of the variant caller."""
 
-    _default_options = "-nt 1"
+    _default_options = "--sample_ploidy 2 --genotype_likelihoods_model BOTH -rf BadCigar -out_mode EMIT_ALL_SITES -nt 1"
     """Default options for the variant caller."""
 
     def __init__(self, cmd_options=None):
@@ -58,9 +58,7 @@ class GATKVariantCaller(VariantCaller):
 
         opts = {"ref": os.path.abspath(ref),
                 "bam": os.path.abspath(bam),
-                "ploidy": 2,
                 "gatk_jar": os.environ["GATK_JAR"],
-                "glm": "BOTH",
                 "all_variants_file": os.path.abspath(kwargs.get("vcf_file")),
                 "extra_cmd_options": self.cmd_options}
 
@@ -71,7 +69,7 @@ class GATKVariantCaller(VariantCaller):
         # Call variants
         # FIXME: Sample ploidy = 2?
         os.environ["GATK_JAR"]
-        cmd = "java -XX:+UseSerialGC -jar %(gatk_jar)s -T UnifiedGenotyper -R  %(ref)s --sample_ploidy %(ploidy)s --genotype_likelihoods_model %(glm)s -rf BadCigar -out_mode EMIT_ALL_SITES -I %(bam)s -o %(all_variants_file)s %(extra_cmd_options)s" % opts
+        cmd = "java -XX:+UseSerialGC -jar %(gatk_jar)s -T UnifiedGenotyper -R %(ref)s -I %(bam)s -o %(all_variants_file)s %(extra_cmd_options)s" % opts
         success = os.system(cmd)
 
         if success != 0:
