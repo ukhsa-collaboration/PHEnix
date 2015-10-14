@@ -90,10 +90,7 @@ class BWAMapper(Mapper):
              "extra_options": self.cmd_options
              }
 
-        if self.create_aux_files(ref):
-            logging.error("Computing index has failed. Abort")
-            return False
-#         if os.system("bwa index %(ref)s" % d) != 0:
+#         if self.create_aux_files(ref):
 #             logging.error("Computing index has failed. Abort")
 #             return False
 
