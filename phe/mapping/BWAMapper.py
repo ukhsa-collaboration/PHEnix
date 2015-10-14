@@ -34,6 +34,12 @@ class BWAMapper(Mapper):
 
         self.last_command = ""
 
+    def create_aux_files(self, ref):
+        if os.system("bwa index %s" % ref) == 0:
+            return True
+        else:
+            return False
+
     def make_bam(self, *args, **kwargs):
         with tempfile.NamedTemporaryFile(suffix=".sam") as tmp:
             out_file = kwargs.get("out_file").replace(".bam", "")
@@ -84,6 +90,9 @@ class BWAMapper(Mapper):
              "extra_options": self.cmd_options
              }
 
+        if self.create_aux_files(ref):
+            logging.error("Computing index has failed. Abort")
+            return False
 #         if os.system("bwa index %(ref)s" % d) != 0:
 #             logging.error("Computing index has failed. Abort")
 #             return False

@@ -109,12 +109,12 @@ class GATKVariantCaller(VariantCaller):
 
         d = {"ref": ref, "ref_name": ref_name}
 
-        if os.environ["PICARD_TOOLS_PATH"]:
+        if os.environ.get("PICARD_TOOLS_PATH"):
             d["picard_tools_path"] = os.path.join(os.environ["PICARD_TOOLS_PATH"], "CreateSequenceDictionary.jar")
-        elif os.environ["PICARD_JAR"]:
+        elif os.environ.get("PICARD_JAR"):
             # This is used in newer version of PICARD tool where multiple
             #    jars were merged into a single jar file.
-            d["picard_tools_path"] = "%s %s" % (os.environ["PICARD_JAR"], "CreateSequenceDictionary.jar")
+            d["picard_tools_path"] = "%s %s" % (os.environ["PICARD_JAR"], "CreateSequenceDictionary")
         else:
             logging.error("Picard tools are not present in the path.")
             return False

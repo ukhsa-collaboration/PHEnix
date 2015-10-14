@@ -30,6 +30,22 @@ class Mapper(PHEMetaData):
         self.cmd_options = cmd_options
 
     @abc.abstractmethod
+    def create_aux_files(self, ref):
+        """Create required auxiliary files for *ref*.
+
+        Parameters:
+        -----------
+        ref: str
+            Path to the reference file.
+        
+        Returns:
+        --------
+        bool:
+            True if auxiliary files were created, False otherwise.
+        """
+        raise NotImplementedError("creating auxiliary has not been implemented yet.")
+
+    @abc.abstractmethod
     def make_sam(self, *args, **kwargs):
         """Make SAM from reference, and fastq files.
 
