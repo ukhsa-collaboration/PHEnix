@@ -7,13 +7,49 @@ Created on 5 Oct 2015
 '''
 import argparse
 import glob
+import itertools
 import os
 
 from bintrees import FastRBTree
 import vcf
 
-from phe.variant_filters import PHEFilterBase, make_filters
+from phe.variant_filters import PHEFilterBase, make_filters, IUPAC_CODES
 
+
+def get_mixture(record, threshold):
+    mixtures = {}
+    try:
+        if len(record.samples[0].data.AD) > 1:
+
+            total_depth = sum(record.samples[0].data.AD)
+            for comb in itertools.combinations(range(0, len(record.samples[0].data.AD)), 2):
+                i = comb[0]
+                j = comb[1]
+
+                alleles = set()
+
+                if 0 in comb:
+                    alleles.add(str(record.REF))
+
+                if i != 0:
+                    alleles.add(str(record.ALT[i - 1]))
+                    mixture = record.samples[0].data.AD[i]
+                if j != 0:
+                    alleles.add(str(record.ALT[j - 1]))
+                    mixture = record.samples[0].data.AD[j]
+
+                ratio = float(mixture) / total_depth
+                if ratio == 1.0:
+                    print "This is only designed for mixtures! %s %s %s" % (record, ratio, record.samples[0].data.AD)
+                elif ratio >= threshold:
+                    code = IUPAC_CODES[frozenset(alleles)]
+                    if ratio not in mixtures:
+                        mixtures[ratio] = []
+                    mixtures[ratio].append(code)
+    except AttributeError:
+        mixtures = {}
+
+    return mixtures
 
 def get_args():
     args = argparse.ArgumentParser()
@@ -22,6 +58,7 @@ def get_args():
     args.add_argument("--input", "-i", type=str, nargs='+', help="List of VCF files to process.")
     args.add_argument("--out", "-o", required=True, help="Path to the output FASTA file.")
 
+    args.add_argument("--with-mixtures", type=float)
 
     return args.parse_args()
 
@@ -39,12 +76,14 @@ def main():
     pos_stats = dict()
     # Cached version of the data.
     vcf_data = dict()
+    mixtures = dict()
 
     if args.directory is not None and args.input is None:
         args.input = glob.glob(os.path.join(args.directory, "*.vcf"))
 
     # First pass to get the references and the positions to be analysed.
     for vcf_in in args.input:
+        sample_name, _ = os.path.splitext(os.path.basename(vcf_in))
         vcf_data[vcf_in] = list()
         reader = vcf.Reader(filename=vcf_in)
 
@@ -54,6 +93,11 @@ def main():
             if record.CHROM not in contigs:
                 contigs.append(record.CHROM)
                 avail_pos[record.CHROM] = FastRBTree()
+                mixtures[record.CHROM] = {}
+
+            if sample_name not in mixtures[record.CHROM]:
+                mixtures[record.CHROM][sample_name] = FastRBTree()
+
 
             if record.FILTER == "PASS" or not record.FILTER:
                 if record.is_snp:
@@ -65,8 +109,22 @@ def main():
                         pos_stats[record.CHROM] = {}
 
                     avail_pos[record.CHROM].insert(record.POS, str(record.REF))
-
                     pos_stats[record.CHROM][record.POS] = {"N":0, "-": 0}
+
+            elif args.with_mixtures:
+                mix = get_mixture(record, args.with_mixtures)
+
+                for ratio, code in mix.items():
+                    for c in code:
+                        avail_pos[record.CHROM].insert(record.POS, str(record.REF))
+                        if record.CHROM not in pos_stats:
+                            pos_stats[record.CHROM] = {}
+                        pos_stats[record.CHROM][record.POS] = {"N":0, "-": 0}
+
+                        if sample_name not in mixtures[record.CHROM]:
+                            mixtures[record.CHROM][sample_name] = FastRBTree()
+
+                        mixtures[record.CHROM][sample_name].insert(record.POS, c)
 
 
     all_data = { contig: {} for contig in contigs}
@@ -85,6 +143,7 @@ def main():
         for contig in contigs:
             all_data[contig][sample_name] = { pos: avail_pos[contig][pos] for pos in avail_pos[contig] }
 
+
         for record in vcf_data[vcf_in]:
             # Array of filters that have been applied.
             filters = []
@@ -99,16 +158,18 @@ def main():
                         else:
                             all_data[record.CHROM][sample_name][record.POS] = record.ALT[0].sequence
                 else:
-                    for filter_id in record.FILTER:
-                        this_filter = PHEFilterBase.decode(filter_id)
+#                     for filter_id in record.FILTER:
+#                         this_filter = PHEFilterBase.decode(filter_id)
+#
+#                         if tuple(this_filter.items()) not in cached_filters:
+#                             cached_filters[tuple(this_filter.items())] = make_filters(config=this_filter)
 
-                        if tuple(this_filter.items()) not in cached_filters:
-                            cached_filters[tuple(this_filter.items())] = make_filters(config=this_filter)
-
-                        filters += cached_filters[tuple(this_filter.items())]
+#                         filters += cached_filters[tuple(this_filter.items())]
 
                     # Currently we are only using first filter to call consensus.
-                    extended_code = filters[0].call_concensus(record)
+                    extended_code = mixtures[record.CHROM][sample_name].get(record.POS, "N")
+
+#                     extended_code = PHEFilterBase.call_concensus(record)
 
                     # Calculate the stats
                     if extended_code == "N":
@@ -143,7 +204,7 @@ def main():
                     ref_snps += str(avail_pos[contig][pos])
         fp.write(">reference\n%s\n" % ref_snps)
 
-    print("Discarded total of %i from %i for poor quality" % (float(discarded) / len(all_data), len(pos_stats)))
+    print("Discarded total of %i for poor quality" % (float(discarded) / len(args.input)))
     return 0
 
 if __name__ == '__main__':
