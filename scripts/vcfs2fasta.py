@@ -13,7 +13,7 @@ import os
 from bintrees import FastRBTree
 import vcf
 
-from phe.variant_filters import PHEFilterBase, make_filters, IUPAC_CODES
+from phe.variant_filters import IUPAC_CODES
 
 
 def get_mixture(record, threshold):
@@ -22,6 +22,7 @@ def get_mixture(record, threshold):
         if len(record.samples[0].data.AD) > 1:
 
             total_depth = sum(record.samples[0].data.AD)
+            # Go over all combinations of touples.
             for comb in itertools.combinations(range(0, len(record.samples[0].data.AD)), 2):
                 i = comb[0]
                 j = comb[1]
@@ -60,6 +61,10 @@ def get_args():
 
     args.add_argument("--with-mixtures", type=float)
 
+    args.add_argument("--Ns", type=float)
+
+    args.add_argument("--sample-Ns", type=float)
+
     return args.parse_args()
 
 def main():
@@ -69,6 +74,8 @@ def main():
 
     args = get_args()
     contigs = list()
+
+    sample_stats = dict()
 
     # All positions available for analysis.
     avail_pos = dict()
@@ -94,10 +101,13 @@ def main():
                 contigs.append(record.CHROM)
                 avail_pos[record.CHROM] = FastRBTree()
                 mixtures[record.CHROM] = {}
+                sample_stats[record.CHROM] = {}
 
             if sample_name not in mixtures[record.CHROM]:
                 mixtures[record.CHROM][sample_name] = FastRBTree()
 
+            if sample_name not in sample_stats[record.CHROM]:
+                sample_stats[record.CHROM][sample_name] = {}
 
             if record.FILTER == "PASS" or not record.FILTER:
                 if record.is_snp:
@@ -119,7 +129,7 @@ def main():
                         avail_pos[record.CHROM].insert(record.POS, str(record.REF))
                         if record.CHROM not in pos_stats:
                             pos_stats[record.CHROM] = {}
-                        pos_stats[record.CHROM][record.POS] = {"N":0, "-": 0}
+                        pos_stats[record.CHROM][record.POS] = {"N": 0, "-": 0}
 
                         if sample_name not in mixtures[record.CHROM]:
                             mixtures[record.CHROM][sample_name] = FastRBTree()
@@ -158,13 +168,6 @@ def main():
                         else:
                             all_data[record.CHROM][sample_name][record.POS] = record.ALT[0].sequence
                 else:
-#                     for filter_id in record.FILTER:
-#                         this_filter = PHEFilterBase.decode(filter_id)
-#
-#                         if tuple(this_filter.items()) not in cached_filters:
-#                             cached_filters[tuple(this_filter.items())] = make_filters(config=this_filter)
-
-#                         filters += cached_filters[tuple(this_filter.items())]
 
                     # Currently we are only using first filter to call consensus.
                     extended_code = mixtures[record.CHROM][sample_name].get(record.POS, "N")
@@ -174,6 +177,11 @@ def main():
                     # Calculate the stats
                     if extended_code == "N":
                         pos_stats[record.CHROM][record.POS]["N"] += 1
+
+                        if "n_pos" not in sample_stats[record.CHROM][sample_name]:
+                            sample_stats[record.CHROM][sample_name]["n_pos"] = []
+                        sample_stats[record.CHROM][sample_name]["n_pos"].append(record.POS)
+
                     elif extended_code == "-":
                         pos_stats[record.CHROM][record.POS]["-"] += 1
 
@@ -183,28 +191,45 @@ def main():
     # Output the data to the fasta file.
     # The data is already aligned so simply output it.
     discarded = 0
+
+    if args.sample_Ns:
+        delete_samples = []
+        for contig in contigs:
+            for sample in samples:
+                sample_n_ratio = float(len(sample_stats[contig][sample]["n_pos"])) / len(avail_pos[contig])
+                if sample_n_ratio > args.sample_Ns:
+                    for pos in sample_stats[contig][sample]["n_pos"]:
+                        pos_stats[contig][pos]["N"] -= 1
+
+                    print "Removing %s due to high Ns in sample: %s" % (sample , sample_n_ratio)
+                    delete_samples.append(sample)
+
+        samples = [sample for sample in samples if sample not in delete_samples]
+
     with open(args.out, "w") as fp:
+
         for sample in samples:
             sample_seq = ""
             for contig in contigs:
                 for pos in avail_pos[contig]:
-                    if float(pos_stats[contig][pos]["N"]) / len(all_data[contig]) < 0.1 and \
-                        float(pos_stats[contig][pos]["-"]) / len(all_data[contig]) < 0.1:
+                    if not args.Ns or float(pos_stats[contig][pos]["N"]) / len(samples) < args.Ns and \
+                        float(pos_stats[contig][pos]["-"]) / len(samples) < args.Ns:
                         sample_seq += all_data[contig][sample][pos]
                     else:
                         discarded += 1
+
 
             fp.write(">%s\n%s\n" % (sample, sample_seq))
         # Do the same for reference data.
         ref_snps = ""
         for contig in contigs:
             for pos in avail_pos[contig]:
-                if float(pos_stats[contig][pos]["N"]) / len(all_data[contig]) < 0.1 and \
-                        float(pos_stats[contig][pos]["-"]) / len(all_data[contig]) < 0.1:
+                if not args.Ns or float(pos_stats[contig][pos]["N"]) / len(samples) < args.Ns and \
+                        float(pos_stats[contig][pos]["-"]) / len(samples) < args.Ns:
                     ref_snps += str(avail_pos[contig][pos])
         fp.write(">reference\n%s\n" % ref_snps)
 
-    print("Discarded total of %i for poor quality" % (float(discarded) / len(args.input)))
+    print("Discarded total of %i for poor quality columns" % (float(discarded) / len(args.input)))
     return 0
 
 if __name__ == '__main__':
