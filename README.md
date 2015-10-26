@@ -27,6 +27,19 @@ All filters are applied for each position and those positions that pass ALL filt
 failing filter will be kept for future reference and creating fasta files, when needed. To specify filters to be used, simply
 list them as key:threshold pairs separated by comma(,). For filters that don't require threshold, leave blank after ':'. 
 
+## Converting from VCF to FASTA
+
+A lot of downstream applications take on FASTA formated files, not VCFs. We have included a script for converting VCF data to
+FASTA format.
+
+```
+vcfs2fasta -d <path to directory of VCFs> -o <path to output FASTA>
+```
+
+This tool is also able to filter out samples and columns that may be bad quality. E.g. **--sample-Ns** specifies maximum fraction of Ns
+present in a sample. **--Ns** specifies maximum fraction of Ns allowed per column. **--with-mixtures** can specify if mixed position 
+should be output as over certain fraction. First, samples are sifted out then columns are checked.
+
 ## Requirements
 
 A lot of functionality depends on the presence of existing 3rd party tools:
