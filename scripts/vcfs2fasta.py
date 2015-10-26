@@ -31,11 +31,7 @@ def main():
     """
 
     args = get_args()
-
-
-    all_pos = dict()
     contigs = list()
-    ref_seq = dict()
 
     # All positions available for analysis.
     avail_pos = dict()
@@ -61,24 +57,16 @@ def main():
 
             if record.FILTER == "PASS" or not record.FILTER:
                 if record.is_snp:
-                    if record.POS in all_pos and all_pos[record.POS] != record.REF:
+                    if record.POS in avail_pos[record.CHROM] and avail_pos[record.CHROM][record.POS] != record.REF:
                         print "SOMETHING IS REALLY WRONG because reference for the same position is DIFFERENT! %s" % record.POS
                         return 2
 
                     if record.CHROM not in pos_stats:
                         pos_stats[record.CHROM] = {}
 
-                    if record.CHROM not in all_pos:
-                        all_pos[record.CHROM] = {}
-
-                    if record.CHROM not in ref_seq:
-                        ref_seq[record.CHROM] = {}
-
                     avail_pos[record.CHROM].insert(record.POS, str(record.REF))
 
                     pos_stats[record.CHROM][record.POS] = {"N":0, "-": 0}
-                    all_pos[record.CHROM][record.POS] = record.REF
-                    ref_seq[record.CHROM][record.POS] = record.REF
 
 
     all_data = { contig: {} for contig in contigs}
@@ -138,7 +126,7 @@ def main():
         for sample in samples:
             sample_seq = ""
             for contig in contigs:
-                for pos in all_pos[contig]:
+                for pos in avail_pos[contig]:
                     if float(pos_stats[contig][pos]["N"]) / len(all_data[contig]) < 0.1 and \
                         float(pos_stats[contig][pos]["-"]) / len(all_data[contig]) < 0.1:
                         sample_seq += all_data[contig][sample][pos]
@@ -149,10 +137,10 @@ def main():
         # Do the same for reference data.
         ref_snps = ""
         for contig in contigs:
-            for pos in ref_seq[contig]:
+            for pos in avail_pos[contig]:
                 if float(pos_stats[contig][pos]["N"]) / len(all_data[contig]) < 0.1 and \
                         float(pos_stats[contig][pos]["-"]) / len(all_data[contig]) < 0.1:
-                    ref_snps += str(ref_seq[contig][pos])
+                    ref_snps += str(avail_pos[contig][pos])
         fp.write(">reference\n%s\n" % ref_snps)
 
     print("Discarded total of %i from %i for poor quality" % (float(discarded) / len(all_data), len(pos_stats)))
