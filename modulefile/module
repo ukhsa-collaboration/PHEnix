@@ -21,15 +21,33 @@ proc ModulesHelp { } {
 
 module-whatis "loads the $name environment"
 
-module load jdk/1.7.0_25
-module load picard-tools
-module load samtools/stable
+if { ![is_loaded bwa] } {
+  module load bwa
+}
+
+if { ![is_loaded jdk] } {
+  module load jdk/1.7.0_25
+}
+
+if { ![is_loaded picard-tools] } {
+  module load picard-tools
+}
+
+if { ![is_loaded gatk] } {
+  module load gatk
+}
+
+if { ![is_loaded samtools] } {
+  module load samtools/stable
+}
+
 module load pyvcf/python2.7.6
 module load yaml
+module load bintrees
 
 prepend-path PATH $modroot/scripts
 prepend-path PYTHONPATH $modroot
 
-prereq python
+prereq python bintrees yaml
 
 conflict    snp_pipeline

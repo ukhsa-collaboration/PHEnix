@@ -92,7 +92,7 @@ class PHEFilterBase(vcf.filters.Base):
     def call_concensus(self, record):
         extended_code = "N"
         try:
-            sample_ad = set(record.samples[0].data.AD)
+            sample_ad = set([str(c) for c in record.ALT] + [record.REF])
 
 
             for code, cov in IUPAC_CODES.items():
