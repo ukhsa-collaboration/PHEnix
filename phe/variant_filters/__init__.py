@@ -15,12 +15,24 @@ import vcf
 import vcf.filters
 from vcf.parser import _Filter
 
+IUPAC_CODES = {"R": set(["A", "G"]),
+                "Y": set(["C", "T"]),
+                "S": set(["G", "C"]),
+                "W": set(["A", "T"]),
+                "K": set(["G", "T"]),
+                "M": set(["A", "C"]),
+                "B": set(["C", "G", "T"]),
+                "D": set(["A", "G", "T"]),
+                "H": set(["A", "C", "T"]),
+                "V": set(["A", "C", "G"])
+              }
 
 class PHEFilterBase(vcf.filters.Base):
     """Base class for VCF filters."""
     __meta__ = abc.ABCMeta
 
     magic_sep = ":"
+    decoder_pattern = re.compile(magic_sep)
 
     @abc.abstractproperty
     def parameter(self):
@@ -66,7 +78,7 @@ class PHEFilterBase(vcf.filters.Base):
         conf = {}
 
         if PHEFilterBase.magic_sep in filter_id:
-            info = filter_id.split(PHEFilterBase.magic_sep)
+            info = PHEFilterBase.decoder_pattern.split(filter_id)
             assert len(info) == 2
             conf[info[0]] = info[1]
         return conf
@@ -76,6 +88,21 @@ class PHEFilterBase(vcf.filters.Base):
 
     def is_n(self):
         return True
+
+    def call_concensus(self, record):
+        extended_code = "N"
+        try:
+            sample_ad = set(record.samples[0].data.AD)
+
+
+            for code, cov in IUPAC_CODES.items():
+                if sample_ad == cov:
+                    extended_code = code
+                    break
+        except AttributeError:
+            extended_code = "N"
+
+        return extended_code
 
 def dynamic_filter_loader():
     """Fancy way of dynamically importing existing filters.

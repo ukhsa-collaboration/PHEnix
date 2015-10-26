@@ -49,6 +49,7 @@ Python:
 - PyVCF
 - PyYAML
 - matplotlib (_optional_)
+- bintrees (_optional_)
 - numpy (_optional_)
 - matplotlib.venn (_optional_)
 - psycopg2 (_optional_)
