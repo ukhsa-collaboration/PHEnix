@@ -1,7 +1,7 @@
 mapper: bwa
 mapper-options: -t 4
 variant: gatk
-variant-options: -nt 4
+variant-options: --sample_ploidy 2 --genotype_likelihoods_model BOTH -rf BadCigar -out_mode EMIT_ALL_SITES -nt 1
 
 filters:
   ad_ratio: 0.9
