@@ -8,6 +8,7 @@ Created on 5 Oct 2015
 import argparse
 import glob
 import itertools
+import logging
 import os
 
 from bintrees import FastRBTree
@@ -27,43 +28,60 @@ def get_mixture(record, threshold):
                 i = comb[0]
                 j = comb[1]
 
-                alleles = set()
+                alleles = list()
 
                 if 0 in comb:
-                    alleles.add(str(record.REF))
+                    alleles.append(str(record.REF))
 
                 if i != 0:
-                    alleles.add(str(record.ALT[i - 1]))
+                    alleles.append(str(record.ALT[i - 1]))
                     mixture = record.samples[0].data.AD[i]
                 if j != 0:
-                    alleles.add(str(record.ALT[j - 1]))
+                    alleles.append(str(record.ALT[j - 1]))
                     mixture = record.samples[0].data.AD[j]
 
                 ratio = float(mixture) / total_depth
                 if ratio == 1.0:
-                    print "This is only designed for mixtures! %s %s %s" % (record, ratio, record.samples[0].data.AD)
-                elif ratio >= threshold:
-                    code = IUPAC_CODES[frozenset(alleles)]
+                    logging.debug("This is only designed for mixtures! %s %s %s %s", record, ratio, record.samples[0].data.AD, record.FILTER)
+
                     if ratio not in mixtures:
                         mixtures[ratio] = []
-                    mixtures[ratio].append(code)
+                    mixtures[ratio].append(alleles.pop())
+
+                elif ratio >= threshold:
+                    try:
+                        code = IUPAC_CODES[frozenset(alleles)]
+                        if ratio not in mixtures:
+                            mixtures[ratio] = []
+                            mixtures[ratio].append(code)
+                    except KeyError:
+                        logging.warn("Could not retrieve IUPAC code for %s from %s", alleles, record)
     except AttributeError:
         mixtures = {}
 
     return mixtures
 
-def get_args():
-    args = argparse.ArgumentParser()
+def print_stats(stats, total_vars):
+    for contig in stats:
+        for sample, info in stats[contig].items():
+            print "%s,%i,%i" % (sample, len(info["n_pos"]), total_vars)
 
-    args.add_argument("--directory", "-d", help="Path to the directory with .vcf files.")
-    args.add_argument("--input", "-i", type=str, nargs='+', help="List of VCF files to process.")
+def get_args():
+    args = argparse.ArgumentParser(description="Combine multiple VCFs into a single FASTA file.")
+
+    group = args.add_mutually_exclusive_group(required=True)
+    group.add_argument("--directory", "-d", help="Path to the directory with .vcf files.")
+    group.add_argument("--input", "-i", type=str, nargs='+', help="List of VCF files to process.")
+
     args.add_argument("--out", "-o", required=True, help="Path to the output FASTA file.")
 
-    args.add_argument("--with-mixtures", type=float)
+    args.add_argument("--with-mixtures", type=float, help="Specify this option with a threshold to output mixtures above this threshold.")
 
-    args.add_argument("--Ns", type=float)
+    args.add_argument("--column-Ns", type=float, help="Keeps columns with fraction of Ns above specified threshold.")
 
-    args.add_argument("--sample-Ns", type=float)
+    args.add_argument("--sample-Ns", type=float, help="Keeps samples with fraction of Ns above specified threshold.")
+
+    args.add_argument("--reference", type=str, help="If path to reference specified, then whole genome will be outputted.")
 
     return args.parse_args()
 
@@ -71,6 +89,8 @@ def main():
     """
     Process VCF files and merge them into a single fasta file.
     """
+
+    logging.basicConfig(level=logging.INFO)
 
     args = get_args()
     contigs = list()
@@ -112,7 +132,7 @@ def main():
             if record.FILTER == "PASS" or not record.FILTER:
                 if record.is_snp:
                     if record.POS in avail_pos[record.CHROM] and avail_pos[record.CHROM][record.POS] != record.REF:
-                        print "SOMETHING IS REALLY WRONG because reference for the same position is DIFFERENT! %s" % record.POS
+                        logging.critical("SOMETHING IS REALLY WRONG because reference for the same position is DIFFERENT! %s", record.POS)
                         return 2
 
                     if record.CHROM not in pos_stats:
@@ -121,7 +141,7 @@ def main():
                     avail_pos[record.CHROM].insert(record.POS, str(record.REF))
                     pos_stats[record.CHROM][record.POS] = {"N":0, "-": 0}
 
-            elif args.with_mixtures:
+            elif args.with_mixtures and record.is_snp:
                 mix = get_mixture(record, args.with_mixtures)
 
                 for ratio, code in mix.items():
@@ -163,7 +183,7 @@ def main():
                 if record.FILTER == "PASS" or not record.FILTER:
                     if record.is_snp:
                         if len(record.ALT) > 1:
-                            print "POS %s passed filters but has multiple alleles. Inserting N"
+                            logging.info("POS %s passed filters but has multiple alleles. Inserting N")
                             all_data[record.CHROM][sample_name][record.POS] = "N"
                         else:
                             all_data[record.CHROM][sample_name][record.POS] = record.ALT[0].sequence
@@ -184,6 +204,8 @@ def main():
 
                     elif extended_code == "-":
                         pos_stats[record.CHROM][record.POS]["-"] += 1
+#                     else:
+#                         print "Good mixture %s: %i (%s)" % (sample_name, record.POS, extended_code)
 
                     # Save the extended code of the SNP.
                     all_data[record.CHROM][sample_name][record.POS] = extended_code
@@ -201,7 +223,8 @@ def main():
                     for pos in sample_stats[contig][sample]["n_pos"]:
                         pos_stats[contig][pos]["N"] -= 1
 
-                    print "Removing %s due to high Ns in sample: %s" % (sample , sample_n_ratio)
+                    logging.info("Removing %s due to high Ns in sample: %s", sample , sample_n_ratio)
+
                     delete_samples.append(sample)
 
         samples = [sample for sample in samples if sample not in delete_samples]
@@ -212,8 +235,8 @@ def main():
             sample_seq = ""
             for contig in contigs:
                 for pos in avail_pos[contig]:
-                    if not args.Ns or float(pos_stats[contig][pos]["N"]) / len(samples) < args.Ns and \
-                        float(pos_stats[contig][pos]["-"]) / len(samples) < args.Ns:
+                    if not args.column_Ns or float(pos_stats[contig][pos]["N"]) / len(samples) < args.column_Ns and \
+                        float(pos_stats[contig][pos]["-"]) / len(samples) < args.column_Ns:
                         sample_seq += all_data[contig][sample][pos]
                     else:
                         discarded += 1
@@ -224,12 +247,14 @@ def main():
         ref_snps = ""
         for contig in contigs:
             for pos in avail_pos[contig]:
-                if not args.Ns or float(pos_stats[contig][pos]["N"]) / len(samples) < args.Ns and \
-                        float(pos_stats[contig][pos]["-"]) / len(samples) < args.Ns:
+                if not args.column_Ns or float(pos_stats[contig][pos]["N"]) / len(samples) < args.column_Ns and \
+                        float(pos_stats[contig][pos]["-"]) / len(samples) < args.column_Ns:
                     ref_snps += str(avail_pos[contig][pos])
         fp.write(">reference\n%s\n" % ref_snps)
 
-    print("Discarded total of %i for poor quality columns" % (float(discarded) / len(args.input)))
+    print_stats(sample_stats, total_vars=len(avail_pos[contig]))
+
+    logging.info("Discarded total of %i poor quality columns", float(discarded) / len(args.input))
     return 0
 
 if __name__ == '__main__':

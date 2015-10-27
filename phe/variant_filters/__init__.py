@@ -15,16 +15,16 @@ import vcf
 import vcf.filters
 from vcf.parser import _Filter
 
-IUPAC_CODES = {"R": set(["A", "G"]),
-                "Y": set(["C", "T"]),
-                "S": set(["G", "C"]),
-                "W": set(["A", "T"]),
-                "K": set(["G", "T"]),
-                "M": set(["A", "C"]),
-                "B": set(["C", "G", "T"]),
-                "D": set(["A", "G", "T"]),
-                "H": set(["A", "C", "T"]),
-                "V": set(["A", "C", "G"])
+IUPAC_CODES = {frozenset(["A", "G"]): "R",
+                frozenset(["C", "T"]): "Y",
+                frozenset(["G", "C"]): "S",
+                frozenset(["A", "T"]): "W",
+                frozenset(["G", "T"]): "K",
+                frozenset(["A", "C"]): "M",
+                frozenset(["C", "G", "T"]): "B",
+                frozenset(["A", "G", "T"]): "D",
+                frozenset(["A", "C", "T"]): "H",
+                frozenset(["A", "C", "G"]): "V"
               }
 
 class PHEFilterBase(vcf.filters.Base):
@@ -89,7 +89,8 @@ class PHEFilterBase(vcf.filters.Base):
     def is_n(self):
         return True
 
-    def call_concensus(self, record):
+    @staticmethod
+    def call_concensus(record):
         extended_code = "N"
         try:
             sample_ad = set([str(c) for c in record.ALT] + [record.REF])
