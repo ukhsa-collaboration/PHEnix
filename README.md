@@ -51,6 +51,7 @@ Mappers:
 Variant Caller:
 
 - GATK
+- MPileup
 
 In order for them to function properly, they need to be already in you *PATH*. For commands that
 run through Java archives, please set appropriate environment variable (see below).
@@ -71,7 +72,11 @@ Python:
 
 ### Samtools
 
-Samtools can be downloadded from blurb. It is used to filter and convert to SAM/BAM files.
+Samtools can be downloadded from blurb. It is used to filter and convert to SAM/BAM files and in mpileup variant caller.
+
+### BCFTools
+
+BCFtools can be downloaded from blurb. It is used for calling variants in mpileup.
 
 ### BWA
 
