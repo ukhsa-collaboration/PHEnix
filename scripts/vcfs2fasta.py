@@ -83,6 +83,11 @@ def get_args():
 
     args.add_argument("--reference", type=str, help="If path to reference specified, then whole genome will be outputted.")
 
+    group = args.add_mutually_exclusive_group()
+
+    group.add_argument("--include")
+    group.add_argument("--exclude")
+
     return args.parse_args()
 
 def main():
@@ -105,6 +110,25 @@ def main():
     vcf_data = dict()
     mixtures = dict()
 
+    exclude = False
+    include = False
+
+    if args.exclude or args.include:
+        pos = []
+        bed_file = args.include if args.include is not None else args.exclude
+        with open(bed_file) as fp:
+            for line in fp:
+                data = line.strip().split(",")
+                pos += [ (i, None,) for i in xrange(int(data[1]), int(data[2]))]
+
+        pos = FastRBTree(pos)
+
+        if args.include:
+            include = pos
+        else:
+            exclude = pos
+
+
     if args.directory is not None and args.input is None:
         args.input = glob.glob(os.path.join(args.directory, "*.vcf"))
 
@@ -115,6 +139,9 @@ def main():
         reader = vcf.Reader(filename=vcf_in)
 
         for record in reader:
+            if include and record.POS not in include or exclude and record.POS in exclude:
+                continue
+
             vcf_data[vcf_in].append(record)
 
             if record.CHROM not in contigs:
@@ -159,9 +186,6 @@ def main():
 
     all_data = { contig: {} for contig in contigs}
     samples = []
-
-    # Instead of loading filters for each position, cache them.
-    cached_filters = {}
 
     for vcf_in in args.input:
 
