@@ -13,7 +13,7 @@ from phe.variant_filters import PHEFilterBase
 class MQ0Filter(PHEFilterBase):
     '''Filter sites by MQ0 (Total Mapping Quality Zero Reads) to DP ratio.'''
 
-    name = "MinMQ0"
+    name = "MinMQ0F"
     _default_threshold = 0.05
     parameter = "mq0f_ratio"
 
@@ -21,7 +21,7 @@ class MQ0Filter(PHEFilterBase):
     def customize_parser(self, parser):
         arg_name = self.parameter.replace("_", "-")
         parser.add_argument("--%s" % arg_name, type=float, default=self._default_threshold,
-                help="Filter sites below given MQ score (default: %s)" % self._default_threshold)
+                help="Filter sites below given MQ0F ratio (default: %s)" % self._default_threshold)
 
     def __init__(self, args):
         """Min Mapping Quality Zero constructor."""
@@ -43,11 +43,7 @@ class MQ0Filter(PHEFilterBase):
         """Filter a :py:class:`vcf.model._Record`."""
 
 
-        record_mq = record.INFO.get("MQ0")
-
-        if record_mq:
-            # We consider DO from INFO not samples because MQ0 is also from INFO.
-            record_mq /= float(record.INFO.get("DP"))
+        record_mq = record.INFO.get("MQ0F")
 
         if record_mq is None or record_mq > self.threshold:
             # FIXME: when record_mq is None, i,e, error/missing, what do you do?
@@ -59,6 +55,6 @@ class MQ0Filter(PHEFilterBase):
         short_desc = self.__doc__ or ''
 
         if short_desc:
-            short_desc = "%s (MQ0 > %s)" % (short_desc, self.threshold)
+            short_desc = "%s (MQ0F > %s)" % (short_desc, self.threshold)
 
         return short_desc
