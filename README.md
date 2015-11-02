@@ -3,7 +3,9 @@
 If you have a sample and you want to have one-stop-shop analysis run the following:
 
 ```
-run_snp_pipeline.py -r1 <path to R1.fastq> -r2 <path to R2.fastq> -r <path to reference> --sample-name --mapper bwa --variant gatk --filters min_depth:5,mq_score:30
+run_snp_pipeline.py -r1 <path to R1.fastq> -r2 <path to R2.fastq> \ 
+-r <path to reference> --sample-name <NAME> --mapper bwa --variant gatk \ 
+--filters min_depth:5,mq_score:30
 ```
 
 This will map with **BWA** and call variants with **GATK**. Intermediate files are written into the same directory you run this 
@@ -16,9 +18,11 @@ One of the key parts of the VCF processing is to filter quality calls. To do thi
 variaety of filters avaialble:
 
 - **qual_score** - Filter records where **QUAL** score is below given threshold.
-- **ad_ration** - Filter records where ratio of alt allele to sum of all alleles is below given fraction.
+- **ad_ratio** - Filter, defined by **gatk**, records where ratio of alt allele to sum of all alleles is below given fraction.
+- **dp4_ratio** - Similar to **ad_ratio**, but used in **mpileup** variant caller.
 - **mq_score** - Filter records that fall below specified **MQ** score (from _INFO_ field).
-- **mq0_score** - Filter records with **MQ0** to **DP** ratio _above_ given threshold (both values are from _INFO_ field).
+- **mq0_ratio** - Filter, defined by **gatk**, records with **MQ0** to **DP** ratio _above_ given threshold (both values are from _INFO_ field).
+- **mq0f_ratio** - Similar to the **mq0_ratio**, but used in **mpileup** variant caller.
 - **qg_score** - Filter records that fall below specified **GQ** score (from **first** sample).
 - **min_depth** - Filter records with mean depth below specified threshold (**DP** from sample field).
 - **uncall_gt** - Filter records with uncallable genotypes in VCF (**GT** is ./.).
