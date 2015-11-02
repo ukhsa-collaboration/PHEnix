@@ -15,7 +15,7 @@ class MQ0Filter(PHEFilterBase):
 
     name = "MinMQ0"
     _default_threshold = 0.05
-    parameter = "mq0f_ratio"
+    parameter = "mq0_ratio"
 
     @classmethod
     def customize_parser(self, parser):
