@@ -64,7 +64,7 @@ class MPileupVariantCaller(VariantCaller):
 
         with tempfile.NamedTemporaryFile(suffix=".pileup") as tmp:
             opts["pileup_file"] = tmp.name
-            cmd = "samtools mpileup -C50 -t DP,DV,DP4,DPR,SP -Auf %(ref)s %(bam)s | bcftools call %(extra_cmd_options)s > %(all_variants_file)s" % opts
+            cmd = "samtools mpileup -t DP,DV,DP4,DPR,SP -Auf %(ref)s %(bam)s | bcftools call %(extra_cmd_options)s > %(all_variants_file)s" % opts
             print cmd
             self.last_command = cmd
             if os.system(cmd) != 0:
