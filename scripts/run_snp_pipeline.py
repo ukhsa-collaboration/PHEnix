@@ -7,7 +7,6 @@ import os
 import sys
 import tempfile
 
-import vcf
 import yaml
 
 from phe.mapping.mapping_factory import factory as map_fac, available_mappers
@@ -15,6 +14,7 @@ from phe.variant import VariantSet
 from phe.variant.variant_factory import factory as variant_fac, \
     available_callers
 from phe.variant_filters import available_filters
+import vcf
 
 
 def pipeline():
@@ -71,8 +71,10 @@ def main():
     args = get_args()
 
     if args.outdir is None:
-        sys.stdout.write("Plese provide output directory.")
+        sys.stdout.write("Please provide output directory.")
         return -1
+    elif not os.path.exists(args.outdir):
+        os.makedirs(args.outdir)
 
     # If config is specified, then load data from that.
     if args.config:
