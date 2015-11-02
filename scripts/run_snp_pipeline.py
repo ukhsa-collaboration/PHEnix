@@ -43,6 +43,7 @@ def get_args():
 
     args.add_argument("--mapper", "-m", default="bwa", help="Available mappers: %s" % available_mappers())
     args.add_argument("--mapper-options", help="Custom maper options (advanced)")
+    args.add_argument("--bam")
     args.add_argument("--variant", "-v", default="gatk", help="Available variant callers: %s" % available_callers())
     args.add_argument("--variant-options", help="Custom variant options (advanced)")
     args.add_argument("--filters", type=str, help="Filters to be applied to the VCF in key:value pairs, separated by comma (,). Available_filters: %s" % available_filters())
@@ -87,8 +88,11 @@ def main():
         variant = variant_fac(variant=args.variant, custom_options=args.variant_options)
 
     logging.info("Mapping data file.")
-    bam_file = os.path.join(args.outdir, "%s.bam" % args.sample_name)
-    success = mapper.make_bam(ref=args.r, R1=args.r1, R2=args.r2, out_file=bam_file, sample_name=args.sample_name)
+    if args.bam is not None:
+        bam_file = args.bam
+    else:
+        bam_file = os.path.join(args.outdir, "%s.bam" % args.sample_name)
+        success = mapper.make_bam(ref=args.r, R1=args.r1, R2=args.r2, out_file=bam_file, sample_name=args.sample_name)
 
     if not success:
         logging.warn("Could not map reads to the reference. Aborting.")
