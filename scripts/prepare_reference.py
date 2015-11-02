@@ -1,5 +1,5 @@
-"""Prepare reference for different mappers and variant callers."""
 #!/usr/bin/env python
+"""Prepare reference for different mappers and variant callers."""
 
 import argparse
 import logging
