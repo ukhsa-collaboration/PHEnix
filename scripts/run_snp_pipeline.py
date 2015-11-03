@@ -94,9 +94,9 @@ def main():
         bam_file = os.path.join(args.outdir, "%s.bam" % args.sample_name)
         success = mapper.make_bam(ref=args.r, R1=args.r1, R2=args.r2, out_file=bam_file, sample_name=args.sample_name)
 
-    if not success:
-        logging.warn("Could not map reads to the reference. Aborting.")
-        return 1
+        if not success:
+            logging.warn("Could not map reads to the reference. Aborting.")
+            return 1
 
     logging.info("Creating digitised variants.")
     vcf_file = os.path.join(args.outdir, "%s.vcf" % args.sample_name)
