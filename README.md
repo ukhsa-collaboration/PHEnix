@@ -50,7 +50,8 @@ A lot of functionality depends on the presence of existing 3rd party tools:
 
 Mappers:
 
-- BWA 
+- BWA
+- Bowtie2
 
 Variant Caller:
 
@@ -85,6 +86,10 @@ BCFtools can be downloaded from blurb. It is used for calling variants in mpileu
 ### BWA
 
 Heng Li's mapper can be downloaded from blurb.
+
+### Bowtie2
+
+Bowtie2 mapper available from blurb.
 
 ### GATK
 Set *GATK_JAR* - full path to the GATK Java archive.
