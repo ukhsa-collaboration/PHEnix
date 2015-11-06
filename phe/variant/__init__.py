@@ -53,6 +53,8 @@ class VariantSet(object):
                 self.filters = str_to_filters(filters)
             elif isinstance(filters, dict):
                 self.filters = make_filters(config=filters)
+            elif isinstance(filters, list):
+                self.filters = filters
             else:
                 logging.warn("Could not create filters from %s", filters)
         else:

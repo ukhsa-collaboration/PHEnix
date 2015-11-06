@@ -7,14 +7,14 @@ import os
 import sys
 import tempfile
 
+import vcf
 import yaml
 
 from phe.mapping.mapping_factory import factory as map_fac, available_mappers
 from phe.variant import VariantSet
 from phe.variant.variant_factory import factory as variant_fac, \
     available_callers
-from phe.variant_filters import available_filters
-import vcf
+from phe.variant_filters import available_filters, str_to_filters, make_filters
 
 
 def pipeline():
@@ -86,6 +86,13 @@ def main():
     variant = None
     if args.variant:
         variant = variant_fac(variant=args.variant, custom_options=args.variant_options)
+
+    if args.filters:
+        try:
+            args.filters = make_filters(args.filters)
+        except Exception:
+            logging.error("Failed to recognise and create filters.")
+            return 3
 
     logging.info("Mapping data file.")
     if args.bam is not None:
