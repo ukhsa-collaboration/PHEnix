@@ -111,6 +111,8 @@ def main():
     vcf_data = dict()
     mixtures = dict()
 
+    empty_tree = FastRBTree()
+
     exclude = False
     include = False
 
@@ -123,7 +125,7 @@ def main():
             for line in fp:
                 data = line.strip().split(",")
 
-                chr_pos += [ (i, None,) for i in xrange(int(data[1]), int(data[2]) + 1)]
+                chr_pos += [ (i, False,) for i in xrange(int(data[1]), int(data[2]) + 1)]
 
                 if data[0] not in pos:
                     pos[data[0]] = []
@@ -149,7 +151,7 @@ def main():
         reader = vcf.Reader(filename=vcf_in)
 
         for record in reader:
-            if include and record.POS not in include.get(record.CHROM, []) or exclude and record.POS in exclude.get(record.CHROM, []):
+            if include and include.get(record.CHROM, empty_tree).get(record.POS, True) or exclude and not exclude.get(record.CHROM, empty_tree).get(record.POS, True):
                 continue
 
             vcf_data[vcf_in].append(record)
@@ -207,13 +209,13 @@ def main():
         for contig in contigs:
             all_data[contig][sample_name] = { pos: avail_pos[contig][pos] for pos in avail_pos[contig] }
 
-
+#         reader = vcf.Reader(filename=vcf_in)
         for record in vcf_data[vcf_in]:
             # Array of filters that have been applied.
             filters = []
 
             # If position is our available position.
-            if avail_pos[record.CHROM].get(record.POS, False):
+            if avail_pos.get(record.CHROM, empty_tree).get(record.POS, False):
                 if record.FILTER == "PASS" or not record.FILTER:
                     if record.is_snp:
                         if len(record.ALT) > 1:
@@ -243,6 +245,7 @@ def main():
 
                     # Save the extended code of the SNP.
                     all_data[record.CHROM][sample_name][record.POS] = extended_code
+        del vcf_data[vcf_in]
 
     # Output the data to the fasta file.
     # The data is already aligned so simply output it.
