@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 '''
 Merge SNP data from multiple VCF files into a single fasta file.
 
@@ -64,7 +65,7 @@ def get_mixture(record, threshold):
 def print_stats(stats, total_vars):
     for contig in stats:
         for sample, info in stats[contig].items():
-            print "%s,%i,%i" % (sample, len(info["n_pos"]), total_vars)
+            print "%s,%i,%i" % (sample, len(info.get("n_pos", [])), total_vars)
 
 def get_args():
     args = argparse.ArgumentParser(description="Combine multiple VCFs into a single FASTA file.")
@@ -114,14 +115,23 @@ def main():
     include = False
 
     if args.exclude or args.include:
-        pos = []
+        pos = {}
+        chr_pos = []
         bed_file = args.include if args.include is not None else args.exclude
+
         with open(bed_file) as fp:
             for line in fp:
                 data = line.strip().split(",")
-                pos += [ (i, None,) for i in xrange(int(data[1]), int(data[2]))]
 
-        pos = FastRBTree(pos)
+                chr_pos += [ (i, None,) for i in xrange(int(data[1]), int(data[2]) + 1)]
+
+                if data[0] not in pos:
+                    pos[data[0]] = []
+
+                pos[data[0]] += chr_pos
+
+
+        pos = {chrom: FastRBTree(l) for chrom, l in pos.items()}
 
         if args.include:
             include = pos
@@ -139,7 +149,7 @@ def main():
         reader = vcf.Reader(filename=vcf_in)
 
         for record in reader:
-            if include and record.POS not in include or exclude and record.POS in exclude:
+            if include and record.POS not in include.get(record.CHROM, []) or exclude and record.POS in exclude.get(record.CHROM, []):
                 continue
 
             vcf_data[vcf_in].append(record)
