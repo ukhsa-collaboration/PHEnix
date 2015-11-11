@@ -32,7 +32,7 @@ class BWAMapper(Mapper):
 
         super(BWAMapper, self).__init__(cmd_options=cmd_options)
 
-        self.last_command = ""
+        self.last_command = None
 
     def create_aux_files(self, ref):
         if os.system("bwa index %s" % ref) == 0:

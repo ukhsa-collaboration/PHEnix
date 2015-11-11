@@ -32,7 +32,7 @@ class Bowtie2Mapper(Mapper):
 
         super(Bowtie2Mapper, self).__init__(cmd_options=cmd_options)
 
-        self.last_command = ""
+        self.last_command = None
 
     def create_aux_files(self, ref):
         if os.system("bowtie2-build %s %s" % (ref, ref)) == 0:
