@@ -31,6 +31,20 @@ All filters are applied for each position and those positions that pass ALL filt
 failing filter will be kept for future reference and creating fasta files, when needed. To specify filters to be used, simply
 list them as key:threshold pairs separated by comma(,). For filters that don't require threshold, leave blank after ':'. 
 
+## Annotators
+
+Individual VCFs can be annotated using custom annotators. Currently available annotators:
+
+- **coverage** - Annotates with information about _mean_ and _dev_ of the depth in the VCF (using DP from INFO).
+
+The data can be accessed from the metadata field in the VCF in the following way:
+
+```python
+r = vcf.Reader(filename="/path/to/vcf")
+print r.metadata["coverageMetaData"][0]["mean"]
+print r.metadata["coverageMetaData"][0]["dev"]
+```
+
 ## Converting from VCF to FASTA
 
 A lot of downstream applications take on FASTA formated files, not VCFs. We have included a script for converting VCF data to
