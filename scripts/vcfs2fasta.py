@@ -62,10 +62,15 @@ def get_mixture(record, threshold):
 
     return mixtures
 
-def print_stats(stats, total_vars):
+def print_stats(stats, pos_stats, total_vars):
     for contig in stats:
         for sample, info in stats[contig].items():
             print "%s,%i,%i" % (sample, len(info.get("n_pos", [])), total_vars)
+
+    for contig in stats:
+        for pos, info in pos_stats[contig].iteritems():
+            print "%s,%i,%i,%i,%i" % (contig, pos, info.get("N", "NA"), info.get("-", "NA"), info.get("mut", "NA"))
+
 
 def get_args():
     args = argparse.ArgumentParser(description="Combine multiple VCFs into a single FASTA file.")
@@ -178,7 +183,7 @@ def main():
                         pos_stats[record.CHROM] = {}
 
                     avail_pos[record.CHROM].insert(record.POS, str(record.REF))
-                    pos_stats[record.CHROM][record.POS] = {"N":0, "-": 0}
+                    pos_stats[record.CHROM][record.POS] = {"N":0, "-": 0, "mut": 0}
 
             elif args.with_mixtures and record.is_snp:
                 mix = get_mixture(record, args.with_mixtures)
@@ -188,7 +193,7 @@ def main():
                         avail_pos[record.CHROM].insert(record.POS, str(record.REF))
                         if record.CHROM not in pos_stats:
                             pos_stats[record.CHROM] = {}
-                        pos_stats[record.CHROM][record.POS] = {"N": 0, "-": 0}
+                        pos_stats[record.CHROM][record.POS] = {"N": 0, "-": 0, "mut": 0}
 
                         if sample_name not in mixtures[record.CHROM]:
                             mixtures[record.CHROM][sample_name] = FastRBTree()
@@ -223,6 +228,7 @@ def main():
                             all_data[record.CHROM][sample_name][record.POS] = "N"
                         else:
                             all_data[record.CHROM][sample_name][record.POS] = record.ALT[0].sequence
+                            pos_stats[record.CHROM][record.POS]["mut"] += 1
                 else:
 
                     # Currently we are only using first filter to call consensus.
@@ -233,6 +239,7 @@ def main():
                     # Calculate the stats
                     if extended_code == "N":
                         pos_stats[record.CHROM][record.POS]["N"] += 1
+                        pos_stats[record.CHROM][record.POS]["mut"] += 1
 
                         if "n_pos" not in sample_stats[record.CHROM][sample_name]:
                             sample_stats[record.CHROM][sample_name]["n_pos"] = []
@@ -289,7 +296,8 @@ def main():
                     ref_snps += str(avail_pos[contig][pos])
         fp.write(">reference\n%s\n" % ref_snps)
 
-    print_stats(sample_stats, total_vars=len(avail_pos[contig]))
+
+    print_stats(sample_stats, pos_stats, total_vars=len(avail_pos[contig]))
 
     logging.info("Discarded total of %i poor quality columns", float(discarded) / len(args.input))
     return 0
