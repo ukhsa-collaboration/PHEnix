@@ -69,6 +69,8 @@ def load_config(args):
 
     args.filters = config.get("filters")
 
+    args.annotators = config.get("annotators")
+
 
 def main():
 

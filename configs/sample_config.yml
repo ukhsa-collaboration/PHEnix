@@ -8,3 +8,6 @@ filters:
   min_depth: 5
   qual_score: 30
   mq_score: 30
+  
+annotators:
+  - coverage
