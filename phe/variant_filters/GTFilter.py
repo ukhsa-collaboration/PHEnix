@@ -36,8 +36,9 @@ class UncallableGTFilter(PHEFilterBase):
         elif isinstance(args, dict):
             try:
                 self.threshold = str(args.get(self.parameter))
-            except TypeError:
+            except (TypeError, ValueError):
                 logging.error("Could not retrieve threshold from %s", args.get(self.parameter))
+                logging.error("This parameter requires to be a string!")
                 self.threshold = None
 
     def __call__(self, record):

@@ -37,8 +37,9 @@ class ADFilter(PHEFilterBase):
         elif isinstance(args, dict):
             try:
                 self.threshold = float(args.get(self.parameter))
-            except TypeError:
+            except (TypeError, ValueError):
                 logging.error("Could not retrieve threshold from %s", args.get(self.parameter))
+                logging.error("This parameter requires to be a float!")
                 self.threshold = None
 
 

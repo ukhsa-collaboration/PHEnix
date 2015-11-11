@@ -35,7 +35,7 @@ class DepthFilter(PHEFilterBase):
         elif isinstance(args, dict):
             try:
                 self.threshold = int(args.get(self.parameter))
-            except TypeError:
+            except (TypeError, ValueError):
                 logging.error("Could not retrieve threshold from %s", args.get(self.parameter))
                 self.threshold = None
 
@@ -44,6 +44,7 @@ class DepthFilter(PHEFilterBase):
 
         if len(record.samples) > 1:
             logging.warn("Currently we only filter VCFs with 1 sample. Only first sample will be used.")
+            logging.error("This parameter requires to be an integer!")
 
         try:
             record_dp = record.samples[0].data.DP
