@@ -22,16 +22,28 @@ import vcf
 from phe.variant_filters import IUPAC_CODES
 
 
-def plot_stats(pos_stats, plots_dir="plots"):
+def plot_stats(pos_stats, total_samples, plots_dir="plots", discarded={}):
     if not os.path.exists(plots_dir):
         os.makedirs(plots_dir)
 
     for contig in pos_stats:
-        x = numpy.array(pos_stats[contig].keys())
-        y = numpy.array([ pos_stats[contig][pos]["mut"] for pos in pos_stats[contig]])
 
-        plt.figure()
-        plt.plot(x, y, 'ro')
+        plt.style.use('ggplot')
+
+        x = numpy.array([pos for pos in pos_stats[contig] if pos not in discarded.get(contig, [])])
+        y = numpy.array([ float(pos_stats[contig][pos]["mut"]) / total_samples for pos in pos_stats[contig] if pos not in discarded.get(contig, []) ])
+
+        f, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, sharey=True)
+        ax1.plot(x, y, 'ro')
+        ax1.set_title("Fraction of SNPs")
+
+        y = numpy.array([ float(pos_stats[contig][pos]["N"]) / total_samples for pos in pos_stats[contig] if pos not in discarded.get(contig, [])])
+        ax2.plot(x, y, 'bo')
+        ax2.set_title("Fraction of Ns")
+
+        y = numpy.array([ float(pos_stats[contig][pos]["mix"]) / total_samples for pos in pos_stats[contig] if pos not in discarded.get(contig, [])])
+        ax3.plot(x, y, 'go')
+        ax3.set_title("Fraction of mixed")
 
         plt.savefig(os.path.join(plots_dir, "%s.png" % contig))
 
@@ -210,7 +222,7 @@ def main():
                         pos_stats[record.CHROM] = {}
 
                     avail_pos[record.CHROM].insert(record.POS, str(record.REF))
-                    pos_stats[record.CHROM][record.POS] = {"N":0, "-": 0, "mut": 0}
+                    pos_stats[record.CHROM][record.POS] = {"N":0, "-": 0, "mut": 0, "mix": 0}
 
             elif args.with_mixtures and record.is_snp:
                 mix = get_mixture(record, args.with_mixtures)
@@ -220,7 +232,7 @@ def main():
                         avail_pos[record.CHROM].insert(record.POS, str(record.REF))
                         if record.CHROM not in pos_stats:
                             pos_stats[record.CHROM] = {}
-                        pos_stats[record.CHROM][record.POS] = {"N": 0, "-": 0, "mut": 0}
+                        pos_stats[record.CHROM][record.POS] = {"N": 0, "-": 0, "mut": 0, "mix": 0}
 
                         if sample_name not in mixtures[record.CHROM]:
                             mixtures[record.CHROM][sample_name] = FastRBTree()
@@ -266,7 +278,6 @@ def main():
                     # Calculate the stats
                     if extended_code == "N":
                         pos_stats[record.CHROM][record.POS]["N"] += 1
-                        pos_stats[record.CHROM][record.POS]["mut"] += 1
 
                         if "n_pos" not in sample_stats[record.CHROM][sample_name]:
                             sample_stats[record.CHROM][sample_name]["n_pos"] = []
@@ -274,7 +285,8 @@ def main():
 
                     elif extended_code == "-":
                         pos_stats[record.CHROM][record.POS]["-"] += 1
-#                     else:
+                    else:
+                        pos_stats[record.CHROM][record.POS]["mix"] += 1
 #                         print "Good mixture %s: %i (%s)" % (sample_name, record.POS, extended_code)
 
                     # Save the extended code of the SNP.
@@ -283,7 +295,7 @@ def main():
 
     # Output the data to the fasta file.
     # The data is already aligned so simply output it.
-    discarded = 0
+    discarded = {}
 
     if args.reference:
         # These should be in the same order as the order in reference.
@@ -325,7 +337,9 @@ def main():
                                 float(pos_stats[contig][pos]["-"]) / len(samples) < args.column_Ns:
                                 sample_seq += all_data[contig][sample][pos]
                             else:
-                                discarded += 1
+                                if contig not in discarded:
+                                    discarded[contig] = []
+                                discarded[contig].append(pos)
                         elif args.reference:
                             sample_seq += args.reference[contig][pos - 1]
                 elif args.reference:
@@ -361,11 +375,13 @@ def main():
         with open(args.with_stats, "wb") as fp:
             for values in snp_positions:
                 fp.write("%s\t%s\n" % (values[0], values[1]))
-        plot_stats(pos_stats)
+        plot_stats(pos_stats, len(samples), discarded=discarded)
     # print_stats(sample_stats, pos_stats, total_vars=len(avail_pos[contig]))
 
-
-    logging.info("Discarded total of %i poor quality columns", float(discarded) / len(args.input))
+    total_discarded = 0
+    for _, i in discarded.items():
+        total_discarded += len(i)
+    logging.info("Discarded total of %i poor quality columns", float(total_discarded) / len(args.input))
     return 0
 
 if __name__ == '__main__':
