@@ -128,7 +128,7 @@ def main():
 
         with open(bed_file) as fp:
             for line in fp:
-                data = line.strip().split(",")
+                data = line.strip().split("\t")
 
                 chr_pos += [ (i, False,) for i in xrange(int(data[1]), int(data[2]) + 1)]
 
