@@ -36,6 +36,7 @@ def plot_stats(pos_stats, total_samples, plots_dir="plots", discarded={}):
         f, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, sharey=True)
         ax1.plot(x, y, 'ro')
         ax1.set_title("Fraction of SNPs")
+        plt.ylim(0, 1.1)
 
         y = numpy.array([ float(pos_stats[contig][pos]["N"]) / total_samples for pos in pos_stats[contig] if pos not in discarded.get(contig, [])])
         ax2.plot(x, y, 'bo')
