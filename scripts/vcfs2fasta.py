@@ -7,11 +7,13 @@ Created on 5 Oct 2015
 @author: alex
 '''
 import argparse
+from collections import OrderedDict
 import glob
 import itertools
 import logging
 import os
 
+from Bio import SeqIO
 from bintrees import FastRBTree
 from matplotlib import pyplot as plt
 import numpy
@@ -102,7 +104,7 @@ def get_args():
 
     args.add_argument("--sample-Ns", type=float, help="Keeps samples with fraction of Ns above specified threshold.")
 
-    args.add_argument("--reference", type=str, help="If path to reference specified, then whole genome will be outputted.")
+    args.add_argument("--reference", type=str, help="If path to reference specified (FASTA), then whole genome will be written.")
 
     group = args.add_mutually_exclusive_group()
 
@@ -137,6 +139,14 @@ def main():
 
     exclude = False
     include = False
+
+    if args.reference:
+        ref_seq = OrderedDict()
+        with open(args.reference) as fp:
+            for record in SeqIO.parse(fp, "fasta"):
+                ref_seq[record.id] = str(record.seq)
+
+        args.reference = ref_seq
 
     if args.exclude or args.include:
         pos = {}
@@ -275,10 +285,19 @@ def main():
     # The data is already aligned so simply output it.
     discarded = 0
 
+    if args.reference:
+        # These should be in the same order as the order in reference.
+        contigs = args.reference.keys()
+
     if args.sample_Ns:
         delete_samples = []
         for contig in contigs:
             for sample in samples:
+
+                # Skip if the contig not in sample_stats
+                if contig not in sample_stats:
+                    continue
+
                 sample_n_ratio = float(len(sample_stats[contig][sample]["n_pos"])) / len(avail_pos[contig])
                 if sample_n_ratio > args.sample_Ns:
                     for pos in sample_stats[contig][sample]["n_pos"]:
@@ -295,12 +314,23 @@ def main():
         for sample in samples:
             sample_seq = ""
             for contig in contigs:
-                for pos in avail_pos[contig]:
-                    if not args.column_Ns or float(pos_stats[contig][pos]["N"]) / len(samples) < args.column_Ns and \
-                        float(pos_stats[contig][pos]["-"]) / len(samples) < args.column_Ns:
-                        sample_seq += all_data[contig][sample][pos]
+                if contig in avail_pos:
+                    if args.reference:
+                        positions = xrange(1, len(args.reference[contig]) + 1)
                     else:
-                        discarded += 1
+                        positions = avail_pos[contig].keys()
+                    for pos in positions:
+                        if pos in avail_pos[contig]:
+                            if not args.column_Ns or float(pos_stats[contig][pos]["N"]) / len(samples) < args.column_Ns and \
+                                float(pos_stats[contig][pos]["-"]) / len(samples) < args.column_Ns:
+                                sample_seq += all_data[contig][sample][pos]
+                            else:
+                                discarded += 1
+                        elif args.reference:
+                            sample_seq += args.reference[contig][pos - 1]
+                elif args.reference:
+                    sample_seq += args.reference[contig]
+
 
 
             fp.write(">%s\n%s\n" % (sample, sample_seq))
@@ -308,12 +338,23 @@ def main():
         ref_snps = ""
 
         for contig in contigs:
-            for pos in avail_pos[contig]:
-                if not args.column_Ns or float(pos_stats[contig][pos]["N"]) / len(samples) < args.column_Ns and \
-                        float(pos_stats[contig][pos]["-"]) / len(samples) < args.column_Ns:
+            if contig in avail_pos:
+                if args.reference:
+                    positions = xrange(1, len(args.reference[contig]) + 1)
+                else:
+                    positions = avail_pos[contig].keys()
+                for pos in positions:
+                    if pos in avail_pos[contig]:
+                        if not args.column_Ns or float(pos_stats[contig][pos]["N"]) / len(samples) < args.column_Ns and \
+                                float(pos_stats[contig][pos]["-"]) / len(samples) < args.column_Ns:
 
-                    ref_snps += str(avail_pos[contig][pos])
-                    snp_positions.append((contig, pos,))
+                            ref_snps += str(avail_pos[contig][pos])
+                            snp_positions.append((contig, pos,))
+                    elif args.reference:
+                        ref_snps += args.reference[contig][pos - 1]
+            elif args.reference:
+                    ref_snps += args.reference[contig]
+
         fp.write(">reference\n%s\n" % ref_snps)
 
     if args.with_stats:
