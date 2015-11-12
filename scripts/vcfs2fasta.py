@@ -25,11 +25,11 @@ def plot_stats(pos_stats, plots_dir="plots"):
         os.makedirs(plots_dir)
 
     for contig in pos_stats:
-        x = numpy.array(pos_stats[contig])
-        y = numpy.array([ pos_stats[contig][pos] for pos in pos_stats[contig]])
+        x = numpy.array(pos_stats[contig].keys())
+        y = numpy.array([ pos_stats[contig][pos]["mut"] for pos in pos_stats[contig]])
 
         plt.figure()
-        plt.plot(x, y)
+        plt.plot(x, y, 'ro')
 
         plt.savefig(os.path.join(plots_dir, "%s.png" % contig))
 
