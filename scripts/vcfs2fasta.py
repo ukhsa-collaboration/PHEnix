@@ -13,10 +13,25 @@ import logging
 import os
 
 from bintrees import FastRBTree
+from matplotlib import pyplot as plt
+import numpy
 import vcf
 
 from phe.variant_filters import IUPAC_CODES
 
+
+def plot_stats(pos_stats, plots_dir="plots"):
+    if not os.path.exists(plots_dir):
+        os.makedirs(plots_dir)
+
+    for contig in pos_stats:
+        x = numpy.array(pos_stats[contig])
+        y = numpy.array([ pos_stats[contig][pos] for pos in pos_stats[contig]])
+
+        plt.figure()
+        plt.plot(x, y)
+
+        plt.savefig(os.path.join(plots_dir, "%s.png" % contig))
 
 def get_mixture(record, threshold):
     mixtures = {}
@@ -93,6 +108,8 @@ def get_args():
 
     group.add_argument("--include")
     group.add_argument("--exclude")
+
+    args.add_argument("--with-stats", help="If a path is specified, then position of the outputed SNPs is stored in this file. ")
 
     return args.parse_args()
 
@@ -272,7 +289,7 @@ def main():
                     delete_samples.append(sample)
 
         samples = [sample for sample in samples if sample not in delete_samples]
-
+    snp_positions = []
     with open(args.out, "w") as fp:
 
         for sample in samples:
@@ -289,15 +306,23 @@ def main():
             fp.write(">%s\n%s\n" % (sample, sample_seq))
         # Do the same for reference data.
         ref_snps = ""
+
         for contig in contigs:
             for pos in avail_pos[contig]:
                 if not args.column_Ns or float(pos_stats[contig][pos]["N"]) / len(samples) < args.column_Ns and \
                         float(pos_stats[contig][pos]["-"]) / len(samples) < args.column_Ns:
+
                     ref_snps += str(avail_pos[contig][pos])
+                    snp_positions.append((contig, pos,))
         fp.write(">reference\n%s\n" % ref_snps)
 
+    if args.with_stats:
+        with open(args.with_stats, "wb") as fp:
+            for values in snp_positions:
+                fp.write("%s\t%s\n" % (values[0], values[1]))
+        plot_stats(pos_stats)
+    # print_stats(sample_stats, pos_stats, total_vars=len(avail_pos[contig]))
 
-    print_stats(sample_stats, pos_stats, total_vars=len(avail_pos[contig]))
 
     logging.info("Discarded total of %i poor quality columns", float(discarded) / len(args.input))
     return 0
