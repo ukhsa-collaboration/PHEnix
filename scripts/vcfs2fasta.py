@@ -15,8 +15,15 @@ import os
 
 from Bio import SeqIO
 from bintrees import FastRBTree
-from matplotlib import pyplot as plt
-import numpy
+
+# Try importing the matplotlib and numpy for stats.
+try:
+    from matplotlib import pyplot as plt
+    import numpy
+    can_stats = True
+except ImportError:
+    can_stats = False
+
 import vcf
 
 from phe.variant_filters import IUPAC_CODES
@@ -124,7 +131,8 @@ def get_args():
     group.add_argument("--include")
     group.add_argument("--exclude")
 
-    args.add_argument("--with-stats", help="If a path is specified, then position of the outputed SNPs is stored in this file. ")
+    args.add_argument("--with-stats", help="If a path is specified, then position of the outputed SNPs is stored in this file. Requires mumpy and matplotlib.")
+    args.add_argument("--plots-dir", default="plots", help="Where to write summary plots on SNPs extracted. Requires mumpy and matplotlib.")
 
     return args.parse_args()
 
@@ -346,8 +354,6 @@ def main():
                 elif args.reference:
                     sample_seq += args.reference[contig]
 
-
-
             fp.write(">%s\n%s\n" % (sample, sample_seq))
         # Do the same for reference data.
         ref_snps = ""
@@ -372,11 +378,11 @@ def main():
 
         fp.write(">reference\n%s\n" % ref_snps)
 
-    if args.with_stats:
+    if can_stats and args.with_stats:
         with open(args.with_stats, "wb") as fp:
             for values in snp_positions:
-                fp.write("%s\t%s\n" % (values[0], values[1]))
-        plot_stats(pos_stats, len(samples), discarded=discarded)
+                fp.write("%s\t%s\t%s\n" % (values[0], values[1], float(pos_stats[values[0]][values[1]]["mut"]) / len(args.input)))
+        plot_stats(pos_stats, len(samples), discarded=discarded, plots_dir=os.path.abspath(args.plots_dir))
     # print_stats(sample_stats, pos_stats, total_vars=len(avail_pos[contig]))
 
     total_discarded = 0
