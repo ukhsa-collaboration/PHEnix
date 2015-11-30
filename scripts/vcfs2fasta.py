@@ -221,7 +221,7 @@ def main():
             if sample_name not in sample_stats[record.CHROM]:
                 sample_stats[record.CHROM][sample_name] = {}
 
-            if record.FILTER == "PASS" or not record.FILTER:
+            if not record.FILTER:
                 if record.is_snp:
                     if record.POS in avail_pos[record.CHROM] and avail_pos[record.CHROM][record.POS] != record.REF:
                         logging.critical("SOMETHING IS REALLY WRONG because reference for the same position is DIFFERENT! %s", record.POS)
