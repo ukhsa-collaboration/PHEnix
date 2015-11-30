@@ -169,12 +169,16 @@ class VariantSet(object):
         written_variants = 0
         with open(vcf_out, "w") as out_vcf:
             writer = vcf.Writer(out_vcf, self.out_template)
-            for record in self.variants:
+
+            # Output internal variants (if exist) otherwise, output data from reader.
+            variants = self.variants if self.variants else self._reader
+
+            for record in variants:
 
                 if only_snps and not record.is_snp:
                     continue
 
-                if only_good and record.FILTER != "PASS" or record.FILTER is None:
+                if only_good and record.FILTER:
                     continue
 
                 writer.write_record(record)
