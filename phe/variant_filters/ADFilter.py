@@ -62,7 +62,7 @@ class ADFilter(PHEFilterBase):
 
             ratio = float(record_ad[1]) / depth
         except Exception:
-            logging.error("Could not calculate AD ratio from %s POS: %s", record_ad, record.POS)
+            logging.warn("Could not calculate AD ratio from %s POS: %s", record_ad, record.POS)
             ratio = None
 
         if ratio is None or ratio < self.threshold:
