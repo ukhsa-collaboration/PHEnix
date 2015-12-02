@@ -380,8 +380,12 @@ def main():
 
     if can_stats and args.with_stats:
         with open(args.with_stats, "wb") as fp:
+            fp.write("contig\tposition\tmutations\tn_frac\n")
             for values in snp_positions:
-                fp.write("%s\t%s\t%s\n" % (values[0], values[1], float(pos_stats[values[0]][values[1]]["mut"]) / len(args.input)))
+                fp.write("%s\t%s\t%s\t%s\n" % (values[0],
+                                             values[1],
+                                             float(pos_stats[values[0]][values[1]]["mut"]) / len(args.input),
+                                             float(pos_stats[values[0]][values[1]]["N"]) / len(args.input)))
         plot_stats(pos_stats, len(samples), discarded=discarded, plots_dir=os.path.abspath(args.plots_dir))
     # print_stats(sample_stats, pos_stats, total_vars=len(avail_pos[contig]))
 
