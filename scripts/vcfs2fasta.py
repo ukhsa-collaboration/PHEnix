@@ -40,20 +40,25 @@ def plot_stats(pos_stats, total_samples, plots_dir="plots", discarded={}):
         x = numpy.array([pos for pos in pos_stats[contig] if pos not in discarded.get(contig, [])])
         y = numpy.array([ float(pos_stats[contig][pos]["mut"]) / total_samples for pos in pos_stats[contig] if pos not in discarded.get(contig, []) ])
 
-        f, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, sharey=True)
+        f, (ax1, ax2, ax3, ax4) = plt.subplots(4, sharex=True, sharey=True)
+        f.set_size_inches(12, 15)
         ax1.plot(x, y, 'ro')
-        ax1.set_title("Fraction of SNPs")
+        ax1.set_title("Fraction of samples with SNPs")
         plt.ylim(0, 1.1)
 
         y = numpy.array([ float(pos_stats[contig][pos]["N"]) / total_samples for pos in pos_stats[contig] if pos not in discarded.get(contig, [])])
         ax2.plot(x, y, 'bo')
-        ax2.set_title("Fraction of Ns")
+        ax2.set_title("Fraction of samples with Ns")
 
         y = numpy.array([ float(pos_stats[contig][pos]["mix"]) / total_samples for pos in pos_stats[contig] if pos not in discarded.get(contig, [])])
         ax3.plot(x, y, 'go')
-        ax3.set_title("Fraction of mixed")
+        ax3.set_title("Fraction of samples with mixed bases")
 
-        plt.savefig(os.path.join(plots_dir, "%s.png" % contig))
+        y = numpy.array([ float(pos_stats[contig][pos]["gap"]) / total_samples for pos in pos_stats[contig] if pos not in discarded.get(contig, [])])
+        ax4.plot(x, y, 'yo')
+        ax4.set_title("Fraction of samples with uncallable genotype (gap)")
+
+        plt.savefig(os.path.join(plots_dir, "%s.png" % contig), dpi=100)
 
 def get_mixture(record, threshold):
     mixtures = {}
@@ -231,7 +236,7 @@ def main():
                         pos_stats[record.CHROM] = {}
 
                     avail_pos[record.CHROM].insert(record.POS, str(record.REF))
-                    pos_stats[record.CHROM][record.POS] = {"N":0, "-": 0, "mut": 0, "mix": 0}
+                    pos_stats[record.CHROM][record.POS] = {"N":0, "-": 0, "mut": 0, "mix": 0, "gap": 0}
 
             elif args.with_mixtures and record.is_snp:
                 mix = get_mixture(record, args.with_mixtures)
@@ -241,7 +246,7 @@ def main():
                         avail_pos[record.CHROM].insert(record.POS, str(record.REF))
                         if record.CHROM not in pos_stats:
                             pos_stats[record.CHROM] = {}
-                        pos_stats[record.CHROM][record.POS] = {"N": 0, "-": 0, "mut": 0, "mix": 0}
+                        pos_stats[record.CHROM][record.POS] = {"N": 0, "-": 0, "mut": 0, "mix": 0, "gap": 0}
 
                         if sample_name not in mixtures[record.CHROM]:
                             mixtures[record.CHROM][sample_name] = FastRBTree()
@@ -297,6 +302,9 @@ def main():
                     else:
                         pos_stats[record.CHROM][record.POS]["mix"] += 1
 #                         print "Good mixture %s: %i (%s)" % (sample_name, record.POS, extended_code)
+                    # Record if there was uncallable genoty/gap in the data.
+                    if record.samples[0].data.GT == "./.":
+                        pos_stats[record.CHROM][record.POS]["gap"] += 1
 
                     # Save the extended code of the SNP.
                     all_data[record.CHROM][sample_name][record.POS] = extended_code
