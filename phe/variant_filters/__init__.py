@@ -203,7 +203,8 @@ def make_filters(config):
             if custom_filter in _avail_filters:
                 filters.append(_avail_filters[custom_filter](config))
             else:
-                logging.warn("Could not find appropriate filter for %s",
+                logging.error("Could not find appropriate filter for %s",
                              custom_filter)
+                raise Exception("Filter %s could not be created. Please check your filter arguments." % custom_filter)
 
     return filters
