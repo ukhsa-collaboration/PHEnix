@@ -1,6 +1,7 @@
 """Classes and methods to work with variants and such."""
 import abc
 from collections import OrderedDict
+import gzip
 import logging
 import pickle
 
@@ -167,7 +168,11 @@ class VariantSet(object):
             Number of records written.
         """
         written_variants = 0
-        with open(vcf_out, "w") as out_vcf:
+
+        # Check if the output file ends with .gz, then compress data.
+        open_func = gzip.open if vcf_out.endswith(".gz") else open
+
+        with open_func(vcf_out, "w") as out_vcf:
             writer = vcf.Writer(out_vcf, self.out_template)
 
             # Output internal variants (if exist) otherwise, output data from reader.
@@ -189,7 +194,9 @@ class VariantSet(object):
     def _write_bad_variants(self, vcf_out):
         """**PRIVATE:** Write only those records that **haven't** passed."""
         written_variants = 0
-        with open(vcf_out, "w") as out_vcf:
+        # Check if the output file ends with .gz, then compress data.
+        open_func = gzip.open if vcf_out.endswith(".gz") else open
+        with open_func(vcf_out, "w") as out_vcf:
             writer = vcf.Writer(out_vcf, self.out_template)
             for record in self.variants:
                 if record.FILTER != "PASS" and record.FILTER is not None:
@@ -211,7 +218,8 @@ class VariantSet(object):
             Number of variants written.
         """
         written_variants = 0
-        with open(out_file, "w") as out_vcf:
+        open_func = gzip.open if out_file.endswith(".gz") else open
+        with open_func(out_file, "w") as out_vcf:
             writer = vcf.Writer(out_vcf, self.out_template)
             for record in self.variants:
                 writer.write_record(record)
