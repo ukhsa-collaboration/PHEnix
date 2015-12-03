@@ -15,7 +15,7 @@ class TestGQFilter(unittest.TestCase):
 
     def setUp(self):
         base_path = os.path.abspath(os.path.dirname(__file__))
-        self.vcf_in = os.path.join(base_path, "sample1.vcf")
+        self.vcf_in = os.path.join(base_path, "sample.vcf")
         self.filter_threshold = 0.05
         self.filter = MQ0Filter({MQ0Filter.parameter: self.filter_threshold})
 
