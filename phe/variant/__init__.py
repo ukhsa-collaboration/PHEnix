@@ -83,7 +83,6 @@ class VariantSet(object):
         '''
         for var in self._variants:
             if not only_good:
-                print var.FILTER
                 yield var
             elif var.FILTER is None:
                 yield var
