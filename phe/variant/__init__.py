@@ -1,4 +1,4 @@
-"""Classes and methods to work with variants and such."""
+"""Classes and methods to work with _variants and such."""
 import abc
 from collections import OrderedDict
 import gzip
@@ -28,7 +28,7 @@ class VCFTemplate(object):
         self.samples = vcf_reader.samples
 
 class VariantSet(object):
-    """A convenient representation of set of variants.
+    """A convenient representation of set of _variants.
     TODO: Implement iterator and generator for the variant set.
     """
 
@@ -67,16 +67,26 @@ class VariantSet(object):
             if filters:
                 self.filters = make_filters(config=filters)
 
-        self.variants = []
+        self._variants = []
 
     def __iter__(self):
-        return self
+        '''Iterator over **all** variants'''
+        return self.variants(only_good=False)
 
-    def next(self):
-        '''Iterate over the variants.'''
-        for var in self.variants:
-            return var
-        raise StopIteration()
+    def variants(self, only_good=False):
+        '''Generator over the variant set.
+        Parameters:
+        -----------
+        only_good: bool, optional
+            Iff True good and bad variants are returned, 
+            otherwise only good are returned (default: False).
+        '''
+        for var in self._variants:
+            if not only_good:
+                print var.FILTER
+                yield var
+            elif var.FILTER is None:
+                yield var
 
     def filter_variants(self, keep_only_snps=True):
         """Create a variant """
@@ -137,16 +147,15 @@ class VariantSet(object):
             # After applying all filters, check if FILTER is None.
             # If it is, then record PASSED all filters.
             if record.FILTER is None or record.FILTER == []:
-                record.FILTER = 'PASS'
                 # FIXME: Does this work for indels?
                 if keep_only_snps and record.is_snp:
-                    self.variants.append(record)
+                    self._variants.append(record)
             else:
-                self.variants.append(record)
+                self._variants.append(record)
 
         self.update_filters(self._reader.filters)
 
-        return [ variant for variant in self.variants if variant.FILTER == "PASS"]
+        return [ variant for variant in self._variants if variant.FILTER == "PASS"]
 
     def add_metadata(self, info):
         """Add metadata to the variant set.
@@ -160,7 +169,7 @@ class VariantSet(object):
             self.out_template.metadata[info_key] = metadata
 
     def write_variants(self, vcf_out, only_snps=False, only_good=False):
-        """Write variants to a VCF file.
+        """Write _variants to a VCF file.
         
         Parameters:
         -----------
@@ -184,8 +193,8 @@ class VariantSet(object):
         with open_func(vcf_out, "w") as out_vcf:
             writer = vcf.Writer(out_vcf, self.out_template)
 
-            # Output internal variants (if exist) otherwise, output data from reader.
-            variants = self.variants if self.variants else self._reader
+            # Output internal _variants (if exist) otherwise, output data from reader.
+            variants = self._variants if self._variants else self._reader
 
             for record in variants:
 
@@ -207,7 +216,7 @@ class VariantSet(object):
         open_func = gzip.open if vcf_out.endswith(".gz") else open
         with open_func(vcf_out, "w") as out_vcf:
             writer = vcf.Writer(out_vcf, self.out_template)
-            for record in self.variants:
+            for record in self._variants:
                 if record.FILTER != "PASS" and record.FILTER is not None:
                     writer.write_record(record)
                     written_variants += 1
@@ -224,13 +233,13 @@ class VariantSet(object):
         Returns:
         --------
         int:
-            Number of variants written.
+            Number of _variants written.
         """
         written_variants = 0
         open_func = gzip.open if out_file.endswith(".gz") else open
         with open_func(out_file, "w") as out_vcf:
             writer = vcf.Writer(out_vcf, self.out_template)
-            for record in self.variants:
+            for record in self._variants:
                 writer.write_record(record)
                 written_variants += 1
 
@@ -268,7 +277,7 @@ class VariantCaller(PHEMetaData):
         ref: str
             Path to the reference file.
         bam: str
-            Path to the indexed **BAM** file for calling variants.
+            Path to the indexed **BAM** file for calling _variants.
         vcf_file: str
             path to the VCF file where data will be written to.
             
