@@ -69,6 +69,15 @@ class VariantSet(object):
 
         self.variants = []
 
+    def __iter__(self):
+        return self
+
+    def next(self):
+        '''Iterate over the variants.'''
+        for var in self.variants:
+            return var
+        raise StopIteration()
+
     def filter_variants(self, keep_only_snps=True):
         """Create a variant """
 
