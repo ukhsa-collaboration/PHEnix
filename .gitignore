@@ -2,3 +2,4 @@
 .pydevproject
 /test_data/
 *.pyc
+/cover/
