@@ -153,7 +153,7 @@ class VariantSet(object):
             else:
                 self._variants.append(record)
 
-        self.update_filters(self._reader.filters)
+        self._update_filters(self._reader.filters)
 
         return [ variant for variant in self._variants if not variant.FILTER]
 
@@ -222,7 +222,7 @@ class VariantSet(object):
                     written_variants += 1
         return written_variants
 
-    def update_filters(self, new_filters):
+    def _update_filters(self, new_filters):
         """Update internal filters in the output template."""
         for new_filter, filter_data in new_filters.items():
             self.out_template.filters[new_filter] = filter_data
