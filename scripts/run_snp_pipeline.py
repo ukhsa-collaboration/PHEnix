@@ -162,7 +162,7 @@ def main():
 #         var_set._write_bad_variants("filtered.bad.vcf")
 
         final_vcf = os.path.join(args.outdir, "%s.filtered.vcf" % args.sample_name)
-        var_set.serialise(final_vcf)
+        var_set.write_variants(final_vcf)
 
     return 0
 

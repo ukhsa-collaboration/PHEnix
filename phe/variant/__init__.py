@@ -84,7 +84,7 @@ class VariantSet(object):
         for var in self._variants:
             if not only_good:
                 yield var
-            elif var.FILTER is None:
+            elif not var.FILTER :
                 yield var
 
     def filter_variants(self, keep_only_snps=True):
@@ -146,6 +146,7 @@ class VariantSet(object):
             # After applying all filters, check if FILTER is None.
             # If it is, then record PASSED all filters.
             if record.FILTER is None or record.FILTER == []:
+                record.FILTER = []
                 # FIXME: Does this work for indels?
                 if keep_only_snps and record.is_snp:
                     self._variants.append(record)
@@ -154,7 +155,7 @@ class VariantSet(object):
 
         self.update_filters(self._reader.filters)
 
-        return [ variant for variant in self._variants if variant.FILTER == "PASS"]
+        return [ variant for variant in self._variants if not variant.FILTER]
 
     def add_metadata(self, info):
         """Add metadata to the variant set.
@@ -219,29 +220,6 @@ class VariantSet(object):
                 if record.FILTER != "PASS" and record.FILTER is not None:
                     writer.write_record(record)
                     written_variants += 1
-        return written_variants
-
-    def serialise(self, out_file):
-        """Save the data in this class to a file for future use/reload.
-        
-        Parameters:
-        -----------
-        out_file: str
-            path to file where the data should be written to.
-            
-        Returns:
-        --------
-        int:
-            Number of _variants written.
-        """
-        written_variants = 0
-        open_func = gzip.open if out_file.endswith(".gz") else open
-        with open_func(out_file, "w") as out_vcf:
-            writer = vcf.Writer(out_vcf, self.out_template)
-            for record in self._variants:
-                writer.write_record(record)
-                written_variants += 1
-
         return written_variants
 
     def update_filters(self, new_filters):
