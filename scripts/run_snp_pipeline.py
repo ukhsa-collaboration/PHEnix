@@ -54,6 +54,8 @@ def get_args():
 
     args.add_argument("--annotators", nargs="+", help="List of annotators to run before filters. Available: %s" % available_annotators())
 
+    args.add_argument("--debug", action="store_true", help="More verbose logging.")
+
     return args.parse_args()
 
 def load_config(args):
@@ -74,10 +76,13 @@ def load_config(args):
 
 def main():
 
-    logging.basicConfig(level=logging.DEBUG,)
+    args = get_args()
+
+    log_level = logging.DEBUG if args.debug else logging.INFO
+    logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s",
+                            level=log_level)
 
     logging.info("Initialising data matrix.")
-    args = get_args()
 
     if args.outdir is None:
         sys.stdout.write("Please provide output directory.")
