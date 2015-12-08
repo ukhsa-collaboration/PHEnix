@@ -15,7 +15,11 @@ import vcf
 import vcf.filters
 from vcf.parser import _Filter
 
-IUPAC_CODES = {frozenset(["A", "G"]): "R",
+IUPAC_CODES = {frozenset(["A"]): "A",
+               frozenset(["C"]): "C",
+               frozenset(["G"]): "G",
+               frozenset(["T"]): "T",
+               frozenset(["A", "G"]): "R",
                 frozenset(["C", "T"]): "Y",
                 frozenset(["G", "C"]): "S",
                 frozenset(["A", "T"]): "W",
@@ -91,19 +95,14 @@ class PHEFilterBase(vcf.filters.Base):
 
     @staticmethod
     def call_concensus(record):
-        extended_code = "N"
-        try:
-            sample_ad = set([str(c) for c in record.ALT] + [record.REF])
+        if not record.FILTER:
+            sample_ad = frozenset([str(c).upper() for c in record.ALT])
+            return IUPAC_CODES.get(sample_ad, "N")
 
+        else:
+            sample_ad = frozenset([str(c).upper() for c in record.ALT] + [record.REF])
 
-            for code, cov in IUPAC_CODES.items():
-                if sample_ad == cov:
-                    extended_code = code
-                    break
-        except AttributeError:
-            extended_code = "N"
-
-        return extended_code
+            return IUPAC_CODES.get(sample_ad, "N")
 
 def dynamic_filter_loader():
     """Fancy way of dynamically importing existing filters.
