@@ -60,6 +60,14 @@ class TestDepthFilter(unittest.TestCase):
 
         self.assertEquals("%s:%s" % (self.parameter, self.filter_threshold), str(self.filter))
 
+    def test_bad_config(self):
+        with self.assertRaises(Exception):
+            DepthFilter({self.parameter: "test"})
+
+        with self.assertRaises(Exception):
+            DepthFilter({self.parameter: "0.1"})
+
+
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']
     unittest.main()

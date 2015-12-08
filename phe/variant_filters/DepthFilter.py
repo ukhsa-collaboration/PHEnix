@@ -36,8 +36,8 @@ class DepthFilter(PHEFilterBase):
             try:
                 self.threshold = int(args.get(self.parameter))
             except (TypeError, ValueError):
-                logging.error("Could not retrieve threshold from %s", args.get(self.parameter))
-                self.threshold = None
+                logging.error("Could not retrieve integer threshold from %s", args.get(self.parameter))
+                raise Exception("Could not create depth filter from parameters: %s" % args)
 
     def __call__(self, record):
         """Filter a :py:class:`vcf.model._Record`."""

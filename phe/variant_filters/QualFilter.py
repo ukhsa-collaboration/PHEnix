@@ -38,7 +38,7 @@ class QualFilter(PHEFilterBase):
             except (TypeError, ValueError):
                 logging.error("Could not retrieve threshold from %s", args.get(self.parameter))
                 logging.error("This parameter requires to be a float!")
-                self.threshold = None
+                raise Exception("Could not create QUAL filter from parameters: %s" % args)
 
     def __call__(self, record):
         """Filter a :py:class:`vcf.model._Record`."""
