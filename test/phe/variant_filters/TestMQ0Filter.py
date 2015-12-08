@@ -10,14 +10,16 @@ import vcf
 from phe.variant_filters.MQ0Filter import MQ0Filter
 
 
-class TestGQFilter(unittest.TestCase):
+class TestMQ0Filter(unittest.TestCase):
 
 
     def setUp(self):
         base_path = os.path.abspath(os.path.dirname(__file__))
         self.vcf_in = os.path.join(base_path, "sample.vcf")
         self.filter_threshold = 0.05
-        self.filter = MQ0Filter({MQ0Filter.parameter: self.filter_threshold})
+        self.parameter = "mq0_ratio"
+        self.filter_config = {self.parameter: self.filter_threshold}
+        self.filter = MQ0Filter(self.filter_config)
 
         self.bad_positions = [31809, 65032, 65436]
         self.bad_positions.sort()
@@ -46,6 +48,17 @@ class TestGQFilter(unittest.TestCase):
         short_desc = "Filter sites by MQ0 (Total Mapping Quality Zero Reads) to DP ratio. (MQ0 > %s)" % self.filter_threshold
 
         self.assertEquals(short_desc, self.filter.short_desc())
+
+    def test_parameter(self):
+        self.assertEquals(self.parameter, self.filter.parameter)
+
+    def test_get_config(self):
+        self.assertDictEqual(self.filter_config, self.filter.get_config())
+
+    def test_filter_name(self):
+        self.assertEquals("%s:%s" % (self.parameter, self.filter_threshold), self.filter.filter_name())
+
+        self.assertEquals("%s:%s" % (self.parameter, self.filter_threshold), str(self.filter))
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']

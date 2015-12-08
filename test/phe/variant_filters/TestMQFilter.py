@@ -10,14 +10,16 @@ import vcf
 from phe.variant_filters.MQFilter import MQFilter
 
 
-class TestGQFilter(unittest.TestCase):
+class TestMQFilter(unittest.TestCase):
 
 
     def setUp(self):
         base_path = os.path.abspath(os.path.dirname(__file__))
         self.vcf_in = os.path.join(base_path, "sample.vcf")
         self.filter_threshold = 30
-        self.filter = MQFilter({MQFilter.parameter: self.filter_threshold})
+        self.parameter = "mq_score"
+        self.filter_config = {self.parameter: self.filter_threshold}
+        self.filter = MQFilter(self.filter_config)
 
         self.bad_positions = [31809, 65032, 65436]
         self.bad_positions.sort()
@@ -46,6 +48,17 @@ class TestGQFilter(unittest.TestCase):
         short_desc = "Filter sites by Mapping Quality (MQ) score. (MQ > %s)" % self.filter_threshold
 
         self.assertEquals(short_desc, self.filter.short_desc())
+
+    def test_parameter(self):
+        self.assertEquals(self.parameter, self.filter.parameter)
+
+    def test_get_config(self):
+        self.assertDictEqual(self.filter_config, self.filter.get_config())
+
+    def test_filter_name(self):
+        self.assertEquals("%s:%s" % (self.parameter, self.filter_threshold), self.filter.filter_name())
+
+        self.assertEquals("%s:%s" % (self.parameter, self.filter_threshold), str(self.filter))
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']

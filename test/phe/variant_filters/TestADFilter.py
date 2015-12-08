@@ -17,7 +17,9 @@ class TestADFilter(unittest.TestCase):
         base_path = os.path.abspath(os.path.dirname(__file__))
         self.vcf_in = os.path.join(base_path, "sample.vcf")
         self.filter_threshold = 0.9
-        self.filter = ADFilter({ADFilter.parameter: self.filter_threshold})
+        self.parameter = "ad_ratio"
+        self.filter_config = {self.parameter: self.filter_threshold}
+        self.filter = ADFilter(self.filter_config)
 
         self.bad_positions = [29144, 65032]
         self.bad_positions.sort()
@@ -46,6 +48,17 @@ class TestADFilter(unittest.TestCase):
         short_desc = "Filter sites by AD ratio. (AD ratio > %s )" % self.filter_threshold
 
         self.assertEquals(short_desc, self.filter.short_desc())
+
+    def test_parameter(self):
+        self.assertEquals(self.parameter, self.filter.parameter)
+
+    def test_get_config(self):
+        self.assertDictEqual(self.filter_config, self.filter.get_config())
+
+    def test_filter_name(self):
+        self.assertEquals("%s:%s" % (self.parameter, self.filter_threshold), self.filter.filter_name())
+
+        self.assertEquals("%s:%s" % (self.parameter, self.filter_threshold), str(self.filter))
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']
