@@ -2,6 +2,7 @@
 
 from argparse import RawTextHelpFormatter
 import argparse
+import glob
 import logging
 import os
 import sys
@@ -18,8 +19,23 @@ from phe.variant.variant_factory import factory as variant_fac, \
 from phe.variant_filters import available_filters, str_to_filters, make_filters
 
 
-def pipeline():
-    return 0
+def pipeline(workflow, input_dir):
+    config = {}
+    for fastq in glob.glob(os.path.join(input_dir, "*processed*fastq.gz")):
+        if fastq.endswith("R1.fastq.gz"):
+            config["r1"] = os.path.abspath(fastq)
+        elif fastq.endswith("R2.fastq.gz"):
+            config["r2"] = os.path.abspath(fastq)
+
+    output_dir = os.path.join(input_dir, "snp_pipeline")
+
+    if not os.path.exists(output_dir):
+        logging.critical("Output directory %s doesn't exists, Exiting.", output_dir)
+        return {}
+
+    config["outdir"] = output_dir
+
+    return config
 
 desc = '''Run the snp pipeline with specified mapper, variant caller and some filters.
 Available mappers: %s
@@ -81,6 +97,14 @@ def main():
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s",
                             level=log_level)
+    if args.workflow and args.input:
+        workflow_config = pipeline(args.workflow, args.input)
+        try:
+            args.r1 = workflow_config["r1"]
+            args.r1 = workflow_config["r2"]
+            args.outdir = workflow_config["outdir"]
+        except KeyError:
+            logging.critical("Could not find parameters in %s", args.input)
 
     logging.info("Initialising data matrix.")
 
@@ -94,7 +118,9 @@ def main():
     if args.config:
         load_config(args)
 
-    mapper = map_fac(mapper=args.mapper, custom_options=args.mapper_options)
+    mapper = None
+    if args.mapper:
+        mapper = map_fac(mapper=args.mapper, custom_options=args.mapper_options)
 
     variant = None
     if args.variant:
@@ -118,18 +144,20 @@ def main():
     logging.info("Mapping data file.")
     if args.bam is not None:
         bam_file = args.bam
-    elif args.vcf is None:
+    elif args.vcf is None and mapper is not None:
         bam_file = os.path.join(args.outdir, "%s.bam" % args.sample_name)
         success = mapper.make_bam(ref=args.r, R1=args.r1, R2=args.r2, out_file=bam_file, sample_name=args.sample_name)
 
         if not success:
             logging.warn("Could not map reads to the reference. Aborting.")
             return 1
+    else:
+        bam_file = None
 
     logging.info("Creating digitised variants.")
     if args.vcf:
         vcf_file = args.vcf
-    else:
+    elif bam_file is not None:
         vcf_file = os.path.join(args.outdir, "%s.vcf" % args.sample_name)
 
         if variant and not variant.make_vcf(ref=args.r, bam=bam_file, vcf_file=vcf_file):
