@@ -6,9 +6,7 @@ import glob
 import logging
 import os
 import sys
-import tempfile
 
-import vcf
 import yaml
 
 from phe.annotations import available_annotators, make_annotators
@@ -20,6 +18,20 @@ from phe.variant_filters import available_filters, str_to_filters, make_filters
 
 
 def pipeline(workflow, input_dir):
+    '''Setup config for pipeline run.
+    
+    Parameters:
+    -----------
+    workflow: str
+        Name of the workflow running.
+    input_dir: str
+        Path to the input directory where the fastQ files are kept.
+        
+    Returns:
+    --------
+    dict:
+        Dictionary with r1, r2, reference, sample_name, config and outdir keys.
+    '''
     config = {}
     for fastq in glob.glob(os.path.join(input_dir, "*processed*fastq.gz")):
         if fastq.endswith("R1.fastq.gz"):
