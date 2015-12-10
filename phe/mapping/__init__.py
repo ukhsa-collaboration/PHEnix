@@ -61,6 +61,8 @@ class Mapper(PHEMetaData):
             Name of the output file where SAM data is written.
         sample_name: str
             Name of the sample to be included in the read group (RG) field.
+        make_aux: bool, optional
+            True/False to make auxilliary files (default: False).
 
         Returns:
         --------

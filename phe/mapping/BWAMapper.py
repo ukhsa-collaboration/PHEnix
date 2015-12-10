@@ -77,6 +77,8 @@ class BWAMapper(Mapper):
         out_file = kwargs.get("out_file")
         sample_name = kwargs.get("sample_name", "test_sample")
 
+        make_aux = kwargs.get("make_aux", False)
+
         if ref is None or r1 is None or r2 is None or out_file is None:
             logging.error("One of the required parameters is not specified.")
             return False
@@ -90,9 +92,10 @@ class BWAMapper(Mapper):
              "extra_options": self.cmd_options
              }
 
-#         if self.create_aux_files(ref):
-#             logging.error("Computing index has failed. Abort")
-#             return False
+        if make_aux:
+            if not self.create_aux_files(ref):
+                logging.error("Computing index has failed. Abort")
+                return False
 
         cmd = "%(cmd)s -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s' %(extra_options)s %(ref)s %(r1)s %(r2)s > %(out_sam)s" % d
 

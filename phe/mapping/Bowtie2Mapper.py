@@ -77,6 +77,8 @@ class Bowtie2Mapper(Mapper):
         out_file = kwargs.get("out_file")
         sample_name = kwargs.get("sample_name", "test_sample")
 
+        make_aux = kwargs.get("make_aux", False)
+
         if ref is None or r1 is None or r2 is None or out_file is None:
             logging.error("One of the required parameters is not specified.")
             return False
@@ -90,9 +92,11 @@ class Bowtie2Mapper(Mapper):
              "extra_options": self.cmd_options
              }
 
-#         if self.create_aux_files(ref):
-#             logging.error("Computing index has failed. Abort")
-#             return False
+        if make_aux:
+            if not self.create_aux_files(ref):
+                logging.error("Computing index has failed. Abort")
+                return False
+
         # TODO: should the above command have -k 1 as default option?
         cmd = "%(cmd)s --rg-id '%(sample_name)s' --rg 'SM:%(sample_name)s' %(extra_options)s -x %(ref)s -1 %(r1)s -2 %(r2)s -S %(out_sam)s" % d
 
