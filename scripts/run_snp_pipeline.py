@@ -24,16 +24,33 @@ def pipeline(workflow, input_dir):
     for fastq in glob.glob(os.path.join(input_dir, "*processed*fastq.gz")):
         if fastq.endswith("R1.fastq.gz"):
             config["r1"] = os.path.abspath(fastq)
+
+            config["sample_name"] = ".".join(os.path.basename(fastq).split(".")[:-6])
         elif fastq.endswith("R2.fastq.gz"):
             config["r2"] = os.path.abspath(fastq)
 
     output_dir = os.path.join(input_dir, "snp_pipeline")
 
     if not os.path.exists(output_dir):
+        # os.makedirs(output_dir)
         logging.critical("Output directory %s doesn't exists, Exiting.", output_dir)
-        return {}
+    else:
+        config["outdir"] = output_dir
 
-    config["outdir"] = output_dir
+    config_files = glob.glob(os.path.join(output_dir, "*.yml"))
+    if len(config_files) > 1:
+        logging.critical("More than 1 YAML file detected in %s. A single config is required.", output_dir)
+    elif len(config_files) == 0:
+        logging.critical("No YAML configs detected in %s. A config is required.", output_dir)
+    else:
+        config["config"] = config_files[0]
+
+    reference_file = os.path.join(output_dir, "reference.fasta")
+
+    if not os.path.exists(reference_file):
+        logging.critical("No reference found in %s. A reference.fasta is required.", output_dir)
+    else:
+        config["reference"] = reference_file
 
     return config
 
@@ -54,7 +71,7 @@ def get_args():
 
     args.add_argument("-r1", help="R1/Forward read in Fastq format.")
     args.add_argument("-r2", help="R2/Reverse read in Fastq format.")
-    args.add_argument("-r", help="Rerefence to use for mapping.")
+    args.add_argument("--reference", "-r", help="Rerefence to use for mapping.")
     args.add_argument("--sample-name", default="test_sample", help="Name of the sample for mapper to include as read groups.")
     args.add_argument("--outdir", "-o")
 
@@ -97,14 +114,22 @@ def main():
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s",
                             level=log_level)
+
+    make_aux = False
     if args.workflow and args.input:
+        logging.info("PIPELINE_START")
         workflow_config = pipeline(args.workflow, args.input)
         try:
             args.r1 = workflow_config["r1"]
-            args.r1 = workflow_config["r2"]
+            args.r2 = workflow_config["r2"]
             args.outdir = workflow_config["outdir"]
+            args.config = workflow_config["config"]
+            args.reference = workflow_config["reference"]
+            args.sample_name = workflow_config["sample_name"]
+            make_aux = True
         except KeyError:
             logging.critical("Could not find parameters in %s", args.input)
+            return 5
 
     logging.info("Initialising data matrix.")
 
@@ -146,7 +171,12 @@ def main():
         bam_file = args.bam
     elif args.vcf is None and mapper is not None:
         bam_file = os.path.join(args.outdir, "%s.bam" % args.sample_name)
-        success = mapper.make_bam(ref=args.r, R1=args.r1, R2=args.r2, out_file=bam_file, sample_name=args.sample_name)
+        success = mapper.make_bam(ref=args.reference,
+                                  R1=args.r1,
+                                  R2=args.r2,
+                                  out_file=bam_file,
+                                  sample_name=args.sample_name,
+                                  make_aux=make_aux)
 
         if not success:
             logging.warn("Could not map reads to the reference. Aborting.")
@@ -160,7 +190,7 @@ def main():
     elif bam_file is not None:
         vcf_file = os.path.join(args.outdir, "%s.vcf" % args.sample_name)
 
-        if variant and not variant.make_vcf(ref=args.r, bam=bam_file, vcf_file=vcf_file):
+        if variant and not variant.make_vcf(ref=args.reference, bam=bam_file, vcf_file=vcf_file, make_aux=make_aux):
             logging.error("VCF was not created.")
             return 2
 
@@ -177,7 +207,7 @@ def main():
                 annotators_metadata.append(meta)
 
     if args.filters:
-        logging.info("Applying filters: %s", args.filters)
+        logging.info("Applying filters: %s", [str(f) for f in args.filters])
         var_set = VariantSet(vcf_file, filters=args.filters)
 
         var_set.add_metadata(mapper.get_meta())
@@ -196,6 +226,11 @@ def main():
 
         final_vcf = os.path.join(args.outdir, "%s.filtered.vcf" % args.sample_name)
         var_set.write_variants(final_vcf)
+
+    if args.workflow and args.input:
+        component_complete = os.path.join(args.outdir, "ComponentComplete.txt")
+        open(component_complete, 'a').close()
+        logging.info("PIPELINE_END")
 
     return 0
 
