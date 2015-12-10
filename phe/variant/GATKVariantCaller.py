@@ -121,10 +121,13 @@ class GATKVariantCaller(VariantCaller):
             logging.error("Picard tools are not present in the path.")
             return False
 
-        success = os.system("java -jar %(picard_tools_path)s R=%(ref)s O=%(ref_name)s.dict" % d)
+        if not os.path.exists("%s.dict" % ref_name):
+            success = os.system("java -jar %(picard_tools_path)s R=%(ref)s O=%(ref_name)s.dict" % d)
 
-        if success != 0:
-            logging.warn("Dictionary for the %s reference could not be created", ref)
-            return False
+            if success != 0:
+                logging.warn("Dictionary for the %s reference could not be created", ref)
+                return False
+        else:
+            logging.debug("PICARD AUX EXISTS.")
 
         return True
