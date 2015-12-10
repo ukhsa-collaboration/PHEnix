@@ -34,7 +34,7 @@ class CoverageAnnotator(Annotator):
         for record in reader:
             records.append(record)
 
-            dp.append(record.INFO.get("DP"))
+            dp.append(record.INFO.get("DP", 0))
 
 
         self.mean = sum(dp) * 1.0 / len(dp)
