@@ -126,3 +126,5 @@ class GATKVariantCaller(VariantCaller):
         if success != 0:
             logging.warn("Dictionary for the %s reference could not be created", ref)
             return False
+
+        return True
