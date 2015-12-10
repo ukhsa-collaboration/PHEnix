@@ -54,6 +54,8 @@ class MPileupVariantCaller(VariantCaller):
         ref = kwargs.get("ref")
         bam = kwargs.get("bam")
 
+        make_aux = kwargs.get("make_aux", False)
+
         if kwargs.get("vcf_file") is None:
             kwargs["vcf_file"] = "variants.vcf"
 
@@ -61,6 +63,11 @@ class MPileupVariantCaller(VariantCaller):
                 "bam": os.path.abspath(bam),
                 "all_variants_file": os.path.abspath(kwargs.get("vcf_file")),
                 "extra_cmd_options": self.cmd_options}
+
+        if make_aux:
+            if not self.create_aux_files(ref):
+                logging.warn("Auxiliary files were not created.")
+                return False
 
         with tempfile.NamedTemporaryFile(suffix=".pileup") as tmp:
             opts["pileup_file"] = tmp.name

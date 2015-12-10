@@ -257,7 +257,9 @@ class VariantCaller(PHEMetaData):
             Path to the indexed **BAM** file for calling _variants.
         vcf_file: str
             path to the VCF file where data will be written to.
-            
+        make_aux: bool, optional
+            True/False create auxilliary files (default: False).
+
         Returns:
         --------
         bool:

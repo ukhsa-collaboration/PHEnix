@@ -53,6 +53,8 @@ class GATKVariantCaller(VariantCaller):
         ref = kwargs.get("ref")
         bam = kwargs.get("bam")
 
+        make_aux = kwargs.get("make_aux", False)
+
         if kwargs.get("vcf_file") is None:
             kwargs["vcf_file"] = "variants.vcf"
 
@@ -61,10 +63,10 @@ class GATKVariantCaller(VariantCaller):
                 "gatk_jar": os.environ["GATK_JAR"],
                 "all_variants_file": os.path.abspath(kwargs.get("vcf_file")),
                 "extra_cmd_options": self.cmd_options}
-
-#         if not self.create_aux_files(ref):
-#             logging.warn("Auxiliary files were not created.")
-#             return False
+        if make_aux:
+            if not self.create_aux_files(ref):
+                logging.warn("Auxiliary files were not created.")
+                return False
 
         # Call variants
         # FIXME: Sample ploidy = 2?
