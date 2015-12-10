@@ -1,0 +1,12 @@
+stages:
+  - build
+  - test
+  - deploy
+before_script:
+  - source /data/apps/gitlab_ci_runner/virtualenv/python2.7/bin/activate
+job1:
+  stage: test
+  script:
+    - nosetests test
+  only:
+    - master
