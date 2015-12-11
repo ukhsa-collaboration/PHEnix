@@ -1,4 +1,4 @@
-# Phoenix
+# Phoenix [![build status](http://bioinformatics-git.phe.gov.uk/ci/projects/1/status.png?ref=master)](http://bioinformatics-git.phe.gov.uk/ci/projects/1?ref=master)
 
 If you have a sample and you want to have one-stop-shop analysis run the following:
 
