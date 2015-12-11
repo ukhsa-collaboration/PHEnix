@@ -3,7 +3,7 @@ stages:
   - test
   - deploy
 before_script:
-  - source /data/apps/gitlab_ci_runner/virtualenv/python2.7/bin/activate
+  - source ~/envs/phoenix/bin/activate
 job1:
   stage: test
   script:
