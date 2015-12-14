@@ -3,7 +3,7 @@ stages:
   - test
   - deploy
 before_script:
-  - source ~/envs/phoenix/bin/activate
+  - source ~/virtualenvs/phoenix/bin/activate
 job1:
   stage: test
   script:
