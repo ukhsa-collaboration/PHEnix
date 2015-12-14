@@ -9,7 +9,6 @@ before_script:
 python-tests:
   stage: test
   script:
-    - env
     - nosetests --with-coverage --cover-html --cover-package=phe test
   only:
     - master
