@@ -7,6 +7,7 @@ before_script:
 job1:
   stage: test
   script:
-    - nosetests test
+    - env
+    - nosetests --with-coverage --cover-html --cover-package=phe test
   only:
     - master
