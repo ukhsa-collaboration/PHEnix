@@ -1,10 +1,12 @@
+variables:
+  PROJECT_NAME: phoenix
 stages:
   - build
   - test
   - deploy
 before_script:
-  - source ~/virtualenvs/phoenix/bin/activate
-job1:
+  - source ~/virtualenvs/P$ROJECT_NAME/bin/activate
+python-tests:
   stage: test
   script:
     - env
