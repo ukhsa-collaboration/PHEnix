@@ -5,7 +5,7 @@ stages:
   - test
   - deploy
 before_script:
-  - source ~/virtualenvs/P$ROJECT_NAME/bin/activate
+  - source ~/virtualenvs/$PROJECT_NAME/bin/activate
 python-tests:
   stage: test
   script:
