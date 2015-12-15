@@ -10,8 +10,8 @@ import logging
 from phe.variant_filters import PHEFilterBase
 
 
-class MQ0Filter(PHEFilterBase):
-    '''Filter sites by MQ0 (Total Mapping Quality Zero Reads) to DP ratio.'''
+class MQ0FFilter(PHEFilterBase):
+    '''Filter sites by MQ0F (Total Mapping Quality Zero Reads to DP) ratio.'''
 
     name = "MinMQ0F"
     _default_threshold = 0.05
@@ -26,7 +26,7 @@ class MQ0Filter(PHEFilterBase):
     def __init__(self, args):
         """Min Mapping Quality Zero constructor."""
         # This needs to happen first, because threshold is initialised here.
-        super(MQ0Filter, self).__init__(args)
+        super(MQ0FFilter, self).__init__(args)
 
         # Change the threshold to custom gq value.
         self.threshold = self._default_threshold
@@ -38,7 +38,7 @@ class MQ0Filter(PHEFilterBase):
             except (TypeError, ValueError):
                 logging.error("Could not retrieve threshold from %s", args.get(self.parameter))
                 logging.error("This parameter requires to be a float!")
-                self.threshold = None
+                raise Exception("Could not create MQ0F filter from parameters: %s" % args)
 
     def __call__(self, record):
         """Filter a :py:class:`vcf.model._Record`."""

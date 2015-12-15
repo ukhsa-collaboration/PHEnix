@@ -43,9 +43,6 @@ class GQFilter(PHEFilterBase):
     def __call__(self, record):
         """Filter a :py:class:`vcf.model._Record`."""
 
-        if not record.is_snp:
-            return None
-
         if len(record.samples) > 1:
             logging.warn("More than 1 sample detected. Only first is considered.")
 
