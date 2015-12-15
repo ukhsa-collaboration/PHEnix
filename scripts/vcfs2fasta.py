@@ -34,7 +34,6 @@ def plot_stats(pos_stats, total_samples, plots_dir="plots", discarded={}):
         os.makedirs(plots_dir)
 
     for contig in pos_stats:
-
         plt.style.use('ggplot')
 
         x = numpy.array([pos for pos in pos_stats[contig] if pos not in discarded.get(contig, [])])
@@ -58,6 +57,7 @@ def plot_stats(pos_stats, total_samples, plots_dir="plots", discarded={}):
         ax4.plot(x, y, 'yo')
         ax4.set_title("Fraction of samples with uncallable genotype (gap)")
 
+        contig = contig.replace("/", "-")
         plt.savefig(os.path.join(plots_dir, "%s.png" % contig), dpi=100)
 
 def get_mixture(record, threshold):
@@ -252,6 +252,11 @@ def main():
                             mixtures[record.CHROM][sample_name] = FastRBTree()
 
                         mixtures[record.CHROM][sample_name].insert(record.POS, c)
+            else:
+                if record.CHROM not in pos_stats:
+                    pos_stats[record.CHROM] = {}
+                pos_stats[record.CHROM][record.POS] = {"N": 0, "-": 0, "mut": 0, "mix": 0, "gap": 0}
+                avail_pos[record.CHROM].insert(record.POS, str(record.REF))
 
 
     all_data = { contig: {} for contig in contigs}
@@ -274,7 +279,7 @@ def main():
 
             # If position is our available position.
             if avail_pos.get(record.CHROM, empty_tree).get(record.POS, False):
-                if record.FILTER == "PASS" or not record.FILTER:
+                if not record.FILTER:
                     if record.is_snp:
                         if len(record.ALT) > 1:
                             logging.info("POS %s passed filters but has multiple alleles. Inserting N")
