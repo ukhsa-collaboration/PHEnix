@@ -1,5 +1,22 @@
 # Phoenix [![build status](http://bioinformatics-git.phe.gov.uk/ci/projects/1/status.png?ref=master)](http://bioinformatics-git.phe.gov.uk/ci/projects/1?ref=master)
 
+## Prereq
+
+The refence needs to be index in an appropriate way for different mapper/variant callers. This can be done using:
+
+```
+$ prepare_reference.py --mapper [bwa | bowtie2] --variant [gatk | mpileup] --reference <path_to_reference>
+```
+
+Internally, when the pipeline is ran internally, the indexing will be done automatically, because it
+assumes that a reference is present for each sample. It has to be done differently for other
+use cases because if multiple jobs are spawned and each one tries to index the same file, this may
+lead to corrupted indeces.
+
+**N.B> The reference file can't have _fas_ extension, because Picard Tools throws an exception.**
+
+## Calling SNPs
+
 If you have a sample and you want to have one-stop-shop analysis run the following:
 
 ```
