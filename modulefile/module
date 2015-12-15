@@ -5,8 +5,10 @@
 ## modulefiles/modules.  Generated from modules.in by configure.
 ##
 
+# for Tcl script use only
+
 set     name            snp_pipeline
-set     version         dev
+set     version         dev 
 set     modroot         /phengs/hpc_software/${name}/$version
 
 proc ModulesHelp { } {
@@ -16,38 +18,52 @@ proc ModulesHelp { } {
         puts stderr "\n\tThis adds $modroot/* to several of the"
         puts stderr "\tenvironment variables."
         puts stderr "\n\tVersion $version\n"
-
 }
 
 module-whatis "loads the $name environment"
 
-if { ![is_loaded bwa] } {
+if { ![is-loaded pyvcf] } {
+  module load pyvcf/python2.7.6/0.6.8dev
+  }
+
+
+if { ![is-loaded yaml] } {
+  module load yaml
+}
+
+if { ![is-loaded bintrees] } {
+  module load bintrees
+}
+
+if { ![is-loaded biopython] } {
+  module load biopython/python2.7/1.62b
+}
+
+if { ![is-loaded numpy] } {
+  module load numpy/python2.7
+}
+
+if { ![is-loaded matplotlib] } {
+  module load matplotlib
+}
+
+if { ![is-loaded bwa | bowtie2] } {
   module load bwa
 }
 
-if { ![is_loaded jdk] } {
-  module load jdk/1.7.0_25
-}
-
-if { ![is_loaded picard-tools] } {
-  module load picard-tools
-}
-
-if { ![is_loaded gatk] } {
+if { ![is-loaded gatk | samtools] } {
   module load gatk
 }
 
-if { ![is_loaded samtools] } {
-  module load samtools/stable
+if { ![is-loaded samtools] } {
+  module load samtools/1.1
 }
 
-module load pyvcf/python2.7.6
-module load yaml
-module load bintrees
 
 prepend-path PATH $modroot/scripts
 prepend-path PYTHONPATH $modroot
 
-prereq python bintrees yaml
+prereq python
+#prereq bwa | bowtie2
 
 conflict    snp_pipeline
