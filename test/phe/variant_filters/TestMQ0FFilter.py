@@ -7,28 +7,27 @@ import os
 import unittest
 import vcf
 
-from phe.variant_filters.QualFilter import QualFilter
+from phe.variant_filters.MQ0FFilter import MQ0FFilter
 
 
-class TestQualFilter(unittest.TestCase):
+class TestMQ0Filter(unittest.TestCase):
 
 
     def setUp(self):
         base_path = os.path.abspath(os.path.dirname(__file__))
         self.vcf_in = os.path.join(base_path, "sample.vcf")
-        self.filter_threshold = 40.0
-        self.parameter = "qual_score"
+        self.filter_threshold = 0.05
+        self.parameter = "mq0f_ratio"
         self.filter_config = {self.parameter: self.filter_threshold}
-        self.filter = QualFilter(self.filter_config)
+        self.filter = MQ0FFilter(self.filter_config)
 
-        self.bad_positions = [31809, 65436]
-        self.good_positions = [1, 133, 142, 29144, 31810, 65032]
-        self.na_positions = [31809]
+        self.bad_positions = [1, 133, 29144, 31809, 31810, 65032, 65436]
+        self.na_positions = [133, 29144, 31809, 31810, 65032, 65436]
+        self.good_positions = [142]
 
         self.bad_positions.sort()
         self.good_positions.sort()
         self.na_positions.sort()
-
 
     def tearDown(self):
         pass
@@ -60,7 +59,7 @@ class TestQualFilter(unittest.TestCase):
         self.assertListEqual(self.good_positions, good_positions)
 
     def test_short_desc(self):
-        short_desc = "Filter sites by QUAL score. (QUAL > %s)" % self.filter_threshold
+        short_desc = "Filter sites by MQ0F (Total Mapping Quality Zero Reads to DP) ratio. (MQ0F > %s)" % self.filter_threshold
 
         self.assertEquals(short_desc, self.filter.short_desc())
 
@@ -77,7 +76,7 @@ class TestQualFilter(unittest.TestCase):
 
     def test_bad_config(self):
         with self.assertRaises(Exception):
-            QualFilter({self.parameter: "test"})
+            MQ0FFilter({self.parameter: "test"})
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']

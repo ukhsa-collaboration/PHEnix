@@ -7,28 +7,27 @@ import os
 import unittest
 import vcf
 
-from phe.variant_filters.QualFilter import QualFilter
+from phe.variant_filters.DP4Filter import DP4Filter
 
 
-class TestQualFilter(unittest.TestCase):
+class TestADFilter(unittest.TestCase):
 
 
     def setUp(self):
         base_path = os.path.abspath(os.path.dirname(__file__))
         self.vcf_in = os.path.join(base_path, "sample.vcf")
-        self.filter_threshold = 40.0
-        self.parameter = "qual_score"
+        self.filter_threshold = 0.9
+        self.parameter = "dp4_ratio"
         self.filter_config = {self.parameter: self.filter_threshold}
-        self.filter = QualFilter(self.filter_config)
+        self.filter = DP4Filter(self.filter_config)
 
-        self.bad_positions = [31809, 65436]
-        self.good_positions = [1, 133, 142, 29144, 31810, 65032]
-        self.na_positions = [31809]
+        self.bad_positions = [1, 133, 29144, 31809, 31810, 65032, 65436]
+        self.good_positions = [142]
+        self.na_positions = [133, 29144, 31809, 31810, 65032, 65436]
 
         self.bad_positions.sort()
-        self.good_positions.sort()
         self.na_positions.sort()
-
+        self.good_positions.sort()
 
     def tearDown(self):
         pass
@@ -38,8 +37,8 @@ class TestQualFilter(unittest.TestCase):
         reader = vcf.Reader(filename=self.vcf_in)
 
         bad_positions = []
-        na_positions = []
         good_positions = []
+        na_positions = []
         for record in reader:
             result = self.filter(record)
 
@@ -56,11 +55,11 @@ class TestQualFilter(unittest.TestCase):
         na_positions.sort()
 
         self.assertListEqual(self.bad_positions, bad_positions)
-        self.assertListEqual(self.na_positions, na_positions)
         self.assertListEqual(self.good_positions, good_positions)
+        self.assertListEqual(self.na_positions, na_positions)
 
     def test_short_desc(self):
-        short_desc = "Filter sites by QUAL score. (QUAL > %s)" % self.filter_threshold
+        short_desc = "Filter sites by DP4 ratio. (DP4 ratio > %s )" % self.filter_threshold
 
         self.assertEquals(short_desc, self.filter.short_desc())
 
@@ -77,7 +76,7 @@ class TestQualFilter(unittest.TestCase):
 
     def test_bad_config(self):
         with self.assertRaises(Exception):
-            QualFilter({self.parameter: "test"})
+            DP4Filter({self.parameter: "test"})
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']

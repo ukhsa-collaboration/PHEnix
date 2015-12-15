@@ -21,8 +21,13 @@ class TestADFilter(unittest.TestCase):
         self.filter_config = {self.parameter: self.filter_threshold}
         self.filter = ADFilter(self.filter_config)
 
-        self.bad_positions = [29144, 65032]
+        self.bad_positions = [1, 142, 29144, 31809, 65032]
+        self.na_positions = [1, 142, 31809]
+        self.good_positions = [133, 31810, 65436]
+
         self.bad_positions.sort()
+        self.good_positions.sort()
+        self.na_positions.sort()
 
     def tearDown(self):
         pass
@@ -31,18 +36,27 @@ class TestADFilter(unittest.TestCase):
 
         reader = vcf.Reader(filename=self.vcf_in)
 
+        good_positions = []
         bad_positions = []
+        na_positions = []
         for record in reader:
             result = self.filter(record)
 
             if result is None:
+                good_positions.append(record.POS)
                 continue
+            elif result is False:
+                na_positions.append(record.POS)
 
             bad_positions.append(record.POS)
 
         bad_positions.sort()
+        good_positions.sort()
+        na_positions.sort()
 
+        self.assertListEqual(self.good_positions, good_positions)
         self.assertListEqual(self.bad_positions, bad_positions)
+        self.assertListEqual(self.na_positions, na_positions)
 
     def test_short_desc(self):
         short_desc = "Filter sites by AD ratio. (AD ratio > %s )" % self.filter_threshold

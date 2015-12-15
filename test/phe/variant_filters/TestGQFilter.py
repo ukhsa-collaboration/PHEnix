@@ -21,7 +21,10 @@ class TestGQFilter(unittest.TestCase):
         self.filter_config = {self.parameter: self.filter_threshold}
         self.filter = GQFilter(self.filter_config)
 
-        self.bad_positions = [31810, 65436]
+        self.bad_positions = [31809, 31810, 65436]
+        self.good_positions = [1, 133, 142, 29144, 65032]
+        self.na_positions = [31809]
+
         self.bad_positions.sort()
 
     def tearDown(self):
@@ -32,17 +35,26 @@ class TestGQFilter(unittest.TestCase):
         reader = vcf.Reader(filename=self.vcf_in)
 
         bad_positions = []
+        good_positions = []
+        na_positions = []
         for record in reader:
             result = self.filter(record)
 
             if result is None:
+                good_positions.append(record.POS)
                 continue
+            elif result is False:
+                na_positions.append(record.POS)
 
             bad_positions.append(record.POS)
 
         bad_positions.sort()
+        good_positions.sort()
+        na_positions.sort()
 
         self.assertListEqual(self.bad_positions, bad_positions)
+        self.assertListEqual(self.good_positions, good_positions)
+        self.assertListEqual(self.na_positions, na_positions)
 
     def test_short_desc(self):
         short_desc = "Filter sites by GQ score. (GQ > %s)" % self.filter_threshold

@@ -21,6 +21,31 @@
 ##INFO=<ID=RU,Number=1,Type=String,Description="Tandem repeat unit (bases)">
 ##INFO=<ID=ReadPosRankSum,Number=1,Type=Float,Description="Z-score from Wilcoxon rank sum test of Alt vs. Ref read position bias">
 ##INFO=<ID=STR,Number=0,Type=Flag,Description="Variant is a short tandem repeat">
+##INFO=<ID=INDEL,Number=0,Type=Flag,Description="Indicates that the variant is an INDEL.">
+##INFO=<ID=IDV,Number=1,Type=Integer,Description="Maximum number of reads supporting an indel">
+##INFO=<ID=IMF,Number=1,Type=Float,Description="Maximum fraction of reads supporting an indel">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Raw read depth">
+##INFO=<ID=VDB,Number=1,Type=Float,Description="Variant Distance Bias for filtering splice-site artefacts in RNA-seq data (bigger is better)">
+##INFO=<ID=RPB,Number=1,Type=Float,Description="Mann-Whitney U test of Read Position Bias (bigger is better)">
+##INFO=<ID=MQB,Number=1,Type=Float,Description="Mann-Whitney U test of Mapping Quality Bias (bigger is better)">
+##INFO=<ID=BQB,Number=1,Type=Float,Description="Mann-Whitney U test of Base Quality Bias (bigger is better)">
+##INFO=<ID=MQSB,Number=1,Type=Float,Description="Mann-Whitney U test of Mapping Quality vs Strand Bias (bigger is better)">
+##INFO=<ID=SGB,Number=1,Type=Float,Description="Segregation based metric.">
+##INFO=<ID=MQ0F,Number=1,Type=Float,Description="Fraction of MQ0 reads (smaller is better)">
+##INFO=<ID=ICB,Number=1,Type=Float,Description="Inbreeding Coefficient Binomial test (bigger is better)">
+##INFO=<ID=HOB,Number=1,Type=Float,Description="Bias in the number of HOMs number (smaller is better)">
+##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele count in genotypes for each ALT allele, in the same order as listed">
+##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles in called genotypes">
+##INFO=<ID=DP4,Number=4,Type=Integer,Description="Number of high-quality ref-forward , ref-reverse, alt-forward and alt-reverse bases">
+##INFO=<ID=MQ,Number=1,Type=Integer,Description="Average mapping quality">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="List of Phred-scaled genotype likelihoods">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Number of high-quality bases">
+##FORMAT=<ID=DV,Number=1,Type=Integer,Description="Number of high-quality non-reference bases">
+##FORMAT=<ID=DPR,Number=R,Type=Integer,Description="Number of high-quality bases observed for each allele">
+##FORMAT=<ID=DP4,Number=4,Type=Integer,Description="Number of high-quality ref-fwd, ref-reverse, alt-fwd and alt-reverse bases">
+##FORMAT=<ID=SP,Number=1,Type=Integer,Description="Phred-scaled strand bias P-value">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Phred-scaled Genotype Quality">
 ##FORMAT=<ID=AD,Number=.,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
 ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">
 ##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
@@ -29,7 +54,9 @@
 ##FILTER=<ID=LowQual,Description="Low quality">
 ##contig=<ID=ATCC27545,length=715165>
 #CHROM  POS ID  REF ALT QUAL    FILTER  INFO    FORMAT  MH10
+ATCC27545       1       .       T       A       214     mq_score:30;dp4_ratio:0.9;mq0f_ratio:0.05       DP=75;VDB=8.83854e-27;RPB=0.997558;MQB=0.00546639;BQB=0.0142541;MQSB=0.504999;SGB=-0.693146;MQ0F=0.12;ICB=1.0;HOB=0.5;AC=1;AN=2;DP4=4,27,22,22;MQ=29    GT:PL:DP:DV:SP:DP4:DPR:GQ       0/1:247,0,203:75:44:29:4,27,22,22:31,41:127
 ATCC27545   133 .   A   G   9730.77 .    AC=2;AF=1.0;AN=2;DP=250;Dels=0.0;FS=0.0;HaplotypeScore=0.0;MLEAC=2;MLEAF=1.0;MQ=60.0;MQ0=0;QD=28.49 GT:AD:DP:GQ:PL  1/1:0,250:250:99:9759,722,0
+ATCC27545       142     .       T       A       228     .    DP=587;VDB=2.0527e-06;MQSB=1.75635e-07;SGB=-0.693147;MQ0F=0.011925;AC=2;AN=2;DP4=0,0,366,172;MQ=40      GT:PL:DP:DV:SP:DP4:DPR:GQ       1/1:255,255,0:538:538:0:0,0,366,172:0,538:127
 ATCC27545   29144   .   T   C   5356.77 .    AC=1;AF=0.5;AN=2;BaseQRankSum=1.808;DP=241;Dels=0.0;FS=3.286;HaplotypeScore=0.0;MLEAC=1;MLEAF=0.5;MQ=46.48;MQ0=4;MQRankSum=4.528;QD=22.23;ReadPosRankSum=-0.052 GT:AD:DP:GQ:PL  0/1:67,174:229:99:5385,0,742
 ATCC27545   31809   .   T   .   .   . .   GT  ./.
 ATCC27545   31810   .   G   C   49.74   . AC=2;AF=1.0;AN=2;DP=2;Dels=0.0;FS=0.0;HaplotypeScore=0.0;MLEAC=2;MLEAF=1.0;MQ=60.0;MQ0=0;QD=24.87   GT:AD:DP:GQ:PL  1/1:0,2:2:6:77,6,0
