@@ -40,36 +40,6 @@ class Bowtie2Mapper(Mapper):
         else:
             return False
 
-    def make_bam(self, *args, **kwargs):
-        with tempfile.NamedTemporaryFile(suffix=".sam") as tmp:
-            out_file = kwargs.get("out_file").replace(".bam", "")
-
-            kwargs["out_file"] = tmp.name
-
-            success = self.make_sam(*args, **kwargs)
-            if not success:
-                logging.warn("Could not map reads to the reference.")
-                return False
-
-            # Convert reads sam to bam filtering on MQ > 0.
-            cmd = "samtools view -bhS %s | samtools sort - -o %s" % (tmp.name, out_file)  #  samtools view -bq 1 -
-            success = os.system(cmd)
-            if success != 0:
-                logging.warn("Could not convert to BAM")
-                logging.warn("CMD: %s", cmd)
-                return False
-
-            self.last_command += " && %s" % cmd
-            cmd = "samtools index %s.bam" % out_file
-
-            success = os.system(cmd)
-            if success != 0:
-                logging.warn("Could not index the BAM.")
-                logging.warn("CMD: %s", cmd)
-                return False
-        return True
-
-
     def make_sam(self, *args, **kwargs):
         ref = kwargs.get("ref")
         r1 = kwargs.get("R1")

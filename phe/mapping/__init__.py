@@ -2,6 +2,10 @@
 
 import abc
 from collections import OrderedDict
+import logging
+import os
+import subprocess
+import tempfile
 
 from phe.metadata import PHEMetaData
 
@@ -71,7 +75,6 @@ class Mapper(PHEMetaData):
         """
         raise NotImplementedError("make_sam is not implemented yet.")
 
-    @abc.abstractmethod
     def make_bam(self, *args, **kwargs):
         """Make **indexed** BAM from reference, and fastq files.
 
@@ -94,7 +97,44 @@ class Mapper(PHEMetaData):
             True iff mapping, converting to BAM and indexing returns 0,
             False otherwise.
         """
-        raise NotImplementedError("make_bam is not implemented yet.")
+        with tempfile.NamedTemporaryFile(suffix=".sam") as tmp:
+            out_file = kwargs.get("out_file").replace(".bam", "")
+
+            kwargs["out_file"] = tmp.name
+
+            success = self.make_sam(*args, **kwargs)
+            if not success:
+                logging.warn("Could not map reads to the reference.")
+                return False
+
+            # Convert reads sam to bam filtering on MQ > 0.
+            samtools_version = self.get_samtools_version()
+
+            if samtools_version < 1.3:
+                out_file = kwargs.get("out_file").replace(".bam", "")
+                cmd = "samtools view -bhS %s | samtools sort - %s" % (tmp.name, out_file)  #  samtools view -bq 1 -
+            else:
+                out_file += ".bam"
+                cmd = "samtools view -bhS %s | samtools sort - -o %s" % (tmp.name, out_file)  #  samtools view -bq 1 -
+
+            success = os.system(cmd)
+            if success != 0:
+                logging.warn("Could not convert to BAM")
+                logging.warn("CMD: %s", cmd)
+                return False
+
+            self.last_command += " && %s" % cmd
+            if not out_file.endswith(".bam"):
+                out_file += ".bam"
+
+            cmd = "samtools index %s" % out_file
+
+            success = os.system(cmd)
+            if success != 0:
+                logging.warn("Could not index the BAM.")
+                logging.warn("CMD: %s", cmd)
+                return False
+        return True
 
     @abc.abstractmethod
     def get_info(self, plain=False):
@@ -105,6 +145,18 @@ class Mapper(PHEMetaData):
         od = self.get_info()
         od["ID"] = "Mapper"
         return OrderedDict({"PHEMapperMetaData": [od]})
+
+    def get_samtools_version(self):
+        """Get version of samtools used"""
+
+        p = subprocess.Popen(["samtools", "--version"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        (output, _) = p.communicate()
+
+        # first line is the version of the samtools
+
+        version = float(output.split("\n")[0].split(" ")[1])
+
+        return version
 
     @abc.abstractmethod
     def get_version(self):
