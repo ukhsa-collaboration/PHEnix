@@ -52,7 +52,7 @@ class Bowtie2Mapper(Mapper):
                 return False
 
             # Convert reads sam to bam filtering on MQ > 0.
-            cmd = "samtools view -bhS %s | samtools sort - %s" % (tmp.name, out_file)  #  samtools view -bq 1 -
+            cmd = "samtools view -bhS %s | samtools sort - -o %s" % (tmp.name, out_file)  #  samtools view -bq 1 -
             success = os.system(cmd)
             if success != 0:
                 logging.warn("Could not convert to BAM")
