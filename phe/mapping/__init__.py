@@ -155,7 +155,7 @@ class Mapper(PHEMetaData):
         # first line is the version of the samtools
 
 
-        version = [ int(v) for v in output.split("\n")[0].split(" ").split(".")]
+        version = [ int(v) for v in output.split("\n")[0].split(" ")[1].split(".")]
         if len(version) == 2:
             version.append(0)
 
