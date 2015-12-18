@@ -60,6 +60,14 @@ class PHEFilterBase(vcf.filters.Base):
     def __str__(self):
         return self.filter_name()
 
+    def _check_record(self, record):
+        if self.is_uncallable(record):
+            return False
+        elif record.is_monomorphic:
+            return None
+        else:
+            return True
+
     @abc.abstractmethod
     def short_desc(self):
         """Short description of the filter (included in VCF)."""
@@ -92,6 +100,23 @@ class PHEFilterBase(vcf.filters.Base):
 
     def is_n(self):
         return True
+
+    def is_uncallable(self, record):
+        """Filter a :py:class:`vcf.model._Record`."""
+
+        if len(record.samples) > 1:
+            logging.warn("More than 1 sample detected. Only first is considered.")
+
+        try:
+            record_gt = record.samples[0].data.GT
+        except AttributeError:
+            logging.warn("Could not retrieve GQ score POS %i", record.POS)
+            record_gt = "./."
+
+        if record_gt == "./.":
+            return True
+        else:
+            return False
 
     @staticmethod
     def call_concensus(record):

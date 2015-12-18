@@ -43,6 +43,10 @@ class MQ0Filter(PHEFilterBase):
     def __call__(self, record):
         """Filter a :py:class:`vcf.model._Record`."""
 
+        good_record = self._check_record(record)
+
+        if good_record is not True:
+            return good_record
 
         record_mq = record.INFO.get("MQ0")
 
