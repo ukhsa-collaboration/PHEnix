@@ -61,7 +61,7 @@ class DP4Filter(PHEFilterBase):
 
             ratio = float(sum(record_dp[2:])) / depth
         except Exception:
-            logging.error("Could not calculate DP4 ratio from %s POS: %s", record_dp, record.POS)
+            logging.warn("Could not calculate DP4 ratio from %s POS: %s", record_dp, record.POS)
             ratio = None
 
         if ratio is None or ratio < self.threshold:

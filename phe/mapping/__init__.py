@@ -110,12 +110,13 @@ class Mapper(PHEMetaData):
             # Convert reads sam to bam filtering on MQ > 0.
             samtools_version = self.get_samtools_version()
 
-            if samtools_version[0] <= 1 and samtools_version[1] < 3:
-                out_file = kwargs.get("out_file").replace(".bam", "")
-                cmd = "samtools view -bhS %s | samtools sort - %s" % (tmp.name, out_file)  #  samtools view -bq 1 -
-            else:
+            if samtools_version[0] >= 1 and samtools_version[1] >= 3:
                 out_file += ".bam"
                 cmd = "samtools view -bhS %s | samtools sort - -o %s" % (tmp.name, out_file)  #  samtools view -bq 1 -
+            else:
+                cmd = "samtools view -bhS %s | samtools sort - %s" % (tmp.name, out_file)  #  samtools view -bq 1 -
+
+            logging.debug("SAMTOOLS VERSION: %s, CMD: %s", samtools_version, cmd)
 
             success = os.system(cmd)
             if success != 0:

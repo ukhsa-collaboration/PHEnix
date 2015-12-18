@@ -44,7 +44,7 @@ class DepthFilter(PHEFilterBase):
 
         if len(record.samples) > 1:
             logging.warn("Currently we only filter VCFs with 1 sample. Only first sample will be used.")
-            logging.error("This parameter requires to be an integer!")
+            logging.warn("This parameter requires to be an integer!")
 
         try:
             record_dp = record.samples[0].data.DP

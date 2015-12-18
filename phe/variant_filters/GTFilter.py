@@ -50,7 +50,7 @@ class UncallableGTFilter(PHEFilterBase):
         try:
             record_gt = record.samples[0].data.GT
         except AttributeError:
-            logging.error("Could not retrieve GQ score POS %i", record.POS)
+            logging.warn("Could not retrieve GQ score POS %i", record.POS)
             record_gt = None
 
         if record_gt is None:

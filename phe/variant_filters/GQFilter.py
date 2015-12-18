@@ -54,7 +54,7 @@ class GQFilter(PHEFilterBase):
         try:
             record_gq = record.samples[0].data.GQ
         except AttributeError:
-            logging.error("Could not retrieve GQ score POS %i", record.POS)
+            logging.warn("Could not retrieve GQ score POS %i", record.POS)
             record_gq = None
 
         if record_gq is None or record_gq < self.threshold:
