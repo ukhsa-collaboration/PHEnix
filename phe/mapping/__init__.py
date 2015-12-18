@@ -154,10 +154,13 @@ class Mapper(PHEMetaData):
 
         # first line is the version of the samtools
 
-
-        version = [ int(v) for v in output.split("\n")[0].split(" ")[1].split(".")]
-        if len(version) == 2:
-            version.append(0)
+        try:
+            version = [ int(v) for v in output.split("\n")[0].split(" ")[1].split(".")]
+            if len(version) == 2:
+                version.append(0)
+        except ValueError:
+            # Older versions of samtools don't have --version command
+            version = [0, 0, 0]
 
         return tuple(version)
 
