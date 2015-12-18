@@ -8,6 +8,7 @@ Created on 5 Oct 2015
 '''
 import argparse
 from collections import OrderedDict
+from collections import defaultdict
 import glob
 import itertools
 import logging
@@ -139,16 +140,19 @@ def get_args():
     args.add_argument("--with-stats", help="If a path is specified, then position of the outputed SNPs is stored in this file. Requires mumpy and matplotlib.")
     args.add_argument("--plots-dir", default="plots", help="Where to write summary plots on SNPs extracted. Requires mumpy and matplotlib.")
 
+    args.add_argument("--debug", action="store_true", help="More verbose logging (default: turned off).")
+    args.add_argument("--local", action="store_true", help="Re-read the VCF instead of storing it in memory.")
+
     return args.parse_args()
 
 def main():
     """
     Process VCF files and merge them into a single fasta file.
     """
-
-    logging.basicConfig(level=logging.INFO)
-
     args = get_args()
+
+    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
+
     contigs = list()
 
     sample_stats = dict()
@@ -157,6 +161,7 @@ def main():
     avail_pos = dict()
     # Stats about each position in each chromosome.
     pos_stats = dict()
+    indel_summary = defaultdict(int)
     # Cached version of the data.
     vcf_data = dict()
     mixtures = dict()
@@ -200,7 +205,7 @@ def main():
 
 
     if args.directory is not None and args.input is None:
-        args.input = glob.glob(os.path.join(args.directory, "*.vcf"))
+        args.input = glob.glob(os.path.join(args.directory, "*.filtered.vcf"))
 
     # First pass to get the references and the positions to be analysed.
     for vcf_in in args.input:
@@ -212,7 +217,8 @@ def main():
             if include and include.get(record.CHROM, empty_tree).get(record.POS, True) or exclude and not exclude.get(record.CHROM, empty_tree).get(record.POS, True):
                 continue
 
-            vcf_data[vcf_in].append(record)
+            if not args.local:
+                vcf_data[vcf_in].append(record)
 
             if record.CHROM not in contigs:
                 contigs.append(record.CHROM)
@@ -229,7 +235,7 @@ def main():
             if not record.FILTER:
                 if record.is_snp:
                     if record.POS in avail_pos[record.CHROM] and avail_pos[record.CHROM][record.POS] != record.REF:
-                        logging.critical("SOMETHING IS REALLY WRONG because reference for the same position is DIFFERENT! %s", record.POS)
+                        logging.critical("SOMETHING IS REALLY WRONG because reference for the same position is DIFFERENT! %s in %s", record.POS, vcf_in)
                         return 2
 
                     if record.CHROM not in pos_stats:
@@ -252,11 +258,18 @@ def main():
                             mixtures[record.CHROM][sample_name] = FastRBTree()
 
                         mixtures[record.CHROM][sample_name].insert(record.POS, c)
-            else:
+            elif not record.is_deletion and not record.is_indel:
                 if record.CHROM not in pos_stats:
                     pos_stats[record.CHROM] = {}
                 pos_stats[record.CHROM][record.POS] = {"N": 0, "-": 0, "mut": 0, "mix": 0, "gap": 0}
                 avail_pos[record.CHROM].insert(record.POS, str(record.REF))
+            else:
+                logging.debug("Discarding %s from %s as DEL and/or INDEL", record.POS, vcf_in)
+                indel_summary[vcf_in] += 1
+                try:
+                    vcf_data[vcf_in].remove(record)
+                except ValueError:
+                    pass
 
 
     all_data = { contig: {} for contig in contigs}
@@ -272,8 +285,9 @@ def main():
         for contig in contigs:
             all_data[contig][sample_name] = { pos: avail_pos[contig][pos] for pos in avail_pos[contig] }
 
-#         reader = vcf.Reader(filename=vcf_in)
-        for record in vcf_data[vcf_in]:
+        # Re-read data from VCF if local is specified, otherwise get it from memory.
+        iterator = vcf.Reader(filename=vcf_in) if args.local else vcf_data[vcf_in]
+        for record in iterator:
             # Array of filters that have been applied.
             filters = []
 
@@ -406,6 +420,9 @@ def main():
     for _, i in discarded.items():
         total_discarded += len(i)
     logging.info("Discarded total of %i poor quality columns", float(total_discarded) / len(args.input))
+    logging.info("Samples with indels:")
+    for sample, count in indel_summary.iteritems():
+        logging.info("%s\t%s", sample, count)
     return 0
 
 if __name__ == '__main__':

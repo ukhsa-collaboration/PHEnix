@@ -110,7 +110,7 @@ class Mapper(PHEMetaData):
             # Convert reads sam to bam filtering on MQ > 0.
             samtools_version = self.get_samtools_version()
 
-            if samtools_version < 1.3:
+            if samtools_version[0] >= 1 and samtools_version[1] >= 3:
                 out_file = kwargs.get("out_file").replace(".bam", "")
                 cmd = "samtools view -bhS %s | samtools sort - %s" % (tmp.name, out_file)  #  samtools view -bq 1 -
             else:
@@ -147,16 +147,19 @@ class Mapper(PHEMetaData):
         return OrderedDict({"PHEMapperMetaData": [od]})
 
     def get_samtools_version(self):
-        """Get version of samtools used"""
+        """Get version of samtools used. Reterned as a triple (major, minor, patch)"""
 
         p = subprocess.Popen(["samtools", "--version"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         (output, _) = p.communicate()
 
         # first line is the version of the samtools
 
-        version = float(output.split("\n")[0].split(" ")[1])
 
-        return version
+        version = [ int(v) for v in output.split("\n")[0].split(" ").split(".")]
+        if len(version) == 2:
+            version.append(0)
+
+        return tuple(version)
 
     @abc.abstractmethod
     def get_version(self):
