@@ -1,7 +1,6 @@
 ##fileformat=VCFv4.1
 ##GATKCommandLine=<ID=UnifiedGenotyper,Version=2.6-5-gba531bd,Date="Mon Oct 19 09:53:51 BST 2015",Epoch=1445244831656,CommandLineOptions="analysis_type=UnifiedGenotyper input_file=[/phengs/hpc_storage/home/aleksey/projects/m.hominis/snps/MH10/MH10.bam] read_buffer_size=null phone_home=AWS gatk_key=null tag=NA read_filter=[BadCigar] intervals=null excludeIntervals=null interval_set_rule=UNION interval_merging=ALL interval_padding=0 reference_sequence=/phengs/hpc_storage/home/aleksey/projects/m.hominis/snps/ATCC27545.fasta nonDeterministicRandomSeed=false disableDithering=false maxRuntime=-1 maxRuntimeUnits=MINUTES downsampling_type=BY_SAMPLE downsample_to_fraction=null downsample_to_coverage=250 baq=OFF baqGapOpenPenalty=40.0 fix_misencoded_quality_scores=false allow_potentially_misencoded_quality_scores=false useOriginalQualities=false defaultBaseQualities=-1 performanceLog=null BQSR=null quantize_quals=0 disable_indel_quals=false emit_original_quals=false preserve_qscores_less_than=6 globalQScorePrior=-1.0 allow_bqsr_on_reduced_bams_despite_repeated_warnings=false validation_strictness=SILENT remove_program_records=false keep_program_records=false unsafe=null disable_auto_index_creation_and_locking_when_reading_rods=false num_threads=4 num_cpu_threads_per_data_thread=1 num_io_threads=0 monitorThreadEfficiency=false num_bam_file_handles=null read_group_black_list=null pedigree=[] pedigreeString=[] pedigreeValidationType=STRICT allow_intervals_with_unindexed_bam=false generateShadowBCF=false logging_level=INFO log_to_file=null help=false version=false genotype_likelihoods_model=BOTH pcr_error_rate=1.0E-4 computeSLOD=false annotateNDA=false pair_hmm_implementation=LOGLESS_CACHING min_base_quality_score=17 max_deletion_fraction=0.05 allSitePLs=false min_indel_count_for_genotyping=5 min_indel_fraction_per_sample=0.25 indelGapContinuationPenalty=10 indelGapOpenPenalty=45 indelHaplotypeSize=80 indelDebug=false ignoreSNPAlleles=false allReadsSP=false ignoreLaneInfo=false reference_sample_calls=(RodBinding name= source=UNBOUND) reference_sample_name=null sample_ploidy=2 min_quality_score=1 max_quality_score=40 site_quality_prior=20 min_power_threshold_for_calling=0.95 min_reference_depth=100 exclude_filtered_reference_sites=false heterozygosity=0.001 indel_heterozygosity=1.25E-4 genotyping_mode=DISCOVERY output_mode=EMIT_ALL_SITES standard_min_confidence_threshold_for_calling=30.0 standard_min_confidence_threshold_for_emitting=30.0 alleles=(RodBinding name= source=UNBOUND) max_alternate_alleles=6 input_prior=[] contamination_fraction_to_filter=0.05 contamination_fraction_per_sample_file=null p_nonref_model=EXACT_INDEPENDENT exactcallslog=null dbsnp=(RodBinding name= source=UNBOUND) comp=[] out=org.broadinstitute.sting.gatk.io.stubs.VariantContextWriterStub no_cmdline_in_header=org.broadinstitute.sting.gatk.io.stubs.VariantContextWriterStub sites_only=org.broadinstitute.sting.gatk.io.stubs.VariantContextWriterStub bcf=org.broadinstitute.sting.gatk.io.stubs.VariantContextWriterStub debug_file=null metrics_file=null annotation=[] excludeAnnotation=[] filter_reads_with_N_cigar=false filter_mismatching_base_and_quals=false filter_bases_not_stored=false">
 ##reference=file:///phengs/hpc_storage/home/aleksey/projects/m.hominis/snps/ATCC27545.fasta
-##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele count in genotypes, for each ALT allele, in the same order as listed">
 ##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency, for each ALT allele, in the same order as listed">
 ##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles in called genotypes">
 ##INFO=<ID=BaseQRankSum,Number=1,Type=Float,Description="Z-score from Wilcoxon rank sum test of Alt Vs. Ref base qualities">
@@ -24,7 +23,6 @@
 ##INFO=<ID=INDEL,Number=0,Type=Flag,Description="Indicates that the variant is an INDEL.">
 ##INFO=<ID=IDV,Number=1,Type=Integer,Description="Maximum number of reads supporting an indel">
 ##INFO=<ID=IMF,Number=1,Type=Float,Description="Maximum fraction of reads supporting an indel">
-##INFO=<ID=DP,Number=1,Type=Integer,Description="Raw read depth">
 ##INFO=<ID=VDB,Number=1,Type=Float,Description="Variant Distance Bias for filtering splice-site artefacts in RNA-seq data (bigger is better)">
 ##INFO=<ID=RPB,Number=1,Type=Float,Description="Mann-Whitney U test of Read Position Bias (bigger is better)">
 ##INFO=<ID=MQB,Number=1,Type=Float,Description="Mann-Whitney U test of Mapping Quality Bias (bigger is better)">
@@ -35,10 +33,8 @@
 ##INFO=<ID=ICB,Number=1,Type=Float,Description="Inbreeding Coefficient Binomial test (bigger is better)">
 ##INFO=<ID=HOB,Number=1,Type=Float,Description="Bias in the number of HOMs number (smaller is better)">
 ##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele count in genotypes for each ALT allele, in the same order as listed">
-##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles in called genotypes">
 ##INFO=<ID=DP4,Number=4,Type=Integer,Description="Number of high-quality ref-forward , ref-reverse, alt-forward and alt-reverse bases">
-##INFO=<ID=MQ,Number=1,Type=Integer,Description="Average mapping quality">
-##FORMAT=<ID=PL,Number=G,Type=Integer,Description="List of Phred-scaled genotype likelihoods">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
 ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Number of high-quality bases">
 ##FORMAT=<ID=DV,Number=1,Type=Integer,Description="Number of high-quality non-reference bases">
 ##FORMAT=<ID=DPR,Number=R,Type=Integer,Description="Number of high-quality bases observed for each allele">
@@ -47,14 +43,13 @@
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
 ##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Phred-scaled Genotype Quality">
 ##FORMAT=<ID=AD,Number=.,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
-##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">
-##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
-##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
-##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
 ##FILTER=<ID=LowQual,Description="Low quality">
+##FILTER=<ID=mq_score:30,Description="Filter sites by Mapping Quality (MQ) score. (MQ > 30)">
+##FILTER=<ID=min_depth:5,Description="Filter sites by depth. (DP > 5)">
+##FILTER=<ID=ad_ratio:0.9,Description="Filter sites by AD ratio. (AD ratio > 0.9 )">
 ##contig=<ID=ATCC27545,length=715165>
 #CHROM  POS ID  REF ALT QUAL    FILTER  INFO    FORMAT  MH10
-ATCC27545       1       .       T       A       214     mq_score:30;dp4_ratio:0.9;mq0f_ratio:0.05       DP=75;VDB=8.83854e-27;RPB=0.997558;MQB=0.00546639;BQB=0.0142541;MQSB=0.504999;SGB=-0.693146;MQ0F=0.12;ICB=1.0;HOB=0.5;AC=1;AN=2;DP4=4,27,22,22;MQ=29    GT:PL:DP:DV:SP:DP4:DPR:GQ       0/1:247,0,203:75:44:29:4,27,22,22:31,41:127
+ATCC27545       1       .       T       A       214     .       DP=75;VDB=8.83854e-27;RPB=0.997558;MQB=0.00546639;BQB=0.0142541;MQSB=0.504999;SGB=-0.693146;MQ0F=0.12;ICB=1.0;HOB=0.5;AC=1;AN=2;DP4=4,27,22,22;MQ=29    GT:PL:DP:DV:SP:DP4:DPR:GQ       0/1:247,0,203:75:44:29:4,27,22,22:31,41:127
 ATCC27545   133 .   A   G   9730.77 .    AC=2;AF=1.0;AN=2;DP=250;Dels=0.0;FS=0.0;HaplotypeScore=0.0;MLEAC=2;MLEAF=1.0;MQ=60.0;MQ0=0;QD=28.49 GT:AD:DP:GQ:PL  1/1:0,250:250:99:9759,722,0
 ATCC27545       142     .       T       A       228     .    DP=587;VDB=2.0527e-06;MQSB=1.75635e-07;SGB=-0.693147;MQ0F=0.011925;AC=2;AN=2;DP4=0,0,366,172;MQ=40      GT:PL:DP:DV:SP:DP4:DPR:GQ       1/1:255,255,0:538:538:0:0,0,366,172:0,538:127
 ATCC27545   29144   .   T   C   5356.77 .    AC=1;AF=0.5;AN=2;BaseQRankSum=1.808;DP=241;Dels=0.0;FS=3.286;HaplotypeScore=0.0;MLEAC=1;MLEAF=0.5;MQ=46.48;MQ0=4;MQRankSum=4.528;QD=22.23;ReadPosRankSum=-0.052 GT:AD:DP:GQ:PL  0/1:67,174:229:99:5385,0,742

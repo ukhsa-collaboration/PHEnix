@@ -24,7 +24,7 @@ class TestVariantSet(unittest.TestCase):
         self.vcf_out = os.path.join(base_path, "sample_out.vcf")
 
         self.good_vars = [133]
-        self.bad_vars = [29144, 31809, 31810, 65032, 65436]
+        self.bad_vars = [1, 142, 29144, 31809, 31810, 65032, 65436]
 
         self.var_set = VariantSet(self.vcf_in, filters=self.config)
 

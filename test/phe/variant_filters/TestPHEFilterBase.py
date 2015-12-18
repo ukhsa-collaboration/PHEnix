@@ -16,7 +16,7 @@ from phe.variant_filters.DepthFilter import DepthFilter
 class Test(unittest.TestCase):
 
     def setUp(self):
-        filter_config = {"min_depth":5}
+        filter_config = {"min_depth":5, "ad_ratio":0.9}
         self.filter = DepthFilter(filter_config)
 
         vcf_file = path.join(path.dirname(__file__), "sample.vcf")
@@ -27,7 +27,7 @@ class Test(unittest.TestCase):
         unittest.TestCase.tearDown(self)
 
     def test_consensus(self):
-        expected_consensus = ['W', 'G', 'A', 'C', 'N', 'S', 'G', 'C']
+        expected_consensus = ['W', 'G', 'W', 'Y', 'N', 'S', 'R', 'C']
         self.var_set.filter_variants()
 
         this_consensus = []

@@ -137,7 +137,7 @@ class VariantSet(object):
                 result = record_filter(record)
 
                 # Record is KEPT if filter returns None
-                if result == None:
+                if result is None:
                     continue
 
                 # If we got this far, then record is filtered OUT.
