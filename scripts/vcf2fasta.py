@@ -240,9 +240,12 @@ def main():
         sample_stats[sample_name] = base_stats()
 
 
-        reader = PHEVCFLightReader(filename=vcf_in)
+        reader = vcf.Reader(filename=vcf_in)  # PHEVCFLightReader(filename=vcf_in)
 
         for record in reader:
+
+            if record.is_indel:
+                continue
 
             if include.get(record.CHROM, empty_tree).get(record.POS, False) or \
                 not exclude.get(record.CHROM, empty_tree).get(record.POS, True):
@@ -258,6 +261,8 @@ def main():
 
 
             position_data = avail_pos[record.CHROM].get(record.POS)
+            if len(position_data["reference"]) > 1:
+                print "blah"
 
             if record.samples[0].data.GT in ("./.", None) :
                 position_data[sample_name] = "-"
@@ -265,7 +270,7 @@ def main():
                 sample_stats[sample_name].gap += 1
             elif not record.FILTER:
                 # Make sure the reference base is the same. Maybe a vcf from different species snuck in here?!
-                assert str(record.REF) == position_data["reference"], "SOMETHING IS REALLY WRONG because reference for the same position is DIFFERENT! %s in %s" % (record.POS, vcf_in)
+                assert str(record.REF) == position_data["reference"], "SOMETHING IS REALLY WRONG because reference for the same position is DIFFERENT! %s in %s (%s, %s)" % (record.POS, vcf_in, str(record.REF), position_data["reference"])
 
                 if record.is_snp:
                     if len(record.ALT) > 1:
