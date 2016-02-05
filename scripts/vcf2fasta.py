@@ -300,7 +300,7 @@ def main():
                 continue
 
             # Filter columns when threashold reaches user specified value.
-            if args.column_Ns and position_data["stats"].N / len(args.input) > args.column_Ns:
+            if args.column_Ns and float(position_data["stats"].N) / len(args.input) > args.column_Ns:
                 avail_pos[record.CHROM].remove(record.POS)
 
                 # print "excluding %s" % record.POS
@@ -308,7 +308,7 @@ def main():
                     exclude[record.CHROM] = FastRBTree()
                 exclude[record.CHROM].insert(record.POS, False)
 
-            if args.column_gaps and position_data["stats"].gap / len(args.input) > args.column_gaps:
+            if args.column_gaps and float(position_data["stats"].gap) / len(args.input) > args.column_gaps:
                 avail_pos[record.CHROM].remove(record.POS)
 
                 if record.CHROM not in exclude:
