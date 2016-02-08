@@ -13,6 +13,7 @@ import glob
 import itertools
 import logging
 import os
+import types
 
 from Bio import SeqIO
 from bintrees import FastRBTree
@@ -28,6 +29,15 @@ try:
 except ImportError:
     can_stats = False
 
+def is_uncallable(record):
+    uncall = False
+    try:
+        if record.samples[0].data.GT in ("./.", None):
+            uncall = True
+    except:
+        uncall = None
+
+    return uncall
 
 
 class base_stats(object):
@@ -234,8 +244,9 @@ def main():
         # Go over every position in the reader.
         for record in reader:
 
-            # SKIP indels, if not handled then can cause REF base to be >1
-            if record.is_indel:
+            record.__setattr__("is_uncallable", is_uncallable(record))  # is_uncallable = types.MethodType(is_uncallable, record)
+
+            if record.is_indel and not record.is_uncallable:
                 continue
 
             # SKIP (or include) any pre-specified regions.
@@ -258,12 +269,13 @@ def main():
             assert len(position_data["reference"]) == 1, "Reference base must be singluar: in %s found %s @ %s" % (position_data["reference"], sample_name, record.POS)
 
             # IF this is uncallable genotype, add gap "-"
-            if record.samples[0].data.GT in ("./.", None) :
+            if record.is_uncallable:
                 position_data[sample_name] = "-"
 
                 # Update stats
                 position_data["stats"].gap += 1
                 sample_stats[sample_name].gap += 1
+            # SKIP indels, if not handled then can cause REF base to be >1
             elif not record.FILTER:
                 # If filter PASSED!
 
@@ -362,11 +374,16 @@ def main():
                     sample_seqs[sample] += args.reference[contig][pos - 1]
                 continue
 
+            bases = set()
             # Position has been seen or no reference available.
             for sample in samples:
                 ref_base = avail_pos[contig][pos].get("reference")
 
                 sample_seqs[sample] += avail_pos[contig][pos].get(sample, ref_base)
+                bases.add(avail_pos[contig][pos].get(sample, ref_base))
+
+            # Do the internal check that positions have at least 2 different characters.
+            assert len(bases) > 1, "Internal consustency check failed for position %s bases: %s" % (pos, bases)
 
     # Write the sequences out.
     with open(args.out, "w") as fp:
