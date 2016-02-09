@@ -36,6 +36,9 @@ def is_uncallable(record):
     except:
         uncall = None
 
+    if "LowQual" in record.FILTER:
+        uncall = True
+
     return uncall
 
 
@@ -259,6 +262,7 @@ def main():
             # Inject a property about uncallable genotypes into record.
             record.__setattr__("is_uncallable", is_uncallable(record))  # is_uncallable = types.MethodType(is_uncallable, record)
 
+            # SKIP indels, if not handled then can cause REF base to be >1
             if record.is_indel and not record.is_uncallable:
                 continue
 
@@ -288,7 +292,6 @@ def main():
                 # Update stats
                 position_data["stats"].gap += 1
 
-            # SKIP indels, if not handled then can cause REF base to be >1
             elif not record.FILTER:
                 # If filter PASSED!
 
@@ -307,7 +310,7 @@ def main():
                         position_data["stats"].mut += 1
 
             # Filter(s) failed
-            elif record.is_snp:
+            else:
                 # mix = get_mixture(record, args.with_mixtures)
                 # Currently we are only using first filter to call consensus.
                 extended_code = "N"
