@@ -8,18 +8,17 @@ Created on 5 Oct 2015
 '''
 import argparse
 from collections import OrderedDict
-from collections import defaultdict
 import glob
 import itertools
 import logging
 import os
-import types
 
 from Bio import SeqIO
 from bintrees import FastRBTree
 import vcf
 
 from phe.variant_filters import IUPAC_CODES
+
 
 # Try importing the matplotlib and numpy for stats.
 try:
@@ -50,6 +49,22 @@ class base_stats(object):
 
     def __str__(self):
         return "N: %i, mut: %i, mix: %i, gap: %i, total: %i" % (self.N, self.mut, self.mix, self.gap, self.total)
+
+def get_sample_stats(all_positions, samples):
+    sample_stats = {sample: base_stats() for sample in samples }
+    for positions in all_positions.itervalues():
+        for position in positions:
+            for sample in samples:
+                base = positions[position].get(sample)
+
+                if base == "-":
+                    sample_stats[sample].gap += 1
+                elif base == "N":
+                    sample_stats[sample].N += 1
+                elif base is not None and base != positions[position].get("reference"):
+                    sample_stats[sample].mut += 1
+
+    return sample_stats
 
 def plot_stats(pos_stats, total_samples, plots_dir="plots", discarded={}):
     if not os.path.exists(plots_dir):
@@ -165,7 +180,6 @@ def get_args():
     args.add_argument("--plots-dir", default="plots", help="Where to write summary plots on SNPs extracted. Requires mumpy and matplotlib.")
 
     args.add_argument("--debug", action="store_true", help="More verbose logging (default: turned off).")
-    args.add_argument("--local", action="store_true", help="Re-read the VCF instead of storing it in memory.")
 
     return args.parse_args()
 
@@ -179,7 +193,6 @@ def main():
 
     contigs = list()
 
-    sample_stats = dict()
     samples = list()
 
     # All positions available for analysis.
@@ -237,13 +250,13 @@ def main():
     for vcf_in in args.input:
         sample_name, _ = os.path.splitext(os.path.basename(vcf_in))
         samples.append(sample_name)
-        sample_stats[sample_name] = base_stats()
 
         reader = vcf.Reader(filename=vcf_in)
 
         # Go over every position in the reader.
         for record in reader:
 
+            # Inject a property about uncallable genotypes into record.
             record.__setattr__("is_uncallable", is_uncallable(record))  # is_uncallable = types.MethodType(is_uncallable, record)
 
             if record.is_indel and not record.is_uncallable:
@@ -274,7 +287,7 @@ def main():
 
                 # Update stats
                 position_data["stats"].gap += 1
-                sample_stats[sample_name].gap += 1
+
             # SKIP indels, if not handled then can cause REF base to be >1
             elif not record.FILTER:
                 # If filter PASSED!
@@ -286,14 +299,12 @@ def main():
                     if len(record.ALT) > 1:
                         logging.info("POS %s passed filters but has multiple alleles. Inserting N")
                         position_data[sample_name] = "N"
-
                         position_data["stats"].N += 1
-                        sample_stats[sample_name].N += 1
+
                     else:
                         position_data[sample_name] = str(record.ALT[0])
 
                         position_data["stats"].mut += 1
-                        sample_stats[sample_name].mut += 1
 
             # Filter(s) failed
             elif record.is_snp:
@@ -303,7 +314,6 @@ def main():
 
                 if extended_code == "N":
                     position_data["stats"].N += 1
-                    sample_stats[sample_name].N += 1
 
                 position_data[sample_name] = extended_code
 
@@ -312,7 +322,7 @@ def main():
                 continue
 
             # Filter columns when threashold reaches user specified value.
-            if args.column_Ns and float(position_data["stats"].N) / len(args.input) > args.column_Ns:
+            if isinstance(args.column_Ns, float) and float(position_data["stats"].N) / len(args.input) > args.column_Ns:
                 avail_pos[record.CHROM].remove(record.POS)
 
                 # print "excluding %s" % record.POS
@@ -320,15 +330,18 @@ def main():
                     exclude[record.CHROM] = FastRBTree()
                 exclude[record.CHROM].insert(record.POS, False)
 
-            if args.column_gaps and float(position_data["stats"].gap) / len(args.input) > args.column_gaps:
+            if isinstance(args.column_gaps, float) and float(position_data["stats"].gap) / len(args.input) > args.column_gaps:
                 avail_pos[record.CHROM].remove(record.POS)
 
                 if record.CHROM not in exclude:
                     exclude[record.CHROM] = FastRBTree()
                 exclude[record.CHROM].insert(record.POS, False)
 
+    # Compute per sample statistics.
+    sample_stats = get_sample_stats(avail_pos, samples)
+
     # Exclude any samples with high Ns or gaps
-    if args.sample_Ns:
+    if isinstance(args.sample_Ns, float):
         ss = []
         for sample_name in samples:
             total_positions = 0
@@ -347,6 +360,7 @@ def main():
 
     sample_seqs = { sample_name: "" for sample_name in samples }
     c = 0
+
     # For each contig concatinate sequences.
     for contig in contigs:
 
@@ -379,16 +393,18 @@ def main():
             for sample in samples:
                 ref_base = avail_pos[contig][pos].get("reference")
 
-                sample_seqs[sample] += avail_pos[contig][pos].get(sample, ref_base)
-                bases.add(avail_pos[contig][pos].get(sample, ref_base))
+                sample_base = avail_pos[contig][pos].get(sample, ref_base)
+
+                sample_seqs[sample] += sample_base
+                bases.add(sample_base)
 
             # Do the internal check that positions have at least 2 different characters.
-            assert len(bases) > 1, "Internal consustency check failed for position %s bases: %s" % (pos, bases)
+            # assert len(bases) > 1, "Internal consustency check failed for position %s bases: %s" % (pos, bases)
+            # removed the check because when removing a sample based on sample-Ns can lead to non SNP bases in column.
 
     # Write the sequences out.
     with open(args.out, "w") as fp:
         for sample in sample_seqs:
-            print "%s: %i" % (sample, len(sample_seqs[sample]))
             fp.write(">%s\n%s\n" % (sample, sample_seqs[sample]))
 
     # Compute the stats.
