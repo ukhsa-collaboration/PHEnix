@@ -263,8 +263,10 @@ def main():
             record.__setattr__("is_uncallable", is_uncallable(record))  # is_uncallable = types.MethodType(is_uncallable, record)
 
             # SKIP indels, if not handled then can cause REF base to be >1
-            if record.is_indel and not record.is_uncallable:
+            if record.is_indel and not record.is_uncallable or len(record.REF) > 1:
                 continue
+                # if record.is_deletion and not record.is_uncallable:
+                #    continue
 
             # SKIP (or include) any pre-specified regions.
             if include.get(record.CHROM, empty_tree).get(record.POS, False) or \
@@ -310,7 +312,7 @@ def main():
                         position_data["stats"].mut += 1
 
             # Filter(s) failed
-            else:
+            elif record.is_snp:
                 # mix = get_mixture(record, args.with_mixtures)
                 # Currently we are only using first filter to call consensus.
                 extended_code = "N"
