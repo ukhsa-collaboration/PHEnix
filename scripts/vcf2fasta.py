@@ -69,6 +69,9 @@ def get_sample_stats(all_positions, samples):
 
     return sample_stats
 
+def calculate_dist_matrix():
+    return None
+
 def plot_stats(pos_stats, total_samples, plots_dir="plots", discarded={}):
     if not os.path.exists(plots_dir):
         os.makedirs(plots_dir)
@@ -181,6 +184,8 @@ def get_args():
 
     args.add_argument("--with-stats", help="If a path is specified, then position of the outputed SNPs is stored in this file. Requires mumpy and matplotlib.")
     args.add_argument("--plots-dir", default="plots", help="Where to write summary plots on SNPs extracted. Requires mumpy and matplotlib.")
+
+    args.add_argument("--with-dist-mat", help="If this option is specified, then distance matrix is calculated for the samples.")
 
     args.add_argument("--debug", action="store_true", help="More verbose logging (default: turned off).")
 
@@ -362,9 +367,17 @@ def main():
 
     # ALWAYS APPEND reference
     samples.append("reference")
-
+    dist_mat = {}
     sample_seqs = { sample_name: "" for sample_name in samples }
     c = 0
+
+    if args.with_dist_mat:
+        for i, sample_1 in enumerate(samples):
+            dist_mat[sample_1] = {}
+            for j, sample_2 in enumerate(samples):
+                if j < i:
+                    continue
+                dist_mat[sample_1][sample_2] = 0
 
     # For each contig concatinate sequences.
     for contig in contigs:
@@ -394,14 +407,28 @@ def main():
                 continue
 
             bases = set()
+            ref_base = avail_pos[contig][pos].get("reference")
             # Position has been seen or no reference available.
-            for sample in samples:
-                ref_base = avail_pos[contig][pos].get("reference")
+            for i, sample in enumerate(samples):
 
                 sample_base = avail_pos[contig][pos].get(sample, ref_base)
 
                 sample_seqs[sample] += sample_base
                 bases.add(sample_base)
+
+                # If we don't need distance matrix, then continue from top.
+                if not args.with_dist_mat:
+                    continue
+
+                for j, sample_2 in enumerate(samples):
+                    if j <= i:
+                        continue
+
+
+                    s2_base = avail_pos[contig][pos].get(sample_2, ref_base)
+
+                    if sample_base != s2_base:
+                        dist_mat[sample][sample_2] += 1
 
             # Do the internal check that positions have at least 2 different characters.
             # assert len(bases) > 1, "Internal consustency check failed for position %s bases: %s" % (pos, bases)
@@ -419,6 +446,19 @@ def main():
             total_positions += len(avail_pos[contig])
         sample_stats[sample].total = total_positions
         print "%s\t%s" % (sample, str(sample_stats[sample]))
+
+    if args.with_dist_mat:
+        with open(args.with_dist_mat, "wb") as fp:
+            fp.write(",%s\n" % ",".join(samples))
+            for i, sample_1 in enumerate(samples):
+                row = "%s" % sample_1
+                for j, sample_2 in enumerate(samples):
+                    if j < i:
+                        dist = dist_mat[sample_2][sample_1]
+                    else:
+                        dist = dist_mat[sample_1][sample_2]
+                    row += ",%i" % dist
+                fp.write("%s\n" % row)
 
     # If we can stats and asked to stats, then output the data
     if args.with_stats:
