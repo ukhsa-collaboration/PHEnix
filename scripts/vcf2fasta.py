@@ -186,6 +186,8 @@ def get_args():
     args.add_argument("--plots-dir", default="plots", help="Where to write summary plots on SNPs extracted. Requires mumpy and matplotlib.")
 
     args.add_argument("--with-dist-mat", help="If this option is specified, then distance matrix is calculated for the samples.")
+    args.add_argument("--count-dist-gaps", action="store_true", help="Counr gaps as valid character in distance matrix.")
+    args.add_argument("--count-dist-Ns", action="store_true", help="Counr Ns as valid character in distance matrix.")
 
     args.add_argument("--debug", action="store_true", help="More verbose logging (default: turned off).")
 
@@ -202,6 +204,13 @@ def main():
     contigs = list()
 
     samples = list()
+    valid_chars = ["A", "C", "G", "T"]
+
+    if args.count_dist_gaps:
+        valid_chars.append("-")
+
+    if args.count_dist_Ns:
+        valid_chars.append("N")
 
     # All positions available for analysis.
     avail_pos = dict()
@@ -417,17 +426,16 @@ def main():
                 bases.add(sample_base)
 
                 # If we don't need distance matrix, then continue from top.
-                if not args.with_dist_mat:
+                if not args.with_dist_mat or sample_base.upper() not in valid_chars:
                     continue
 
                 for j, sample_2 in enumerate(samples):
                     if j <= i:
                         continue
 
-
                     s2_base = avail_pos[contig][pos].get(sample_2, ref_base)
 
-                    if sample_base != s2_base:
+                    if sample_base != s2_base and s2_base.upper() in valid_chars:
                         dist_mat[sample][sample_2] += 1
 
             # Do the internal check that positions have at least 2 different characters.
