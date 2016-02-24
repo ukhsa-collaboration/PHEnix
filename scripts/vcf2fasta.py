@@ -397,23 +397,13 @@ def main():
                 sample_seqs[sample] += args.reference[contig]
             continue
 
-        # If reference was specified, then use it's length for positions.
-        #    otherwise use avail positions.
-        # N.B. sequence is 1 indexed in VCF and 0 indexed in Python.
-        if args.reference:
-            positions = xrange(1, len(args.reference[contig]) + 1)
-        else:
-            positions = avail_pos[contig]
-
-        for pos in positions:
+        last_base = 0
+        for pos in avail_pos[contig]:
             c += 1
-
-            # If we have reference and position has not been seen then use reference.
-            if args.reference and pos not in avail_pos[contig]:
-                # reference base for everything.
+            if args.reference:
+                seq = args.reference[contig][last_base:pos - 1]
                 for sample in samples:
-                    sample_seqs[sample] += args.reference[contig][pos - 1]
-                continue
+                    sample_seqs[sample] += seq
 
             bases = set()
             ref_base = avail_pos[contig][pos].get("reference")
@@ -441,6 +431,15 @@ def main():
             # Do the internal check that positions have at least 2 different characters.
             # assert len(bases) > 1, "Internal consustency check failed for position %s bases: %s" % (pos, bases)
             # removed the check because when removing a sample based on sample-Ns can lead to non SNP bases in column.
+
+            # Keep track of the last processed position.
+            last_base = pos
+
+        # Fill from last snp to the end of reference.
+        if args.reference:
+            seq = args.reference[contig][last_base:]
+            for sample in samples:
+                sample_seqs[sample] += seq
 
     # Write the sequences out.
     with open(args.out, "w") as fp:
@@ -487,12 +486,4 @@ def main():
     return 0
 
 if __name__ == '__main__':
-    import time
-
-#     with PyCallGraph(output=graphviz):
-#     T0 = time.time()
-    r = main()
-#     T1 = time.time()
-
-#     print "Time taken: %i" % (T1 - T0)
-    exit(r)
+    exit(main())
