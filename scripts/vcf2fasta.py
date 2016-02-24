@@ -224,7 +224,7 @@ def main():
         ref_seq = OrderedDict()
         with open(args.reference) as fp:
             for record in SeqIO.parse(fp, "fasta"):
-                ref_seq[record.id] = str(record.seq)
+                ref_seq[record.id] = list(record.seq)
 
         args.reference = ref_seq
 
@@ -377,7 +377,7 @@ def main():
     # ALWAYS APPEND reference
     samples.append("reference")
     dist_mat = {}
-    sample_seqs = { sample_name: "" for sample_name in samples }
+    sample_seqs = { sample_name: [] for sample_name in samples }
     c = 0
 
     if args.with_dist_mat:
@@ -412,7 +412,7 @@ def main():
 
                 sample_base = avail_pos[contig][pos].get(sample, ref_base)
 
-                sample_seqs[sample] += sample_base
+                sample_seqs[sample] += [sample_base]
                 bases.add(sample_base)
 
                 # If we don't need distance matrix, then continue from top.
@@ -444,7 +444,7 @@ def main():
     # Write the sequences out.
     with open(args.out, "w") as fp:
         for sample in sample_seqs:
-            fp.write(">%s\n%s\n" % (sample, sample_seqs[sample]))
+            fp.write(">%s\n%s\n" % (sample, ''.join(sample_seqs[sample])))
 
     # Compute the stats.
     for sample in sample_stats:
