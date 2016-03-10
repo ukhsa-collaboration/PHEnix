@@ -43,17 +43,18 @@ class MQ0Filter(PHEFilterBase):
     def __call__(self, record):
         """Filter a :py:class:`vcf.model._Record`."""
 
-        good_record = self._check_record(record)
-
-        if good_record is not True:
-            return good_record
+        #good_record = self._check_record(record)
+        
+        #if good_record is not True:
+        #    print "%s\tthis happened" % (record.POS)
+        #    return good_record
 
         record_mq = record.INFO.get("MQ0")
 
         if record_mq:
             # We consider DO from INFO not samples because MQ0 is also from INFO.
             record_mq /= float(record.INFO.get("DP"))
-
+        #print "%s\t%s\t%s\t%s" % (record.POS,record.INFO.get("MQ0"),record.INFO.get("DP"),record_mq)
         if record_mq is None or record_mq > self.threshold:
             # FIXME: when record_mq is None, i,e, error/missing, what do you do?
             return record_mq or False
