@@ -77,7 +77,7 @@ should be output as over certain fraction. First, samples are sifted out then co
 genomic positions of the called SNPs. Each line coresponds to a character position in the FASTA file.
 E.g. to get the position of the 23rd snp, go to 23rd line in the positions file. With this option, if numpy and matplotlib
 are installed, **plots** directory will be created and a summary plot is generated, summarising called SNPs,
-Ns, mixtures, and bases with 0 depth.
+Ns, mixtures, and bases with 0 depth. Providing **--with-dist-matrix** will also write distance matrix to the specified path.
 
 ## Requirements
 
