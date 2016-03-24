@@ -6,6 +6,7 @@ Created on 22 Sep 2015
 from collections import OrderedDict
 import logging
 import os
+from subprocess import Popen
 import subprocess
 import tempfile
 
@@ -72,7 +73,8 @@ class MPileupVariantCaller(VariantCaller):
         with tempfile.NamedTemporaryFile(suffix=".pileup") as tmp:
             opts["pileup_file"] = tmp.name
             cmd = "samtools mpileup -t DP,DV,DP4,DPR,SP -Auf %(ref)s %(bam)s | bcftools call %(extra_cmd_options)s > %(all_variants_file)s" % opts
-            print cmd
+
+            # TODO: to Popen the command need to manage pipes as 2 processes.
             self.last_command = cmd
             if os.system(cmd) != 0:
                 logging.warn("Pileup creation was not successful.")
@@ -94,9 +96,9 @@ class MPileupVariantCaller(VariantCaller):
             True if auxiliary files were created, False otherwise.
         """
 
-        success = os.system("samtools faidx %s" % ref)
-
-        if success != 0:
+        p = Popen(["samtools", "faidx", ref], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        (stdout, stderr) = p.communicate()
+        if p.returncode != 0:
             logging.warn("Fasta index could not be created.")
             return False
 

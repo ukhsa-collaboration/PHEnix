@@ -7,6 +7,8 @@ Created on 17 Sep 2015
 from collections import OrderedDict
 import logging
 import os
+import shlex
+from subprocess import Popen, PIPE
 import subprocess
 import tempfile
 
@@ -35,7 +37,10 @@ class BWAMapper(Mapper):
         self.last_command = None
 
     def create_aux_files(self, ref):
-        if os.system("bwa index %s" % ref) == 0:
+        p = Popen(["bwa", "index", ref], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        (stdout, stderr) = p.communicate()
+
+        if p.returncode == 0:
             return True
         else:
             return False
@@ -69,8 +74,15 @@ class BWAMapper(Mapper):
 
         cmd = "%(cmd)s -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s' %(extra_options)s %(ref)s %(r1)s %(r2)s > %(out_sam)s" % d
 
-        if os.system(cmd) != 0:
+        p = Popen(shlex.split(cmd), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        (stdout, stderr) = p.communicate()
+
+        if p.returncode != 0:
             logging.error("Mapping reads has failed.")
+            logging.error("STDOUT: ---------------------")
+            logging.error(stdout)
+            logging.error("STDERR: ---------------------")
+            logging.error(stderr)
 
             return False
 

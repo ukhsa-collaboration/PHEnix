@@ -6,6 +6,8 @@ Created on 22 Sep 2015
 from collections import OrderedDict
 import logging
 import os
+import shlex
+from subprocess import Popen
 import subprocess
 
 from phe.variant import VariantCaller
@@ -72,10 +74,13 @@ class GATKVariantCaller(VariantCaller):
         # FIXME: Sample ploidy = 2?
         os.environ["GATK_JAR"]
         cmd = "java -XX:+UseSerialGC -jar %(gatk_jar)s -T UnifiedGenotyper -R %(ref)s -I %(bam)s -o %(all_variants_file)s %(extra_cmd_options)s" % opts
-        success = os.system(cmd)
 
-        if success != 0:
+        p = Popen(shlex.split(cmd), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        (stdout, stderr) = p.communicate()
+
+        if p.returncode != 0:
             logging.warn("Calling variants returned non-zero exit status.")
+            logging.warn(stderr)
             return False
 
         self.last_command = cmd
@@ -103,10 +108,12 @@ class GATKVariantCaller(VariantCaller):
 
         ref_name, _ = os.path.splitext(ref)
 
-        success = os.system("samtools faidx %s" % ref)
+        p = Popen(["samtools", "faidx", ref], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        (stdout, stderr) = p.communicate()
 
-        if success != 0:
+        if p.returncode != 0:
             logging.warn("Fasta index could not be created.")
+            logging.warn(stderr)
             return False
 
         d = {"ref": ref, "ref_name": ref_name}
@@ -122,10 +129,12 @@ class GATKVariantCaller(VariantCaller):
             return False
 
         if not os.path.exists("%s.dict" % ref_name):
-            success = os.system("java -jar %(picard_tools_path)s R=%(ref)s O=%(ref_name)s.dict" % d)
-
-            if success != 0:
+            cmd = "java -jar %(picard_tools_path)s R=%(ref)s O=%(ref_name)s.dict" % d
+            p = Popen(shlex.split(cmd), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            (stdout, stderr) = p.communicate()
+            if p.returncode != 0:
                 logging.warn("Dictionary for the %s reference could not be created", ref)
+                logging.warn(stderr)
                 return False
         else:
             logging.debug("PICARD AUX EXISTS.")

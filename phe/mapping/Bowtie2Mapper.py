@@ -7,6 +7,8 @@ Created on 17 Sep 2015
 from collections import OrderedDict
 import logging
 import os
+import shlex
+from subprocess import Popen
 import subprocess
 import tempfile
 
@@ -35,7 +37,10 @@ class Bowtie2Mapper(Mapper):
         self.last_command = None
 
     def create_aux_files(self, ref):
-        if os.system("bowtie2-build %s %s" % (ref, ref)) == 0:
+        p = Popen(["bowtie2-build", ref, ref], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        (stdout, stderr) = p.communicate()
+
+        if p.returncode == 0:
             return True
         else:
             return False
@@ -70,8 +75,15 @@ class Bowtie2Mapper(Mapper):
         # TODO: should the above command have -k 1 as default option?
         cmd = "%(cmd)s --rg-id '%(sample_name)s' --rg 'SM:%(sample_name)s' %(extra_options)s -x %(ref)s -1 %(r1)s -2 %(r2)s -S %(out_sam)s" % d
 
-        if os.system(cmd) != 0:
+        p = Popen(shlex.split(cmd), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        (stdout, stderr) = p.communicate()
+
+        if p.returncode != 0:
             logging.error("Mapping reads has failed.")
+            logging.error("STDOUT: ---------------------")
+            logging.error(stdout)
+            logging.error("STDERR: ---------------------")
+            logging.error(stderr)
 
             return False
 

@@ -4,6 +4,7 @@ import abc
 from collections import OrderedDict
 import logging
 import os
+from subprocess import Popen
 import subprocess
 import tempfile
 
@@ -118,6 +119,7 @@ class Mapper(PHEMetaData):
 
             logging.debug("SAMTOOLS VERSION: %s, CMD: %s", samtools_version, cmd)
 
+            # In order to change to Popen need to split the pipe into 2 processes.
             success = os.system(cmd)
             if success != 0:
                 logging.warn("Could not convert to BAM")
@@ -128,12 +130,13 @@ class Mapper(PHEMetaData):
             if not out_file.endswith(".bam"):
                 out_file += ".bam"
 
-            cmd = "samtools index %s" % out_file
+            p = Popen(["samtools", "index", out_file], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            (stdout, stderr) = p.communicate()
 
-            success = os.system(cmd)
-            if success != 0:
+            if p.returncode != 0:
                 logging.warn("Could not index the BAM.")
                 logging.warn("CMD: %s", cmd)
+                logging.warn(stderr)
                 return False
         return True
 
