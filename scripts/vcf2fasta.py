@@ -197,6 +197,7 @@ def main():
     """
     Process VCF files and merge them into a single fasta file.
     """
+    print "RM-ngono"
     args = get_args()
 
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
@@ -277,7 +278,9 @@ def main():
             record.__setattr__("is_uncallable", is_uncallable(record))  # is_uncallable = types.MethodType(is_uncallable, record)
 
             # SKIP indels, if not handled then can cause REF base to be >1
-            if record.is_indel and not record.is_uncallable or len(record.REF) > 1:
+            if record.is_indel and not (record.is_uncallable or record.is_monomorphic) or len(record.REF) > 1:
+            #if len(record.REF) > 1:
+                #print "%s\t%s\t%s\t%s\t%s" % (sample_name,record.POS,-1,record.FILTER,record)
                 continue
                 # if record.is_deletion and not record.is_uncallable:
                 #    continue
@@ -300,20 +303,19 @@ def main():
             position_data = avail_pos[record.CHROM].get(record.POS)
 
             assert len(position_data["reference"]) == 1, "Reference base must be singluar: in %s found %s @ %s" % (position_data["reference"], sample_name, record.POS)
-
+            where=0
             # IF this is uncallable genotype, add gap "-"
             if record.is_uncallable:
-                position_data[sample_name] = "-"
+                position_data[sample_name] = "N"
 
                 # Update stats
-                position_data["stats"].gap += 1
+                position_data["stats"].N += 1
+                where=1
 
             elif not record.FILTER:
                 # If filter PASSED!
-
                 # Make sure the reference base is the same. Maybe a vcf from different species snuck in here?!
                 assert str(record.REF) == position_data["reference"], "SOMETHING IS REALLY WRONG because reference for the same position is DIFFERENT! %s in %s (%s, %s)" % (record.POS, vcf_in, str(record.REF), position_data["reference"])
-
                 if record.is_snp:
                     if len(record.ALT) > 1:
                         logging.info("POS %s passed filters but has multiple alleles. Inserting N")
@@ -324,7 +326,7 @@ def main():
                         position_data[sample_name] = str(record.ALT[0])
 
                         position_data["stats"].mut += 1
-
+                where=2
             # Filter(s) failed
             elif record.is_snp:
                 # mix = get_mixture(record, args.with_mixtures)
@@ -335,7 +337,13 @@ def main():
                     position_data["stats"].N += 1
 
                 position_data[sample_name] = extended_code
-
+                where=3
+            else:
+                #filter fail; code as N for consistency
+                position_data[sample_name] = "N"
+                position_data["stats"].N += 1
+                where=4
+            #print "%s\t%s\t%s\t%s\t%s" % (sample_name,record.POS,where,record.FILTER,record)
             # For reference we always want to use all data.
             if args.reference:
                 continue

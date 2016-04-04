@@ -120,7 +120,7 @@ def load_config(args):
 
 
 def main():
-
+    print "RM-ngono_comp"
     args = get_args()
 
     log_level = logging.DEBUG if args.debug else logging.INFO
