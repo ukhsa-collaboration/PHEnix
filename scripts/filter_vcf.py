@@ -46,7 +46,7 @@ def main():
 
     if args.config is not None:
         args.filters = load_config(args.config)
-    elif args.filters is None:
+    elif args.filters is None and not args.only_good:
         logging.error("Either --config or --filters needs to be specified.")
         return 1
 
@@ -56,7 +56,6 @@ def main():
         var_set.filter_variants()
 
     var_set.write_variants(args.output, only_good=args.only_good)
-
 
 
 if __name__ == '__main__':
