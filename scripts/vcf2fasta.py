@@ -279,8 +279,8 @@ def main():
 
             # SKIP indels, if not handled then can cause REF base to be >1
             if record.is_indel and not (record.is_uncallable or record.is_monomorphic) or len(record.REF) > 1:
-            #if len(record.REF) > 1:
-                #print "%s\t%s\t%s\t%s\t%s" % (sample_name,record.POS,-1,record.FILTER,record)
+            # if len(record.REF) > 1:
+                # print "%s\t%s\t%s\t%s\t%s" % (sample_name,record.POS,-1,record.FILTER,record)
                 continue
                 # if record.is_deletion and not record.is_uncallable:
                 #    continue
@@ -303,14 +303,15 @@ def main():
             position_data = avail_pos[record.CHROM].get(record.POS)
 
             assert len(position_data["reference"]) == 1, "Reference base must be singluar: in %s found %s @ %s" % (position_data["reference"], sample_name, record.POS)
-            where=0
+            where = 0
             # IF this is uncallable genotype, add gap "-"
             if record.is_uncallable:
-                position_data[sample_name] = "N"
+                # TODO: Mentioned in issue: #7(gitlab)
+                position_data[sample_name] = "-"
 
                 # Update stats
                 position_data["stats"].N += 1
-                where=1
+                where = 1
 
             elif not record.FILTER:
                 # If filter PASSED!
@@ -326,7 +327,7 @@ def main():
                         position_data[sample_name] = str(record.ALT[0])
 
                         position_data["stats"].mut += 1
-                where=2
+                where = 2
             # Filter(s) failed
             elif record.is_snp:
                 # mix = get_mixture(record, args.with_mixtures)
@@ -337,13 +338,13 @@ def main():
                     position_data["stats"].N += 1
 
                 position_data[sample_name] = extended_code
-                where=3
+                where = 3
             else:
-                #filter fail; code as N for consistency
+                # filter fail; code as N for consistency
                 position_data[sample_name] = "N"
                 position_data["stats"].N += 1
-                where=4
-            #print "%s\t%s\t%s\t%s\t%s" % (sample_name,record.POS,where,record.FILTER,record)
+                where = 4
+            # print "%s\t%s\t%s\t%s\t%s" % (sample_name,record.POS,where,record.FILTER,record)
             # For reference we always want to use all data.
             if args.reference:
                 continue
