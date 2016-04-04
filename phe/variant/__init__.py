@@ -1,12 +1,14 @@
 """Classes and methods to work with _variants and such."""
 import abc
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 import gzip
 import logging
+import operator
 import pickle
 
 from vcf import filters
 import vcf
+from vcf.model import make_calldata_tuple
 from vcf.parser import _Filter
 
 from phe.metadata import PHEMetaData
@@ -121,41 +123,75 @@ class VariantSet(object):
 
             self._reader.filters[record_filter.filter_name()] = _Filter(record_filter.filter_name(), short_doc)
 
+        _pos = 1
         # For each record (POSITION) apply set of filters.
         for record in self._reader:
 
-            # If this record failed filters and we removed some,
-            #    check is they need to be removed from record.
-            if isinstance(record.FILTER, list) and len(record.FILTER) > 0:
-                for filter_id in removed_filters:
-                    if filter_id in record.FILTER:
-                        record.FILTER.remove(filter_id)
+            # Fill in any missing consecutive data with GT=./. records.
+            while _pos <= record.POS:
+                if _pos == record.POS:
+                    _record = record
+                else:
+                    _record = vcf.model._Record(record.CHROM, _pos, ".", "N", [None], 0, [], {}, 'GT', None)
+                    _calls = []
+                    sorted_samples = sorted(record._sample_indexes.items(), key=operator.itemgetter(1))
+                    for sample, i in sorted_samples:
 
-            for record_filter in self.filters:
+                        _data = make_calldata_tuple(["GT"])
+                        _data._types = ["String"]
+                        _data._nums = [1]
+                        d = ["./."]
+                        _calls.append(vcf.model._Call(_record, sample=sample, data=_data(*d)))
 
-                # Call to __call__ method in each filter.
-                result = record_filter(record)
+                    _record.samples = _calls
+                    _record._sample_indexes = dict(sorted_samples)
 
-                # Record is KEPT if filter returns None
-                if result is None:
-                    continue
 
-                # If we got this far, then record is filtered OUT.
-                record.add_filter(record_filter.filter_name())
+                self._filter_record(_record, removed_filters)
 
-            # After applying all filters, check if FILTER is None.
-            # If it is, then record PASSED all filters.
-            if record.FILTER is None or record.FILTER == []:
-                record.FILTER = []
-                # FIXME: Does this work for indels?
-                if keep_only_snps and record.is_snp:
-                    self._variants.append(record)
-            else:
-                self._variants.append(record)
+                # After applying all filters, check if FILTER is None.
+                # If it is, then record PASSED all filters.
+                if _record.FILTER is None or _record.FILTER == []:
+                    _record.FILTER = []
+                    # FIXME: Does this work for indels?
+                    if keep_only_snps and _record.is_snp:
+                        self._variants.append(_record)
+                else:
+                    self._variants.append(_record)
+
+                _pos += 1
 
         self._update_filters(self._reader.filters)
 
         return [ variant for variant in self._variants if not variant.FILTER]
+
+    def _filter_record(self, record, removed_filters=list()):
+        '''**PRIVATE** Filter record.
+        
+        Parameters:
+        -----------
+        record: :py:class:vcf.Record
+            Record to filter.
+        '''
+
+        # If this record failed filters and we removed some,
+        #    check is they need to be removed from record.
+        if isinstance(record.FILTER, list) and len(record.FILTER) > 0:
+            for filter_id in removed_filters:
+                if filter_id in record.FILTER:
+                    record.FILTER.remove(filter_id)
+
+        for record_filter in self.filters:
+
+            # Call to __call__ method in each filter.
+            result = record_filter(record)
+
+            # Record is KEPT if filter returns None
+            if result is None:
+                continue
+
+            # If we got this far, then record is filtered OUT.
+            record.add_filter(record_filter.filter_name())
 
     def add_metadata(self, info):
         """Add metadata to the variant set.
