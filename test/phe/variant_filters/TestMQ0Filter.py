@@ -21,9 +21,9 @@ class TestMQ0Filter(unittest.TestCase):
         self.filter_config = {self.parameter: self.filter_threshold}
         self.filter = MQ0Filter(self.filter_config)
 
-        self.bad_positions = [1, 142, 31809, 65032, 65436]
-        self.na_positions = [1, 142, 31809]
-        self.good_positions = [133, 29144, 31810]
+        self.bad_positions = [1, 11, 13, 15, 16]
+        self.na_positions = [1, 11, 13]
+        self.good_positions = [10, 12, 14]
 
         self.bad_positions.sort()
         self.good_positions.sort()

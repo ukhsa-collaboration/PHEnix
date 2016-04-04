@@ -21,9 +21,9 @@ class TestDepthFilter(unittest.TestCase):
         self.filter_config = {self.parameter: self.filter_threshold}
         self.filter = DepthFilter(self.filter_config)
 
-        self.bad_positions = [31809, 31810]
-        self.good_positions = [1, 133, 142, 29144, 65032, 65436]
-        self.na_positions = [31809]
+        self.bad_positions = [13, 14]
+        self.good_positions = [1, 10, 11, 12, 15, 16]
+        self.na_positions = [13]
 
         self.bad_positions.sort()
         self.good_positions.sort()

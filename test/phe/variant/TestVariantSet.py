@@ -23,8 +23,8 @@ class TestVariantSet(unittest.TestCase):
         self.vcf_snp_only_gold_standard = os.path.join(base_path, "sample_only_good_snps.vcf")
         self.vcf_out = os.path.join(base_path, "sample_out.vcf")
 
-        self.good_vars = [133]
-        self.bad_vars = [1, 142, 29144, 31809, 31810, 65032, 65436]
+        self.good_vars = [10]
+        self.bad_vars = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16]
 
         self.var_set = VariantSet(self.vcf_in, filters=self.config)
 

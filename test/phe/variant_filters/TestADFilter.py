@@ -21,9 +21,9 @@ class TestADFilter(unittest.TestCase):
         self.filter_config = {self.parameter: self.filter_threshold}
         self.filter = ADFilter(self.filter_config)
 
-        self.bad_positions = [1, 142, 29144, 31809, 65032]
-        self.na_positions = [1, 142, 31809]
-        self.good_positions = [133, 31810, 65436]
+        self.bad_positions = [1, 11, 12, 13, 15]
+        self.na_positions = [1, 11, 13]
+        self.good_positions = [10, 14, 16]
 
         self.bad_positions.sort()
         self.good_positions.sort()
