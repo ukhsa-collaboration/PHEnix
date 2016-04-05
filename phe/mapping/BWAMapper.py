@@ -79,8 +79,6 @@ class BWAMapper(Mapper):
 
         if p.returncode != 0:
             logging.error("Mapping reads has failed.")
-            logging.error("STDOUT: ---------------------")
-            logging.error(stdout)
             logging.error("STDERR: ---------------------")
             logging.error(stderr)
 
