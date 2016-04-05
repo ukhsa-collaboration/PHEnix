@@ -177,7 +177,7 @@ def main():
             logging.error("Failed to recognise and create filters.")
             return 3
 
-    logging.info("Mapping data file.")
+    logging.info("Mapping data file with %s.", args.mapper)
     if args.bam is not None:
         bam_file = args.bam
     elif args.vcf is None and mapper is not None:
@@ -195,7 +195,7 @@ def main():
     else:
         bam_file = None
 
-    logging.info("Creating digitised variants.")
+    logging.info("Creating digitised variants with %s.", args.variant)
     if args.vcf:
         vcf_file = args.vcf
     elif bam_file is not None:
