@@ -6,6 +6,7 @@ Created on 22 Sep 2015
 from collections import OrderedDict
 import logging
 import os
+import shlex
 from subprocess import Popen
 import subprocess
 import tempfile
@@ -72,12 +73,25 @@ class MPileupVariantCaller(VariantCaller):
 
         with tempfile.NamedTemporaryFile(suffix=".pileup") as tmp:
             opts["pileup_file"] = tmp.name
-            cmd = "samtools mpileup -t DP,DV,DP4,DPR,SP -Auf %(ref)s %(bam)s | bcftools call %(extra_cmd_options)s > %(all_variants_file)s" % opts
+
+            pileup_cmd = "samtools mpileup -t DP,DV,DP4,DPR,SP -Auf %(ref)s %(bam)s" % opts
+            bcf_cmd = "bcftools call %(extra_cmd_options)s > %(all_variants_file)s" % opts
 
             # TODO: to Popen the command need to manage pipes as 2 processes.
-            self.last_command = cmd
-            if os.system(cmd) != 0:
+            self.last_command = "%s | %s" % (pileup_cmd, bcf_cmd)
+
+            p = {"pileup": None, "bcf": None}
+
+            p["pileup"] = Popen(shlex.split(pileup_cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p["bcf"] - Popen(shlex.split(bcf_cmd), stdin=p["pileup"].stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            (_, pileup_stderr) = p["pileup"].communicate()
+            (_, bcf_stderr) = p["bcf"].communicate()
+
+            if p["pileup"].returncode != 0 or p["bcf"].returncode != 0:
                 logging.warn("Pileup creation was not successful.")
+                logging.warn("%s", pileup_stderr)
+                logging.warn("%s", bcf_stderr)
                 return False
 
         return True
@@ -96,7 +110,7 @@ class MPileupVariantCaller(VariantCaller):
             True if auxiliary files were created, False otherwise.
         """
 
-        p = Popen(["samtools", "faidx", ref], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        p = Popen(["samtools", "faidx", ref], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (stdout, stderr) = p.communicate()
         if p.returncode != 0:
             logging.warn("Fasta index could not be created.")

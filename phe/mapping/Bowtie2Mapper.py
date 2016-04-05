@@ -37,7 +37,7 @@ class Bowtie2Mapper(Mapper):
         self.last_command = None
 
     def create_aux_files(self, ref):
-        p = Popen(["bowtie2-build", ref, ref], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        p = Popen(["bowtie2-build", ref, ref], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (stdout, stderr) = p.communicate()
 
         if p.returncode == 0:
@@ -62,7 +62,7 @@ class Bowtie2Mapper(Mapper):
              "ref": os.path.abspath(ref),
              "r1": os.path.abspath(r1),
              "r2": os.path.abspath(r2),
-             "out_sam": os.path.abspath(out_file),
+             "out_sam": out_file,
              "sample_name": sample_name,
              "extra_options": self.cmd_options
              }
@@ -73,15 +73,13 @@ class Bowtie2Mapper(Mapper):
                 return False
 
         # TODO: should the above command have -k 1 as default option?
-        cmd = "%(cmd)s --rg-id '%(sample_name)s' --rg 'SM:%(sample_name)s' %(extra_options)s -x %(ref)s -1 %(r1)s -2 %(r2)s -S %(out_sam)s" % d
+        cmd = r"%(cmd)s --rg-id '%(sample_name)s' --rg 'SM:%(sample_name)s' %(extra_options)s -x %(ref)s -1 %(r1)s -2 %(r2)s" % d
 
-        p = Popen(shlex.split(cmd), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        p = Popen(shlex.split(cmd), stdout=d["out_sam"], stderr=subprocess.PIPE)
         (stdout, stderr) = p.communicate()
 
         if p.returncode != 0:
             logging.error("Mapping reads has failed.")
-            logging.error("STDOUT: ---------------------")
-            logging.error(stdout)
             logging.error("STDERR: ---------------------")
             logging.error(stderr)
 

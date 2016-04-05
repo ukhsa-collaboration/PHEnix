@@ -72,10 +72,9 @@ class GATKVariantCaller(VariantCaller):
 
         # Call variants
         # FIXME: Sample ploidy = 2?
-        os.environ["GATK_JAR"]
         cmd = "java -XX:+UseSerialGC -jar %(gatk_jar)s -T UnifiedGenotyper -R %(ref)s -I %(bam)s -o %(all_variants_file)s %(extra_cmd_options)s" % opts
 
-        p = Popen(shlex.split(cmd), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        p = Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (stdout, stderr) = p.communicate()
 
         if p.returncode != 0:
@@ -108,7 +107,7 @@ class GATKVariantCaller(VariantCaller):
 
         ref_name, _ = os.path.splitext(ref)
 
-        p = Popen(["samtools", "faidx", ref], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        p = Popen(["samtools", "faidx", ref], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (stdout, stderr) = p.communicate()
 
         if p.returncode != 0:
@@ -130,7 +129,7 @@ class GATKVariantCaller(VariantCaller):
 
         if not os.path.exists("%s.dict" % ref_name):
             cmd = "java -jar %(picard_tools_path)s R=%(ref)s O=%(ref_name)s.dict" % d
-            p = Popen(shlex.split(cmd), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            p = Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             (stdout, stderr) = p.communicate()
             if p.returncode != 0:
                 logging.warn("Dictionary for the %s reference could not be created", ref)

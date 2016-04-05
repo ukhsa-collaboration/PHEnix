@@ -37,7 +37,7 @@ class BWAMapper(Mapper):
         self.last_command = None
 
     def create_aux_files(self, ref):
-        p = Popen(["bwa", "index", ref], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        p = Popen(["bwa", "index", ref], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (stdout, stderr) = p.communicate()
 
         if p.returncode == 0:
@@ -62,7 +62,7 @@ class BWAMapper(Mapper):
              "ref": os.path.abspath(ref),
              "r1": os.path.abspath(r1),
              "r2": os.path.abspath(r2),
-             "out_sam": os.path.abspath(out_file),
+             "out_sam":out_file,
              "sample_name": sample_name,
              "extra_options": self.cmd_options
              }
@@ -72,9 +72,9 @@ class BWAMapper(Mapper):
                 logging.error("Computing index has failed. Abort")
                 return False
 
-        cmd = "%(cmd)s -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s' %(extra_options)s %(ref)s %(r1)s %(r2)s > %(out_sam)s" % d
+        cmd = shlex.split(r"%(cmd)s -R '@RG\tID:%(sample_name)s\tSM:%(sample_name)s' %(extra_options)s %(ref)s %(r1)s %(r2)s" % d)
 
-        p = Popen(shlex.split(cmd), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        p = Popen(cmd, stdout=d["out_sam"], stderr=subprocess.PIPE)
         (stdout, stderr) = p.communicate()
 
         if p.returncode != 0:

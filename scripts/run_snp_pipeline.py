@@ -120,7 +120,6 @@ def load_config(args):
 
 
 def main():
-    print "RM-ngono_comp"
     args = get_args()
 
     log_level = logging.DEBUG if args.debug else logging.INFO
@@ -230,18 +229,13 @@ def main():
 
         var_set.filter_variants()
 
-#         var_set.write_variants("filtered.vcf", only_snps=True, only_good=True)
-#
-#         var_set.write_variants("filtered.all.vcf")
-#
-#         var_set._write_bad_variants("filtered.bad.vcf")
-
         final_vcf = os.path.join(args.outdir, "%s.filtered.vcf" % args.sample_name)
         var_set.write_variants(final_vcf)
 
     if args.workflow and args.input:
         component_complete = os.path.join(args.outdir, "ComponentComplete.txt")
         open(component_complete, 'a').close()
+
         logging.info("PIPELINE_END")
 
     return 0
