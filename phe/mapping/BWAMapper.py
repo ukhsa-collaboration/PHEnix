@@ -72,9 +72,10 @@ class BWAMapper(Mapper):
                 logging.error("Computing index has failed. Abort")
                 return False
 
-        cmd = shlex.split(r"%(cmd)s -R '@RG\tID:%(sample_name)s\tSM:%(sample_name)s' %(extra_options)s %(ref)s %(r1)s %(r2)s" % d)
+        cmd = r"%(cmd)s -R '@RG\tID:%(sample_name)s\tSM:%(sample_name)s' %(extra_options)s %(ref)s %(r1)s %(r2)s" % d
+        logging.debug("CMD: %s", cmd)
 
-        p = Popen(cmd, stdout=d["out_sam"], stderr=subprocess.PIPE)
+        p = Popen(shlex.split(cmd), stdout=d["out_sam"], stderr=subprocess.PIPE)
 
         for line in p.stderr:
             logging.debug(line.strip())

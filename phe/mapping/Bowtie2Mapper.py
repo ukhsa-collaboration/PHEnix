@@ -75,6 +75,8 @@ class Bowtie2Mapper(Mapper):
         # TODO: should the above command have -k 1 as default option?
         cmd = r"%(cmd)s --rg-id '%(sample_name)s' --rg 'SM:%(sample_name)s' %(extra_options)s -x %(ref)s -1 %(r1)s -2 %(r2)s" % d
 
+        logging.debug("CMD: %s", cmd)
+
         p = Popen(shlex.split(cmd), stdout=d["out_sam"], stderr=subprocess.PIPE)
 
         for line in p.stderr:

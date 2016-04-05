@@ -73,7 +73,7 @@ class GATKVariantCaller(VariantCaller):
         # Call variants
         # FIXME: Sample ploidy = 2?
         cmd = "java -XX:+UseSerialGC -jar %(gatk_jar)s -T UnifiedGenotyper -R %(ref)s -I %(bam)s -o %(all_variants_file)s %(extra_cmd_options)s" % opts
-
+        logging.debug("CMD: %s", cmd)
         p = Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         for line in p.stdout:
