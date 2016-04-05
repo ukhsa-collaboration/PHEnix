@@ -112,31 +112,35 @@ class Mapper(PHEMetaData):
             # Convert reads sam to bam filtering on MQ > 0.
             samtools_version = self.get_samtools_version()
 
-            if samtools_version[0] >= 1 and samtools_version[1] >= 3:
-                out_file += ".bam"
-                view_cmd = "samtools view -bhS %s" % tmp.name  #  samtools view -bq 1 -
-                sort_cmd = "samtools sort - -o %s" % out_file
-            else:
-                view_cmd = "samtools view -bhS %s" % tmp.name  #  samtools view -bq 1 -
-                sort_cmd = "samtools sort - %s" % out_file
+            with tempfile.NamedTemporaryFile(suffix=".bam") as tmp_bam:
 
-            logging.debug("SAMTOOLS VERSION: %s, CMD: %s | %s", samtools_version, view_cmd, sort_cmd)
+                if samtools_version[0] >= 1 and samtools_version[1] >= 3:
+                    out_file += ".bam"
+                    view_cmd = "samtools view -bhS %s" % tmp.name  #  samtools view -bq 1 -
+                    sort_cmd = "samtools sort %s -o %s" % (tmp_bam.name, out_file)
+                else:
+                    view_cmd = "samtools view -bhS %s" % tmp.name  #  samtools view -bq 1 -
+                    sort_cmd = "samtools sort %s %s" % (tmp_bam.name, out_file)
 
-            # In order to change to Popen need to split the pipe into 2 processes.
-            p = {"view":None, "sort":None}
+                logging.debug("SAMTOOLS VERSION: %s, CMD: %s | %s", samtools_version, view_cmd, sort_cmd)
 
-            p["view"] = Popen(shlex.split(view_cmd), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            p["sort"] = Popen(shlex.split(sort_cmd), stdin=p["view"].stdout, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                p = Popen(shlex.split(view_cmd), stderr=subprocess.PIPE, stdout=tmp_bam)
+                (_, view_stderr) = p.communicate()
 
-            (_, view_stderr) = p["view"].communicate()
-            (stdout, sort_stderr) = p["sort"].communicate()
+                if p.returncode != 0:
+                    logging.error("Could not convert to BAM: %s", view_cmd)
+                    return False
 
-            if p["view"].returncode != 0 or p["sort"].returncode != 0:
+                p = Popen(shlex.split(sort_cmd), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 
-                logging.error("Could not convert to BAM: %s | %s", shlex.split(view_cmd), shlex.split(sort_cmd))
-                logging.error("%s", view_stderr)
-                logging.error("%s", sort_stderr)
-                return False
+
+                (stdout, sort_stderr) = p.communicate()
+
+                if p.returncode != 0:
+
+                    logging.error("Could not convert to BAM: %s", sort_cmd)
+                    logging.error("%s", sort_stderr)
+                    return False
 
             self.last_command += " && %s | %s" % (view_cmd, sort_cmd)
             if not out_file.endswith(".bam"):
