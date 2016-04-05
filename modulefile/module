@@ -36,7 +36,7 @@ if { ![is-loaded bintrees] } {
 }
 
 if { ![is-loaded biopython] } {
-  module load biopython/python2.7/1.62b
+  module load biopython/python2.7/1.66
 }
 
 if { ![is-loaded numpy] } {
