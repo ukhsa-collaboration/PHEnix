@@ -75,6 +75,10 @@ class BWAMapper(Mapper):
         cmd = shlex.split(r"%(cmd)s -R '@RG\tID:%(sample_name)s\tSM:%(sample_name)s' %(extra_options)s %(ref)s %(r1)s %(r2)s" % d)
 
         p = Popen(cmd, stdout=d["out_sam"], stderr=subprocess.PIPE)
+
+        for line in p.stderr:
+            logging.debug(line.strip())
+
         (stdout, stderr) = p.communicate()
 
         if p.returncode != 0:

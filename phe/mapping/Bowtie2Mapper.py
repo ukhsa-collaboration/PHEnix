@@ -76,6 +76,10 @@ class Bowtie2Mapper(Mapper):
         cmd = r"%(cmd)s --rg-id '%(sample_name)s' --rg 'SM:%(sample_name)s' %(extra_options)s -x %(ref)s -1 %(r1)s -2 %(r2)s" % d
 
         p = Popen(shlex.split(cmd), stdout=d["out_sam"], stderr=subprocess.PIPE)
+
+        for line in p.stderr:
+            logging.debug(line.strip())
+
         (stdout, stderr) = p.communicate()
 
         if p.returncode != 0:
