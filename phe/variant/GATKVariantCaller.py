@@ -19,7 +19,7 @@ class GATKVariantCaller(VariantCaller):
     name = "gatk"
     """Plain text name of the variant caller."""
 
-    _default_options = "--sample_ploidy 2 --genotype_likelihoods_model BOTH -rf BadCigar -out_mode EMIT_ALL_SITES -nt 1"
+    _default_options = "--sample_ploidy 2 --genotype_likelihoods_model SNP -rf BadCigar -out_mode EMIT_ALL_SITES -nt 1"
     """Default options for the variant caller."""
 
     def __init__(self, cmd_options=None):
