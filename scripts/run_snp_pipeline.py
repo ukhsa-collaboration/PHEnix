@@ -204,6 +204,8 @@ def main():
         if variant and not variant.make_vcf(ref=args.reference, bam=bam_file, vcf_file=vcf_file, make_aux=make_aux):
             logging.error("VCF was not created.")
             return 2
+    else:
+        vcf_file = None
 
     annotators_metadata = []
     if args.annotators and vcf_file:
