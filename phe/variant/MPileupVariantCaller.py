@@ -75,18 +75,18 @@ class MPileupVariantCaller(VariantCaller):
             opts["pileup_file"] = tmp.name
 
             pileup_cmd = "samtools mpileup -t DP,DV,DP4,DPR,SP -Auf %(ref)s %(bam)s" % opts
-            bcf_cmd = "bcftools call %(extra_cmd_options)s > %(all_variants_file)s" % opts
+            bcf_cmd = "bcftools call %(extra_cmd_options)s %(all_variants_file)s" % opts
 
             # TODO: to Popen the command need to manage pipes as 2 processes.
             self.last_command = "%s | %s" % (pileup_cmd, bcf_cmd)
 
             p = {"pileup": None, "bcf": None}
+            with open(opts["all_variants_file"], "wb") as vcf_out:
+                p["pileup"] = Popen(shlex.split(pileup_cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                p["bcf"] = Popen(shlex.split(bcf_cmd), stdin=p["pileup"].stdout, stdout=vcf_out, stderr=subprocess.PIPE)
 
-            p["pileup"] = Popen(shlex.split(pileup_cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            p["bcf"] - Popen(shlex.split(bcf_cmd), stdin=p["pileup"].stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-            (_, pileup_stderr) = p["pileup"].communicate()
-            (_, bcf_stderr) = p["bcf"].communicate()
+                (_, pileup_stderr) = p["pileup"].communicate()
+                (_, bcf_stderr) = p["bcf"].communicate()
 
             if p["pileup"].returncode != 0 or p["bcf"].returncode != 0:
                 logging.warn("Pileup creation was not successful.")
