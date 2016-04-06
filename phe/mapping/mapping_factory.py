@@ -84,7 +84,7 @@ def factory(mapper=None, custom_options=None):
         if mapper in _avail_mappers:
             return _avail_mappers[mapper](cmd_options=custom_options)
         else:
-            logging.error("No implementation for %s mapper.")
+            logging.error("No implementation for %s mapper.", mapper)
             return None
 
     logging.warn("Unknown parameters. Mapper could not be initialised.")

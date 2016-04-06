@@ -85,7 +85,7 @@ def factory(variant=None, custom_options=None):
         if variant in _avail_variant_callers:
             return _avail_variant_callers[variant](cmd_options=custom_options)
         else:
-            logging.error("No implementation for %s mapper.")
+            logging.error("No implementation for %s variant.", variant)
             return None
 
     logging.warn("Unknown parameters. Mapper could not be initialised.")

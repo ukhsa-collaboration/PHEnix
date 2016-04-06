@@ -206,7 +206,7 @@ def main():
             return 2
 
     annotators_metadata = []
-    if args.annotators:
+    if args.annotators and vcf_file:
         logging.info("Annotating")
         for annotator in args.annotators:
             # TODO: This iterates over the VCF for each annotator. Not good.
@@ -217,7 +217,7 @@ def main():
             if meta:
                 annotators_metadata.append(meta)
 
-    if args.filters:
+    if args.filters and vcf_file:
         logging.info("Applying filters: %s", [str(f) for f in args.filters])
         var_set = VariantSet(vcf_file, filters=args.filters)
 
