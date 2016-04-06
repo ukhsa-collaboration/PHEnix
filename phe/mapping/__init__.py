@@ -122,7 +122,7 @@ class Mapper(PHEMetaData):
                     view_cmd = "samtools view -bhS %s" % tmp.name  #  samtools view -bq 1 -
                     sort_cmd = "samtools sort %s %s" % (tmp_bam.name, out_file)
 
-                logging.debug("SAMTOOLS VERSION: %s, CMD: %s | %s", samtools_version, view_cmd, sort_cmd)
+                logging.debug("SAMTOOLS VERSION: %s, CMD: %s && %s", samtools_version, view_cmd, sort_cmd)
 
                 p = Popen(shlex.split(view_cmd), stderr=subprocess.PIPE, stdout=tmp_bam)
                 (_, view_stderr) = p.communicate()
