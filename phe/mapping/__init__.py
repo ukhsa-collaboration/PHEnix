@@ -142,7 +142,7 @@ class Mapper(PHEMetaData):
                     logging.error("%s", sort_stderr)
                     return False
 
-            self.last_command += " && %s | %s" % (view_cmd, sort_cmd)
+            self.last_command += " && %s && %s" % (view_cmd, sort_cmd)
             if not out_file.endswith(".bam"):
                 out_file += ".bam"
 
