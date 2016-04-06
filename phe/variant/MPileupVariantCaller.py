@@ -71,10 +71,22 @@ class MPileupVariantCaller(VariantCaller):
                 logging.warn("Auxiliary files were not created.")
                 return False
 
+        try:
+            version = [ int(v) for v in self.get_version().split(".")]
+            if len(version) == 2:
+                version.append(0)
+        except ValueError:
+            # Older versions of samtools don't have --version command
+            version = [0, 0, 0]
+
         with tempfile.NamedTemporaryFile(suffix=".pileup") as tmp:
             opts["pileup_file"] = tmp.name
 
-            pileup_cmd = "samtools mpileup -t DP,DV,DP4,DPR,SP -Auf %(ref)s -o %(pileup_file)s %(bam)s" % opts
+            if version[0] >= 1 and version[1] >= 3:
+                pileup_cmd = "samtools mpileup -t -t DP,AD,SP,AD,ADF,ADR,INFO/AD,INFO/ADF,INFO/ADR -Auf %(ref)s -o %(pileup_file)s %(bam)s" % opts
+            else:
+                pileup_cmd = "samtools mpileup -t DP,DV,DP4,DPR,SP -Auf %(ref)s -o %(pileup_file)s %(bam)s" % opts
+
             bcf_cmd = "bcftools call %(extra_cmd_options)s -o %(all_variants_file)s %(pileup_file)s" % opts
 
             logging.debug("CMD: %s", pileup_cmd)
