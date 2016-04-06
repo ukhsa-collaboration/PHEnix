@@ -83,7 +83,7 @@ class MPileupVariantCaller(VariantCaller):
             opts["pileup_file"] = tmp.name
 
             if version[0] >= 1 and version[1] >= 3:
-                pileup_cmd = "samtools mpileup -t DP,AD,SP,AD,ADF,ADR,INFO/AD,INFO/ADF,INFO/ADR -Auf %(ref)s -o %(pileup_file)s %(bam)s" % opts
+                pileup_cmd = "samtools mpileup -t DP,AD,SP,ADF,ADR,INFO/AD,INFO/ADF,INFO/ADR -Auf %(ref)s -o %(pileup_file)s %(bam)s" % opts
             else:
                 pileup_cmd = "samtools mpileup -t DP,DV,DP4,DPR,SP -Auf %(ref)s -o %(pileup_file)s %(bam)s" % opts
 
