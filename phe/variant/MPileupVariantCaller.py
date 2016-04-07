@@ -92,25 +92,33 @@ class MPileupVariantCaller(VariantCaller):
             logging.debug("CMD: %s", pileup_cmd)
             p = Popen(shlex.split(pileup_cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-            # FIXME: Strictly speaking those should be p.stderr.readline()
+            # FIXME: Strictly speaking those should be p.stderr.readline(), but that reads 1 char at a time.
+            stderr = []
             for line in p.stderr:
-                logging.debug(line.strip())
+                line = line.strip()
+                logging.debug(line)
+                stderr.append(line)
 
             p.wait()
 
             if p.returncode != 0:
                 logging.error("Pileup creation failed.")
+                logging.error("\n".join(stderr))
                 return False
 
             p = Popen(shlex.split(bcf_cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
+            stderr = []
             for line in p.stderr:
-                logging.debug(line.strip())
+                line = line.strip()
+                logging.debug(line)
+                stderr.append(line)
 
             p.wait()
 
             if p.returncode != 0:
                 logging.warn("Pileup VCF creation was not successful.")
+                logging.error("\n".join(stderr))
                 return False
 
             self.last_command = "%s && %s" % (pileup_cmd, bcf_cmd)

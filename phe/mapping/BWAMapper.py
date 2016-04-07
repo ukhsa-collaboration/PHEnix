@@ -77,15 +77,17 @@ class BWAMapper(Mapper):
 
         p = Popen(shlex.split(cmd), stdout=d["out_sam"], stderr=subprocess.PIPE)
 
+        stderr = []
         for line in p.stderr:
-            logging.debug(line.strip())
+            line = line.strip()
+            logging.debug(line)
+            stderr.append(line)
 
-        (stdout, stderr) = p.communicate()
+        p.wait()
 
         if p.returncode != 0:
             logging.error("Mapping reads has failed.")
-            logging.error("STDERR: ---------------------")
-            logging.error(stderr)
+            logging.error("\n".join(stderr))
 
             return False
 
