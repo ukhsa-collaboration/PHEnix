@@ -191,14 +191,14 @@ def get_args():
 
     args.add_argument("--debug", action="store_true", help="More verbose logging (default: turned off).")
 
-    return args.parse_args()
+    return args
 
 def main():
     """
     Process VCF files and merge them into a single fasta file.
     """
     print "RM-ngono"
-    args = get_args()
+    args = get_args().parse_args()
 
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
 

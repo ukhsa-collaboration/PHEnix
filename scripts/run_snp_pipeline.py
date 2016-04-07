@@ -67,6 +67,7 @@ def pipeline(workflow, input_dir):
     return config
 
 desc = '''Run the snp pipeline with specified mapper, variant caller and some filters.
+
 Available mappers: %s
 
 Available variant callers: %s
@@ -101,7 +102,7 @@ def get_args():
 
     args.add_argument("--debug", action="store_true", help="More verbose logging.")
 
-    return args.parse_args()
+    return args
 
 def load_config(args):
 
@@ -120,7 +121,7 @@ def load_config(args):
 
 
 def main():
-    args = get_args()
+    args = get_args().parse_args()
 
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s",

@@ -22,9 +22,8 @@ Contents:
    Annotators
    Calling SNPs
    Converting to FASTA
-   API Reference
-   test/modules
-
+   api/modules
+   scripts/modules
 
 Indices and tables
 ==================
