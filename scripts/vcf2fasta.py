@@ -29,6 +29,7 @@ except ImportError:
     can_stats = False
 
 def is_uncallable(record):
+
     uncall = False
     try:
         if record.samples[0].data.GT in ("./.", None):
@@ -36,7 +37,7 @@ def is_uncallable(record):
     except:
         uncall = None
 
-    if "LowQual" in record.FILTER:
+    if record.FILTER is not None and "LowQual" in record.FILTER:
         uncall = True
 
     return uncall
