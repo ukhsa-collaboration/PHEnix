@@ -1,8 +1,7 @@
 '''Implementation of the Mapper class using BWA (Heng Li) mapper.
 
-Created on 17 Sep 2015
-
-@author: alex
+:Date: 17 Sep, 2015
+:Author: Alex Jironkin
 '''
 from collections import OrderedDict
 import logging

@@ -2,7 +2,7 @@
 Prerequisites
 =============
 
-The refence needs to be index in an appropriate way for different mapper/variant callers. This can be done using:
+The refence needs to be index in an appropriate way for different mapper/variant callers. This can be done manually for specific tools or using:
 
 .. code:: bash 
 

@@ -1,4 +1,8 @@
-"""Mapping related classes and functions."""
+"""Mapping related classes and functions.
+
+:Date: 22 Sep, 2015
+:Author: Alex Jironkin
+"""
 
 import abc
 from collections import OrderedDict
@@ -26,8 +30,8 @@ class Mapper(PHEMetaData):
     def __init__(self, cmd_options=None):
         """Abstract constructor for the Mapper class.
         
-        Parameters:
-        -----------
+        Parameters
+        ----------
         cmd_options: str, optional
             Command options for the mapper.
         """
@@ -38,14 +42,14 @@ class Mapper(PHEMetaData):
     @abc.abstractmethod
     def create_aux_files(self, ref):
         """Create required auxiliary files for *ref*.
-
-        Parameters:
-        -----------
+        
+        Parameters
+        ----------
         ref: str
             Path to the reference file.
         
-        Returns:
-        --------
+        Returns
+        -------
         bool:
             True if auxiliary files were created, False otherwise.
         """
@@ -55,8 +59,8 @@ class Mapper(PHEMetaData):
     def make_sam(self, *args, **kwargs):
         """Make SAM from reference, and fastq files.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         ref: str
             Path to the reference file used for mapping.
         R1: str
@@ -70,8 +74,8 @@ class Mapper(PHEMetaData):
         make_aux: bool, optional
             True/False to make auxilliary files (default: False).
 
-        Returns:
-        --------
+        Returns
+        -------
         bool:
             True iff mapping returns 0, False otherwise.
         """
@@ -80,8 +84,8 @@ class Mapper(PHEMetaData):
     def make_bam(self, *args, **kwargs):
         """Make **indexed** BAM from reference, and fastq files.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         ref: str
             Path to the reference file used for mapping.
         R1: str
@@ -93,8 +97,8 @@ class Mapper(PHEMetaData):
         sample_name: str
             Name of the sample to be included in the read group (RG) field.
 
-        Returns:
-        --------
+        Returns
+        -------
         bool:
             True iff mapping, converting to BAM and indexing returns 0,
             False otherwise.

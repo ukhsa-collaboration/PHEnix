@@ -23,6 +23,7 @@ Contents:
    Calling SNPs
    Converting to FASTA
    API Reference
+   test/modules
 
 
 Indices and tables

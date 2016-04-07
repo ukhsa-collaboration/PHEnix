@@ -1,8 +1,7 @@
 '''Classes and functions for working with variant callers.
 
-Created on 22 Sep 2015
-
-@author: alex
+:Date: 22 Sep, 2015
+:Author: Alex Jironkin
 '''
 import glob
 import inspect
@@ -66,15 +65,15 @@ def available_callers():
 def factory(variant=None, custom_options=None):
     """Make an instance of a variant class.
     
-    Parameters:
-    -----------
+    Parameters
+    ----------
     variant: str, optional
         Name of the variant class to instantiate.
     custom_options: str, optional
         Custom options to be passed directly to the implementing class.
     
-    Returns:
-    --------
+    Returns
+    -------
     :py:class:`phe.variant.VariantCaller`:
         Instance of the :py:class:`phe.variant.VariantCaller` for given
         variant name, or None if one couldn't be found.

@@ -1,7 +1,7 @@
 '''Filter VCF on GQ parameter.
-Created on 24 Sep 2015
 
-@author: alex
+:Date: 24 Sep, 2015
+:Author: Alex Jironkin
 '''
 
 import argparse
@@ -43,9 +43,9 @@ class QualFilter(PHEFilterBase):
     def __call__(self, record):
         """Filter a :py:class:`vcf.model._Record`."""
 
-        #good_record = self._check_record(record)
+        # good_record = self._check_record(record)
 
-        #if good_record is not True:
+        # if good_record is not True:
         #    return good_record
 
         record_qual = record.QUAL

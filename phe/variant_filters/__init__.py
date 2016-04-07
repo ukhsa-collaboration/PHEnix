@@ -1,4 +1,8 @@
-"""Classes and functions for working with variant filters."""
+"""Classes and functions for working with variant filters.
+
+:Date: 24 Sep, 2015
+:Author: Alex Jironkin
+"""
 
 from __builtin__ import __import__
 from abc import abstractproperty
@@ -184,13 +188,13 @@ def str_to_filters(filters):
     """Convert from filter string to array of filters.
     E.g. ad_ration:0.9,min_depth:5
     
-    Parameters:
-    -----------
+    Parameters
+    ----------
     filters: str
         String version of filters, separated by comma.
     
-    Returns:
-    --------
+    Returns
+    -------
     list:
         List of :py:class:`phe.variant_filters.PHEFilterBase` instances.
     """
