@@ -179,8 +179,8 @@ def get_args():
 
     group = args.add_mutually_exclusive_group()
 
-    group.add_argument("--include")
-    group.add_argument("--exclude")
+    group.add_argument("--include", help="Only include positions in BED file in the FASTA")
+    group.add_argument("--exclude", help="Exclude any positions specified in the BED file.")
 
     args.add_argument("--with-stats", help="If a path is specified, then position of the outputed SNPs is stored in this file. Requires mumpy and matplotlib.")
     args.add_argument("--plots-dir", default="plots", help="Where to write summary plots on SNPs extracted. Requires mumpy and matplotlib.")
@@ -197,7 +197,7 @@ def main():
     """
     Process VCF files and merge them into a single fasta file.
     """
-    print "RM-ngono"
+
     args = get_args()
 
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
@@ -286,8 +286,9 @@ def main():
                 #    continue
 
             # SKIP (or include) any pre-specified regions.
-            if include.get(record.CHROM, empty_tree).get(record.POS, False) or \
-                not exclude.get(record.CHROM, empty_tree).get(record.POS, True):
+            if include and record.POS not in include.get(record.CHROM, empty_tree) or exclude and record.POS in exclude.get(record.CHROM, empty_tree):
+#             if include.get(record.CHROM, empty_tree).get(record.POS, False) or \
+#                 not exclude.get(record.CHROM, empty_tree).get(record.POS, True):
                 continue
 
             # Setup the RB tree for contigs not in the data structure.
