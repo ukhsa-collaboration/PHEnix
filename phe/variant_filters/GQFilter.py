@@ -1,7 +1,7 @@
 '''Filter VCF on GQ parameter.
-Created on 24 Sep 2015
 
-@author: alex
+:Date: 24 Sep, 2015
+:Author: Alex Jironkin
 '''
 
 import argparse

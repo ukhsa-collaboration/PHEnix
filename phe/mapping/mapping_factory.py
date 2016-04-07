@@ -1,7 +1,7 @@
 '''
-Created on 22 Sep 2015
+:Date: 22 Sep, 2015
 
-@author: alex
+:Author: Alex Jironkin
 '''
 import glob
 import inspect
@@ -65,15 +65,15 @@ def available_mappers():
 def factory(mapper=None, custom_options=None):
     """Create an instance of a mapper from _config_.
     
-    Parameters:
-    -----------
+    Parameters
+    ----------
     mapper: str, optional
         Name of the mapper to initialise.
     custom_options: str, optional
         Custom options to be passed to the mapper.
         
-    Returns:
-    --------
+    Returns
+    -------
     :py:class:`phe.mapping.Mapper`:
         Instance of a :py:class:`phe.mapping.Mapper` with provided name, or
         None if the mapper could not be found.

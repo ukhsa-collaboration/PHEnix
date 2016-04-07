@@ -1,4 +1,8 @@
-"""Metadata related information."""
+"""Metadata related information.
+
+:Date: 22 Sep, 2015
+:Author: Alex Jironkin
+"""
 
 import abc
 

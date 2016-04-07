@@ -1,7 +1,6 @@
 '''
-Created on 10 Nov 2015
-
-@author: alex
+:Date: 10 Nov, 2015
+:Author: Alex Jironkin
 '''
 from collections import OrderedDict
 import math
@@ -21,9 +20,7 @@ class CoverageAnnotator(Annotator):
     name = "coverage"
 
     def __init__(self, config=None):
-        '''
-        Constructor
-        '''
+        '''Constructor'''
         super(CoverageAnnotator, self).__init__(self.name)
 
     def annotate(self, vcf_path=None):

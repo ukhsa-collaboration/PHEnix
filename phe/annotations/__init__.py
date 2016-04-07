@@ -1,4 +1,7 @@
-
+'''
+:Date: 10 Nov, 2015
+:Author: Alex Jironkin
+'''
 import abc
 from collections import OrderedDict
 import glob
@@ -83,14 +86,14 @@ def available_annotators():
 def make_annotators(config):
     """Create a list of annotators from *config*.
     
-    Parameters:
-    -----------
+    Parameters
+    ----------
     config: dict, optional
         Dictionary with name: value pairs. For each name, an
         appropriate Annotator will be found and instanciated.
         
-    Returns:
-    --------
+    Returns
+    -------
     list:
         List of :py:class:`Annotator` annotators.
     """

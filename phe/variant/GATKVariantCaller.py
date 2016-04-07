@@ -1,7 +1,6 @@
 '''
-Created on 22 Sep 2015
-
-@author: alex
+:Date: 22 Sep, 2015
+:Author: Alex Jironkin
 '''
 from collections import OrderedDict
 import logging
@@ -101,13 +100,14 @@ class GATKVariantCaller(VariantCaller):
         specifying path to picard.jar or PICARD_TOOLS_PATH specifying path
         to the directory where separate jars are (older version before jars
         were merged into a single picard.jar).
-        Parameters:
-        -----------
+        
+        Parameters
+        ----------
         ref: str
             Path to the reference file.
         
-        Returns:
-        --------
+        Returns
+        -------
         bool:
             True if auxiliary files were created, False otherwise.
         """

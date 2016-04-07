@@ -29,7 +29,7 @@ def get_args():
 
     args.add_argument("--debug", action="store_true", default=False, help="Make output more verbose.")
 
-    return args.parse_args()
+    return args
 
 def load_config(config_path):
     with open(config_path) as fp:
@@ -38,7 +38,7 @@ def load_config(config_path):
     return config.get("filters", {})
 
 def main():
-    args = get_args()
+    args = get_args().parse_args()
 
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s",

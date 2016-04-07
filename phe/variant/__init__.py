@@ -1,4 +1,9 @@
-"""Classes and methods to work with _variants and such."""
+"""Classes and methods to work with _variants and such.
+
+:Date: 22 Sep, 2015
+:Modified: |today|
+:Author: Alex Jironkin
+"""
 import abc
 from collections import OrderedDict, namedtuple
 import gzip
@@ -39,8 +44,8 @@ class VariantSet(object):
     def __init__(self, vcf_in, filters=None):
         """Constructor of variant set.
         
-        Parameters:
-        -----------
+        Parameters
+        ----------
         vcf_in: str
             Path to the VCF file for loading information.
         filters: str or dict, optional
@@ -77,8 +82,9 @@ class VariantSet(object):
 
     def variants(self, only_good=False):
         '''Generator over the variant set.
-        Parameters:
-        -----------
+        
+        Parameters
+        ----------
         only_good: bool, optional
             Iff True good and bad variants are returned, 
             otherwise only good are returned (default: False).
@@ -168,8 +174,8 @@ class VariantSet(object):
     def _filter_record(self, record, removed_filters=list()):
         '''**PRIVATE** Filter record.
         
-        Parameters:
-        -----------
+        Parameters
+        ----------
         record: :py:class:vcf.Record
             Record to filter.
         '''
@@ -196,8 +202,8 @@ class VariantSet(object):
     def add_metadata(self, info):
         """Add metadata to the variant set.
         
-        Parameters:
-        -----------
+        Parameters
+        ----------
         info: dict
             Dictionary of key value pairs to be inserted into metadata.
         """
@@ -207,8 +213,8 @@ class VariantSet(object):
     def write_variants(self, vcf_out, only_snps=False, only_good=False):
         """Write _variants to a VCF file.
         
-        Parameters:
-        -----------
+        Parameters
+        ----------
         vcf_out: str
             Path to the file where VCF data is written.
         only_snps: bool, optional
@@ -272,8 +278,8 @@ class VariantCaller(PHEMetaData):
     def __init__(self, cmd_options=None):
         """Constructor for variant caller.
         
-        Parameters:
-        -----------
+        Parameters
+        ----------
         cmd_options: str, optional
             Command options to pass to the variant command.
         """
@@ -285,8 +291,8 @@ class VariantCaller(PHEMetaData):
     def make_vcf(self, *args, **kwargs):
         """Create a VCF from **BAM** file.
         
-        Parameters:
-        -----------
+        Parameters
+        ----------
         ref: str
             Path to the reference file.
         bam: str
@@ -296,8 +302,8 @@ class VariantCaller(PHEMetaData):
         make_aux: bool, optional
             True/False create auxilliary files (default: False).
 
-        Returns:
-        --------
+        Returns
+        -------
         bool:
             True if variant calling was successful, False otherwise.
         """

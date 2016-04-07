@@ -1,8 +1,8 @@
 '''Filter VCF on GT filter parameter.
 
-Created on 24 Sep 2015
+:Date: 24 Sep, 2015
 
-@author: alex
+:Author: Alex Jironkin
 '''
 
 import argparse

@@ -18,11 +18,11 @@ def get_args():
     args.add_argument("--mapper", help="Available mappers: %s" % available_mappers())
     args.add_argument("--variant", help="Available variants: %s" % available_callers())
 
-    return args.parse_args()
+    return args
 
 def main():
 
-    args = get_args()
+    args = get_args().parse_args()
 
     if args.mapper:
         if not map_fac(args.mapper).create_aux_files(args.reference):

@@ -1,7 +1,6 @@
 '''
-Created on 22 Sep 2015
-
-@author: alex
+:Date: 22 Sep, 2015
+:Author: Alex Jironkin
 '''
 from collections import OrderedDict
 import logging
@@ -128,13 +127,13 @@ class MPileupVariantCaller(VariantCaller):
     def create_aux_files(self, ref):
         """Index reference with faidx from samtools.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         ref: str
             Path to the reference file.
 
-        Returns:
-        --------
+        Returns
+        -------
         bool:
             True if auxiliary files were created, False otherwise.
         """

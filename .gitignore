@@ -3,3 +3,4 @@
 /test_data/
 *.pyc
 /cover/
+docs/_build
