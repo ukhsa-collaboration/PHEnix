@@ -3,6 +3,8 @@ Scripts
 
 Useful scripts for data analysis.
 
+.. _prepare-script:
+
 prepare_reference
 -----------------
 

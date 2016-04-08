@@ -1,5 +1,30 @@
 """Classes and methods to work with _variants and such.
 
+.. _implementing-variant:
+
+Implementing Variant Caller
+---------------------------
+
+
+Similarly to :ref:`implementing-mapper` and :ref:`implementing-filter`
+adding your variant caller is easy and sraight forward. Implement 
+:py:class:`VariantCaller` class with the following attributes/methods:
+
+- :py:attr:`VariantCaller.name` - Name of your variant caller, used to dynamically load it.
+- :py:meth:`VariantCaller.make_vcf` - Create a VCF from input BAM. See :py:meth:`VariantCaller.make_vcf` for input list.
+- :py:meth:`VariantCaller.get_version` - Return the version of this variant caller.
+- :py:meth:`VariantCaller.get_info` - Return information about this caller and included in the VCF header.
+- :py:meth:`VariantCaller.create_aux_files` - Create auxilliary files needed by the caller. Also used in  :ref:`prepare-script`.
+
+Save your new variant caller in the *variant* directiry and it will be
+automatically picked up by the system. To verify run:
+
+.. code-block:: bash
+
+   run_snp_pipeline.py --help
+   
+It should appear in the list of available callers.
+
 :Date: 22 Sep, 2015
 :Modified: |today|
 :Author: Alex Jironkin

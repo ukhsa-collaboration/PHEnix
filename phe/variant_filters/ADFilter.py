@@ -26,7 +26,7 @@ class ADFilter(PHEFilterBase):
 
     def __init__(self, args):
         """AD Ratio constructor."""
-        # This needs to happen first, because threshold is initialised here.
+        # Call parent's constructor first.
         super(ADFilter, self).__init__(args)
 
         # Change the threshold to custom dp value.

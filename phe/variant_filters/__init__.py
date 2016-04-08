@@ -1,4 +1,72 @@
-"""Classes and functions for working with variant filters.
+"""
+Classes and functions for working with variant filters.
+
+.. _implementing-filter:
+
+Implementing Filter
+-------------------
+
+The :py:class:`PHEFilterBase` class was designed to be implemented in order
+to provide new filters for processing. As such it should be easy to extend
+:py:class:`PHEFilterBase` to achieve this.
+
+If you are not familiar with Python and classes please read
+`this <http://www.tutorialspoint.com/python/python_classes_objects.htm>`_.
+It is a general introduction to the subject.
+
+Implementation of a filter closely follows the structure for
+`PyVCF <http://pyvcf.readthedocs.org/en/latest/FILTERS.html#adding-a-filter>`_
+
+PHEBaseFilter adds additional infomations that is also added to the VCF header:
+
+- :py:attr:`PHEFilterBase.parameter` - Atrribute that allows dynmic loader to pickup the filter.This is the name used in command line arguments and configs.
+- :py:attr:`PHEFilterBase._default_threshold` - Default threshold used for the filter when non specified.
+- :py:meth:`PHEFilterBase.short_desc` - Method for defining what the short description is dynamically.
+- :py:meth:`PHEFilterBase.__call__()` - Function that does the filtering (the same as PyVCF).
+
+The most important of these is the **__call__** function, as this is what
+does the filtering. It needs to return the following:
+
+- **None** if the record **PASSES** the filter.
+- Non **None** expressions are treated as failures.
+
+.. NOTE::
+   While it may not be obvious, but Python always returns a value.
+   When no *return* statement is specified, **None** is returned
+   to the calling function.
+
+   **False** is returned when data can not be accessed by the filter.
+
+Once you have implemented the filter and saved it in the *variant_filters*
+directory, it should be automatically picked up by the system and available
+to filter on. To verify this run:
+
+.. code-block:: bash
+
+    run_snp_pipeline.py --help
+
+You filter should now be visible in the list of available filters.
+
+Example
+-------
+
+.. code-block:: python
+
+   class MyFilter(PHEFilterBase):
+       name="CoolQUAL"
+       _default_threshold=40
+       parameter=cool_qual
+
+       def __init__(self, args):
+           # Construct any specific details for the object
+
+       def __call__(self, record):
+           if record.QUAL < self.threshold:
+               return record.QUAL
+
+       def short_desc(self):
+           return "My cool QUAL filter"
+
 
 :Date: 24 Sep, 2015
 :Author: Alex Jironkin

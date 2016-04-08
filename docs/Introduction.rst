@@ -25,19 +25,27 @@ The process is comprised of three steps:
 
 prepare a bwa and gatk reference using a fasta file (myref.fasta)
 
-.. code:: bash
+.. code-block:: bash
 
-   prepare_reference.py --mapper bwa --variant gatk --reference myref.fasta
+   prepare_reference.py --mapper bwa \
+   --variant gatk \
+   --reference myref.fasta
    
 map, call and filter variants on fastq files (my.R1.fastq, my.R2.fastq). Filter SNPs on minimum depth, mapping quality and AD ratio
 
-.. code:: bash
+.. code-block:: bash
 
-   run_snp_pipeline.py -r1 my.R1.fastq -r2 my.R2.fastq -r myref.fasta --sample-name mysample --mapper bwa --variant gatk --filters min_depth:5,mq_score:30,ad_ratio:0.9
+   run_snp_pipeline.py -r1 my.R1.fastq \
+   -r2 my.R2.fastq \
+   -r myref.fasta \
+   --sample-name mysample \
+   --mapper bwa \
+   --variant gatk \
+   --filters min_depth:5,mq_score:30,ad_ratio:0.9
    
 generate a FASTA file of SNPs using filtered VCFs in current directory
 
-.. code:: bash
+.. code-block:: bash
 
    vcf2fastq.py -d ./ -o output.fasta --regex filtered
 

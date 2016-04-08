@@ -1,5 +1,38 @@
 """Mapping related classes and functions.
 
+.. _implementing-mapper:
+
+Implementing Mapper
+-------------------
+
+This project does not provide novel way of mapping or calling variants. Instead
+it interfaces with available mappers through command line interface. Hopefully,
+we have made it straight forward to add your favourite mapper for others to use.
+
+To do this, you will need to implement :py:class:`Mapper` class. There are a
+number of methods that need to be implemented for you mapper to work:
+
+- :py:attr:`Mapper.name` - Attribute that specifies the name of the mapper (used to dynamically load it).
+- :py:meth:`Mapper.make_sam` - Create a sam file in *out_file* from *R1/Forward*, *R2/Reverse* and *ref*. See :py:meth:`Mapper.make_sam` for all input options.
+- :py:meth:`Mapper.create_aux_files` - Create auxilliary files needed for the mapper. This is also called by :ref:`prepare-script`.
+- :py:meth:`Mapper.get_version` - get the version of the mapper.
+- :py:meth:`Mapper.get_info` - Get the meta data information for the mapper (included in the VCF header).
+- :py:meth:`Mapper.make_bam` - If you want, you can also implement this method, but my default samtools is used to convert from SAM -> BAM.
+
+Bear in mind that **cmd_options** will be passed on, if they specified in the command line or config under **mapper-options**.
+
+Once you have implemented this interface, save the file in the *mapping*
+directory and it should be automatically picked up. To verify run:
+
+.. code-block:: bash
+
+   run_snp_pipeline.py --help
+   
+You should see your mapper in the list of available mappers.
+If the mapper works, it will also be included n automatically
+in the documentations.
+
+
 :Date: 22 Sep, 2015
 :Author: Alex Jironkin
 """
@@ -58,7 +91,7 @@ class Mapper(PHEMetaData):
     @abc.abstractmethod
     def make_sam(self, *args, **kwargs):
         """Make SAM from reference, and fastq files.
-
+        
         Parameters
         ----------
         ref: str

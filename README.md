@@ -1,5 +1,7 @@
 # Phoenix [![build status](http://bioinformatics-git.phe.gov.uk/ci/projects/1/status.png?ref=master)](http://bioinformatics-git.phe.gov.uk/ci/projects/1?ref=master)
 
+Full documentation can be found at: http://phoenix.readthedocs.org/en/latest/
+
 ## Prereq
 
 The refence needs to be index in an appropriate way for different mapper/variant callers. This can be done using:
@@ -134,6 +136,8 @@ Picard is needed for GATK to create dictionary of reference fasta.
 Either set *PICARD_TOOLS_PATH* - path to directory where different Picard jars are or set *PICARD_JAR* - path to **picard.jar**.
 Older Picard distributions have many different jars (use first suggestion), where as newer versions have merged all into one jar file. 
 
+## Contributing to the project
+If you want to add your favourite Mapper/VariantCaller or add another Filter please refer to the documentation: [here](http://phoenix.readthedocs.org/en/latest/api/modules.html) 
 
 
 ## History
