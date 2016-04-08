@@ -318,10 +318,13 @@ def main():
             elif not record.FILTER:
                 # If filter PASSED!
                 # Make sure the reference base is the same. Maybe a vcf from different species snuck in here?!
-                assert str(record.REF) == position_data["reference"], "SOMETHING IS REALLY WRONG because reference for the same position is DIFFERENT! %s in %s (%s, %s)" % (record.POS, vcf_in, str(record.REF), position_data["reference"])
+                assert str(record.REF) == position_data["reference"] or str(record.REF) == 'N' or position_data["reference"] == 'N', "SOMETHING IS REALLY WRONG because reference for the same position is DIFFERENT! %s in %s (%s, %s)" % (record.POS, vcf_in, str(record.REF), position_data["reference"])
+                #update position_data['reference'] to a real base if possible
+                if position_data['reference'] == 'N' and str(record.REF) != 'N':
+                    position_data['reference'] = str(record.REF)
                 if record.is_snp:
                     if len(record.ALT) > 1:
-                        logging.info("POS %s passed filters but has multiple alleles. Inserting N")
+                        logging.info("POS %s passed filters but has multiple alleles REF: %s, ALT: %s. Inserting N" % (record.POS, str(record.REF), str(record.ALT)))
                         position_data[sample_name] = "N"
                         position_data["stats"].N += 1
 
