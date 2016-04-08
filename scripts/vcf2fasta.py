@@ -70,8 +70,12 @@ def get_sample_stats(all_positions, samples):
 
     return sample_stats
 
-def calculate_dist_matrix():
-    return None
+def _make_ref_insert(start, stop, reference, exclude):
+    '''Create reference insert taking account exclude positions.'''
+    if stop is None:
+        return [c for i, c in enumerate(reference[start:]) if i + start not in exclude]
+    else:
+        return [c for i, c in enumerate(reference[start:stop - 1]) if i + start not in exclude]
 
 def plot_stats(pos_stats, total_samples, plots_dir="plots", discarded={}):
     if not os.path.exists(plots_dir):
@@ -148,6 +152,7 @@ def get_mixture(record, threshold):
 
     return mixtures
 
+
 def print_stats(stats, pos_stats, total_vars):
     for contig in stats:
         for sample, info in stats[contig].items():
@@ -217,8 +222,6 @@ def main():
     # All positions available for analysis.
     avail_pos = dict()
 
-    empty_tree = FastRBTree()
-
     exclude = {}
     include = {}
 
@@ -239,15 +242,14 @@ def main():
             for line in fp:
                 data = line.strip().split("\t")
 
-                chr_pos += [ (i, False,) for i in xrange(int(data[1]), int(data[2]) + 1)]
+                chr_pos += set(range(int(data[1]), int(data[2]) + 1))
 
                 if data[0] not in pos:
                     pos[data[0]] = []
 
                 pos[data[0]] += chr_pos
 
-
-        pos = {chrom: FastRBTree(l) for chrom, l in pos.items()}
+        pos = {chrom: l for chrom, l in pos.items()}
 
         if args.include:
             include = pos
@@ -287,7 +289,7 @@ def main():
                 #    continue
 
             # SKIP (or include) any pre-specified regions.
-            if include and record.POS not in include.get(record.CHROM, empty_tree) or exclude and record.POS in exclude.get(record.CHROM, empty_tree):
+            if include and record.POS not in include.get(record.CHROM, set()) or exclude and record.POS in exclude.get(record.CHROM, set()):
 #             if include.get(record.CHROM, empty_tree).get(record.POS, False) or \
 #                 not exclude.get(record.CHROM, empty_tree).get(record.POS, True):
                 continue
@@ -305,15 +307,15 @@ def main():
             position_data = avail_pos[record.CHROM].get(record.POS)
 
             assert len(position_data["reference"]) == 1, "Reference base must be singluar: in %s found %s @ %s" % (position_data["reference"], sample_name, record.POS)
-            where = 0
+
             # IF this is uncallable genotype, add gap "-"
             if record.is_uncallable:
                 # TODO: Mentioned in issue: #7(gitlab)
                 position_data[sample_name] = "-"
 
                 # Update stats
-                position_data["stats"].N += 1
-                where = 1
+                position_data["stats"].gap += 1
+
 
             elif not record.FILTER:
                 # If filter PASSED!
@@ -332,7 +334,7 @@ def main():
                         position_data[sample_name] = str(record.ALT[0])
 
                         position_data["stats"].mut += 1
-                where = 2
+
             # Filter(s) failed
             elif record.is_snp:
                 # mix = get_mixture(record, args.with_mixtures)
@@ -343,16 +345,11 @@ def main():
                     position_data["stats"].N += 1
 
                 position_data[sample_name] = extended_code
-                where = 3
+
             else:
                 # filter fail; code as N for consistency
                 position_data[sample_name] = "N"
                 position_data["stats"].N += 1
-                where = 4
-            # print "%s\t%s\t%s\t%s\t%s" % (sample_name,record.POS,where,record.FILTER,record)
-            # For reference we always want to use all data.
-            if args.reference:
-                continue
 
             # Filter columns when threashold reaches user specified value.
             if isinstance(args.column_Ns, float) and float(position_data["stats"].N) / len(args.input) > args.column_Ns:
@@ -360,15 +357,15 @@ def main():
 
                 # print "excluding %s" % record.POS
                 if record.CHROM not in exclude:
-                    exclude[record.CHROM] = FastRBTree()
-                exclude[record.CHROM].insert(record.POS, False)
+                    exclude[record.CHROM] = set()
+                exclude[record.CHROM].add(record.POS)
 
             if isinstance(args.column_gaps, float) and float(position_data["stats"].gap) / len(args.input) > args.column_gaps:
                 avail_pos[record.CHROM].remove(record.POS)
 
                 if record.CHROM not in exclude:
-                    exclude[record.CHROM] = FastRBTree()
-                exclude[record.CHROM].insert(record.POS, False)
+                    exclude[record.CHROM] = set()
+                exclude[record.CHROM].add(record.POS)
 
     # Compute per sample statistics.
     sample_stats = get_sample_stats(avail_pos, samples)
@@ -415,7 +412,9 @@ def main():
         for pos in avail_pos[contig]:
             c += 1
             if args.reference:
-                seq = args.reference[contig][last_base:pos - 1]
+                # If need to output the whole reference, pad the spaces
+                #    between records with reference bases, excluding any excludes.
+                seq = _make_ref_insert(last_base, pos, args.reference[contig], exclude.get(contig, set()))
                 for sample in samples:
                     sample_seqs[sample] += seq
 
@@ -451,7 +450,7 @@ def main():
 
         # Fill from last snp to the end of reference.
         if args.reference:
-            seq = args.reference[contig][last_base:]
+            seq = _make_ref_insert(last_base, None, args.reference[contig], exclude.get(contig, set()))  # args.reference[contig][last_base:]
             for sample in samples:
                 sample_seqs[sample] += seq
 
