@@ -141,8 +141,10 @@ If you want to add your favourite Mapper/VariantCaller or add another Filter ple
 
 
 ## History
+### Contributors
+Aleksey Jironkin, Ali Al-Shahib, Anais Painset, Anthony Underwood, Philip Ashton, Richard Myers, Tim Dallman, Ulf Schaefer
 
+### The (re)birth of PHEnix
 In the beginning there were 2 pipelines to call SNPs: upstairs and downstairs.
-One day we decided it was a bad idea to have 2 pieplines that did similar things.
-The existing pipelines died, quiet software death, and new pipeline was born, to rule
-them all. Just like the ring.
+One day we decided it was a bad idea to have 2 pipelines that did similar things.
+The existing pipelines faded away, and a new pipeline was born revitalised and regenerated from the previous two, just like the ancient myth of the phoenix or phenix as it was known as in middle English (https://en.wikipedia.org/wiki/Phoenix_(mythology))
