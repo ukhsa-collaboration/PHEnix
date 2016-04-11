@@ -142,7 +142,7 @@ If you want to add your favourite Mapper/VariantCaller or add another Filter ple
 
 ## History
 ### Contributors
-Aleksey Jironkin, Ali Al-Shahib, Anais Painset, Anthony Underwood, Philip Ashton, Richard Myers, Tim Dallman, Ulf Schaefer
+Aleksey Jironkin, Ali Al-Shahib, Anais Painset, Anthony Underwood, Georgia Kapatai, Philip Ashton, Rediat Tewolde, Richard Myers, Tim Dallman, Ulf Schaefer
 
 ### The (re)birth of PHEnix
 In the beginning there were 2 pipelines to call SNPs: upstairs and downstairs.
