@@ -1,6 +1,6 @@
-# Phoenix [![build status](http://bioinformatics-git.phe.gov.uk/ci/projects/1/status.png?ref=master)](http://bioinformatics-git.phe.gov.uk/ci/projects/1?ref=master)
+# PHEnix [![build status](http://bioinformatics-git.phe.gov.uk/ci/projects/1/status.png?ref=master)](http://bioinformatics-git.phe.gov.uk/ci/projects/1?ref=master)
 
-Full documentation can be found at: http://phoenix.readthedocs.org/en/latest/
+Full documentation can be found at: http://phenix.readthedocs.org/en/latest/
 
 ## Prereq
 
@@ -114,24 +114,26 @@ Python:
 
 ### Samtools
 
-Samtools can be downloadded from blurb. It is used to filter and convert to SAM/BAM files and in mpileup variant caller.
+Samtools can be downloaded from https://github.com/samtools/samtools. It is used to filter and convert to SAM/BAM files and in mpileup variant caller.
 
 ### BCFTools
 
-BCFtools can be downloaded from blurb. It is used for calling variants in mpileup.
+BCFtools can be downloaded from https://samtools.github.io/bcftools/. It is used for calling variants in mpileup.
 
 ### BWA
 
-Heng Li's mapper can be downloaded from blurb.
+The BWA mapper can be downloaded from http://bio-bwa.sourceforge.net/.
 
 ### Bowtie2
 
-Bowtie2 mapper available from blurb.
+The Bowtie2 mapper is available from http://bowtie-bio.sourceforge.net/bowtie2/index.shtml.
 
 ### GATK
+GATK is available from https://www.broadinstitute.org/gatk/. PLlase read the licencing information before using (https://www.broadinstitute.org/gatk/about/#licensing)
 Set *GATK_JAR* - full path to the GATK Java archive.
 
 ### Picard
+The Picard tool suite is available from http://broadinstitute.github.io/picard/.
 Picard is needed for GATK to create dictionary of reference fasta.
 Either set *PICARD_TOOLS_PATH* - path to directory where different Picard jars are or set *PICARD_JAR* - path to **picard.jar**.
 Older Picard distributions have many different jars (use first suggestion), where as newer versions have merged all into one jar file. 
