@@ -129,11 +129,13 @@ The BWA mapper can be downloaded from http://bio-bwa.sourceforge.net/.
 The Bowtie2 mapper is available from http://bowtie-bio.sourceforge.net/bowtie2/index.shtml.
 
 ### GATK
-GATK is available from https://www.broadinstitute.org/gatk/. PLlase read the licencing information before using (https://www.broadinstitute.org/gatk/about/#licensing)
+GATK is available from https://www.broadinstitute.org/gatk/. Please read the licencing information before using (https://www.broadinstitute.org/gatk/about/#licensing)
+
 Set *GATK_JAR* - full path to the GATK Java archive.
 
 ### Picard
 The Picard tool suite is available from http://broadinstitute.github.io/picard/.
+
 Picard is needed for GATK to create dictionary of reference fasta.
 Either set *PICARD_TOOLS_PATH* - path to directory where different Picard jars are or set *PICARD_JAR* - path to **picard.jar**.
 Older Picard distributions have many different jars (use first suggestion), where as newer versions have merged all into one jar file. 
