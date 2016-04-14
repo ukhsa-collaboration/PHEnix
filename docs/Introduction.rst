@@ -12,7 +12,7 @@ From source:
 
 .. code-block:: bash
 
-   git clone https://github.com/phe-bioinformatics/PHEnix.git && cd PHEnix
+   git clone https://github.com/phe-bioinformatics/PHEnix.git
    pip2 install -e PHEnix
    
 Directly from github:

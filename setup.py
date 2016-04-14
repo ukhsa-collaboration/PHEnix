@@ -18,7 +18,7 @@ else:
 
 install_requires = [str(ir.req) for ir in install_reqs]
 
-setup(name='PHE-phoenix',
+setup(name='PHEnix',
       version='1.0',
       description='Public Health England(UK) SNP calling pipeline tools.',
       author='Public Health England',
