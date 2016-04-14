@@ -72,6 +72,8 @@ class Mapper(PHEMetaData):
 
         self.cmd_options = cmd_options
 
+        self.validate()
+
     @abc.abstractmethod
     def create_aux_files(self, ref):
         """Create required auxiliary files for *ref*.
@@ -226,3 +228,10 @@ class Mapper(PHEMetaData):
     def get_version(self):
         """Get the version of the underlying command used."""
         raise NotImplementedError("Get version has not been implemented yet.")
+
+
+    def validate(self):
+        """Validate itself, by checking appropriate commands can run."""
+
+        if self.get_version() == "n/a":
+            raise Exception("%s is not available in your PATH." % self.name)

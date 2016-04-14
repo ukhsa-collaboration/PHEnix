@@ -96,14 +96,20 @@ class Bowtie2Mapper(Mapper):
         return True
 
     def get_version(self):
-
-        p = subprocess.Popen(["bowtie2", "--version"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        (output, _) = p.communicate()
-
         try:
-            version = output.split("\n")[0].split(" ")[-1]
-        except Exception:
+            p = subprocess.Popen(["bowtie2", "--version"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            (output, _) = p.communicate()
+        except OSError as e:
+            logging.error(str(e))
+            return "n/a"
+
+        if p.returncode != 0:
             version = "n/a"
+        else:
+            try:
+                version = output.split("\n")[0].split(" ")[-1]
+            except Exception:
+                version = "n/a"
 
         return version
 

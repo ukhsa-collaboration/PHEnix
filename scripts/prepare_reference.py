@@ -27,18 +27,27 @@ def get_args():
 
 def main(args=get_args()):
 
+    result = 0
     args = args.parse_args()
 
+    logging.info("Creating auxilliary files for %s", args.reference)
+
     if args.mapper:
-        if not map_fac(args.mapper).create_aux_files(args.reference):
+        mapper = map_fac(args.mapper)
+
+        if mapper is None or not mapper.create_aux_files(args.reference):
             logging.error("Auxiliary files for %s mapper could not be created", args.mapper)
+            result += 1
 
     if args.variant:
-
-        if not var_fac(args.variant).create_aux_files(args.reference):
+        variant = var_fac(args.variant)
+        if variant is None or not variant.create_aux_files(args.reference):
             logging.error("Auxiliary files for %s variant caller could not be created", args.variant)
+            result += 1
 
-    return 0
+    logging.info("Finished creating auxilliary files.")
+
+    return result
 
 if __name__ == "__main__":
     exit(main())

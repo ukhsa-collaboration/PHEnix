@@ -30,6 +30,8 @@ class GATKVariantCaller(VariantCaller):
 
         self.last_command = None
 
+        self.validate()
+
     def get_info(self, plain=False):
         d = {"name": "gatk", "version": self.get_version(), "command": self.last_command}
 
@@ -45,8 +47,11 @@ class GATKVariantCaller(VariantCaller):
         p = subprocess.Popen(["java", "-jar", os.environ["GATK_JAR"], "-version"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         (output, _) = p.communicate()
 
-        # last character is EOL.
-        version = output.split("\n")[-2]
+        if p.returncode != 0:
+            version = "n/a"
+        else:
+            # last character is EOL.
+            version = output.split("\n")[-2]
 
         return version
 
@@ -131,7 +136,7 @@ class GATKVariantCaller(VariantCaller):
             #    jars were merged into a single jar file.
             d["picard_tools_path"] = "%s %s" % (os.environ["PICARD_JAR"], "CreateSequenceDictionary")
         else:
-            logging.error("Picard tools are not present in the path.")
+            logging.error("Picard tools are not present in the path. Please set PICARD_TOOLS_PATH to CreateSequenceDictionary.jar for an older many commands version or PICARD_JAR for single jar file.")
             return False
 
         if not os.path.exists("%s.dict" % ref_name):
@@ -146,3 +151,7 @@ class GATKVariantCaller(VariantCaller):
             logging.debug("PICARD AUX EXISTS.")
 
         return True
+
+    def validate(self):
+        if "GATK_JAR" not in os.environ:
+            raise Exception("GATK_JAR is not found in you environment. Please set environemnt variable(s) and run the tool again.")

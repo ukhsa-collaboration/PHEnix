@@ -82,10 +82,16 @@ def factory(variant=None, custom_options=None):
 
         variant = variant.lower()
         if variant in _avail_variant_callers:
-            return _avail_variant_callers[variant](cmd_options=custom_options)
+            try:
+                obj = _avail_variant_callers[variant](cmd_options=custom_options)
+            except Exception as e:
+                logging.error(e.message)
+                obj = None
         else:
             logging.error("No implementation for %s variant.", variant)
-            return None
+            obj = None
+
+        return obj
 
     logging.warn("Unknown parameters. Mapper could not be initialised.")
     return None

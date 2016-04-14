@@ -356,3 +356,8 @@ class VariantCaller(PHEMetaData):
     def get_version(self):
         """Get the version of the underlying command used."""
         raise NotImplementedError("Get version has not been implemented yet.")
+
+    def validate(self):
+        """Check if the command can run."""
+        if self.get_version() == "n/a":
+            raise Exception("%s is not available in your PATH." % self.name)

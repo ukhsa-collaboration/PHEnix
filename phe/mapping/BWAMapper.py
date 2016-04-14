@@ -100,11 +100,15 @@ class BWAMapper(Mapper):
         p = subprocess.Popen(["bwa"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         (output, _) = p.communicate()
 
-        for line in output.split("\n"):
-            if "Version:" in line:
-                line = line.replace("Version:", "")
-                version = line.strip()
-                break
+        # This is how peculiar BWA is, it returns 1 when called by itself.
+        if p.returncode != 1:
+            version = "n/a"
+        else:
+            for line in output.split("\n"):
+                if "Version:" in line:
+                    line = line.replace("Version:", "")
+                    version = line.strip()
+                    break
 
         return version
 

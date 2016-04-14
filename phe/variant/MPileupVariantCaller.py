@@ -46,8 +46,11 @@ class MPileupVariantCaller(VariantCaller):
         p = subprocess.Popen(["samtools", "--version"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         (output, _) = p.communicate()
 
-        # first line is the version of the samtools
-        version = output.split("\n")[0].split(" ")[1]
+        if p.returncode != 0:
+            version = "n/a"
+        else:
+            # first line is the version of the samtools
+            version = output.split("\n")[0].split(" ")[1]
 
         return version
 
