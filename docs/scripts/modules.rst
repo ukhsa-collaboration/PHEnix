@@ -5,36 +5,12 @@ Useful scripts for data analysis.
 
 .. _prepare-script:
 
-prepare_reference
------------------
+phenix
+------
 
 .. argparse::
-   :module: prepare_reference
+   :module: phenix
    :func: get_args
-   :prog: prepare_reference
+   :prog: phenix
 
-
-VCF2FASTA
----------
-
-.. argparse::
-   :module: vcf2fasta
-   :func: get_args
-   :prog: vcf2fasta
-
-   
-run_snp_pipeline
-----------------
-
-.. argparse::
-   :module: run_snp_pipeline
-   :func: get_args
-   :prog: run_snp_pipeline
-   
-filter_vcf
-----------
-
-.. argparse::
-   :module: filter_vcf
-   :func: get_args
-   :prog: filter_vcf
+   There is a single entry point to access all commands we have produced so far. Please refer to this documentation or *--help* on the cammand line.

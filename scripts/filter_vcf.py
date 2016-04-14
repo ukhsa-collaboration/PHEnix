@@ -1,9 +1,7 @@
-#!/usr/bin/env python
 '''Simple VCF parser using custom filters.
 
-Created on 6 Oct 2015
-
-@author: alex
+:Date: 6 October, 2015
+:Author: alex
 '''
 import argparse
 import logging
@@ -11,10 +9,11 @@ import yaml
 
 from phe.variant import VariantSet
 
+def get_desc():
+    return "Filter the VCF using provided filters."
 
 def get_args():
-
-    args = argparse.ArgumentParser()
+    args = argparse.ArgumentParser(description=get_desc())
 
     args.add_argument("--vcf", "-v", required=True, help="VCF file to (re)filter.")
 
@@ -27,8 +26,6 @@ def get_args():
 
     args.add_argument("--only-good", action="store_true", default=False, help="Write only variants that PASS all filters (default all variants are written).")
 
-    args.add_argument("--debug", action="store_true", default=False, help="Make output more verbose.")
-
     return args
 
 def load_config(config_path):
@@ -37,8 +34,9 @@ def load_config(config_path):
 
     return config.get("filters", {})
 
-def main():
-    args = get_args().parse_args()
+def main(args=get_args()):
+
+    args = args.parse_args()
 
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s",
@@ -56,7 +54,6 @@ def main():
         var_set.filter_variants()
 
     var_set.write_variants(args.output, only_good=args.only_good)
-
 
 if __name__ == '__main__':
     exit(main())

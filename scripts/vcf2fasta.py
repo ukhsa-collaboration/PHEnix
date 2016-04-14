@@ -1,10 +1,8 @@
-#!/usr/bin/env python
 '''
 Merge SNP data from multiple VCF files into a single fasta file.
 
-Created on 5 Oct 2015
-
-@author: alex
+:Date: 5 October, 2015
+:Author: Alex Jironkin
 '''
 import argparse
 from collections import OrderedDict
@@ -163,8 +161,11 @@ def print_stats(stats, pos_stats, total_vars):
             print "%s,%i,%i,%i,%i" % (contig, pos, info.get("N", "NA"), info.get("-", "NA"), info.get("mut", "NA"))
 
 
+def get_desc():
+    return "Combine multiple VCFs into a single FASTA file."
+
 def get_args():
-    args = argparse.ArgumentParser(description="Combine multiple VCFs into a single FASTA file.")
+    args = argparse.ArgumentParser(description=get_desc())
 
     group = args.add_mutually_exclusive_group(required=True)
     group.add_argument("--directory", "-d", help="Path to the directory with .vcf files.")
@@ -176,10 +177,10 @@ def get_args():
 
     args.add_argument("--with-mixtures", type=float, help="Specify this option with a threshold to output mixtures above this threshold.")
 
-    args.add_argument("--column-Ns", type=float, help="Keeps columns with fraction of Ns above specified threshold.")
-    args.add_argument("--column-gaps", type=float, help="Keeps columns with fraction of Ns above specified threshold.")
+    args.add_argument("--column-Ns", type=float, help="Keeps columns with fraction of Ns below specified threshold.")
+    args.add_argument("--column-gaps", type=float, help="Keeps columns with fraction of Ns below specified threshold.")
 
-    args.add_argument("--sample-Ns", type=float, help="Keeps samples with fraction of Ns above specified threshold.")
+    args.add_argument("--sample-Ns", type=float, help="Keeps samples with fraction of Ns below specified threshold.")
 
     args.add_argument("--reference", type=str, help="If path to reference specified (FASTA), then whole genome will be written.")
 
@@ -195,16 +196,14 @@ def get_args():
     args.add_argument("--count-dist-gaps", action="store_true", help="Counr gaps as valid character in distance matrix.")
     args.add_argument("--count-dist-Ns", action="store_true", help="Counr Ns as valid character in distance matrix.")
 
-    args.add_argument("--debug", action="store_true", help="More verbose logging (default: turned off).")
-
     return args
 
-def main():
+def main(args=get_args()):
     """
     Process VCF files and merge them into a single fasta file.
     """
 
-    args = get_args().parse_args()
+    args = args.parse_args()
 
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
 
@@ -321,7 +320,7 @@ def main():
                 # If filter PASSED!
                 # Make sure the reference base is the same. Maybe a vcf from different species snuck in here?!
                 assert str(record.REF) == position_data["reference"] or str(record.REF) == 'N' or position_data["reference"] == 'N', "SOMETHING IS REALLY WRONG because reference for the same position is DIFFERENT! %s in %s (%s, %s)" % (record.POS, vcf_in, str(record.REF), position_data["reference"])
-                #update position_data['reference'] to a real base if possible
+                # update position_data['reference'] to a real base if possible
                 if position_data['reference'] == 'N' and str(record.REF) != 'N':
                     position_data['reference'] = str(record.REF)
                 if record.is_snp:

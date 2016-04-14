@@ -1,5 +1,8 @@
-#!/usr/bin/env python
-"""Prepare reference for different mappers and variant callers."""
+"""Prepare reference for different mappers and variant callers.
+
+:Date: 6 October, 2015
+:Author: Alex Jironkin
+"""
 
 import argparse
 import logging
@@ -9,9 +12,11 @@ from phe.mapping.mapping_factory import factory as map_fac
 from phe.variant.variant_factory import available_callers
 from phe.variant.variant_factory import factory as var_fac
 
+def get_desc():
+    return "Prepare reference for SNP pipeline by generating required aux files."
 
 def get_args():
-    args = argparse.ArgumentParser()
+    args = argparse.ArgumentParser(description=get_desc())
 
     args.add_argument("--reference", "-r", required=True, help="Path to reference file to prepare.")
 
@@ -20,9 +25,9 @@ def get_args():
 
     return args
 
-def main():
+def main(args=get_args()):
 
-    args = get_args().parse_args()
+    args = args.parse_args()
 
     if args.mapper:
         if not map_fac(args.mapper).create_aux_files(args.reference):

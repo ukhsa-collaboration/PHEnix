@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from argparse import RawTextHelpFormatter
 import argparse
 import glob
@@ -66,7 +64,8 @@ def pipeline(workflow, input_dir):
 
     return config
 
-desc = '''Run the snp pipeline with specified mapper, variant caller and some filters.
+def get_desc():
+    return r'''Run the snp pipeline with specified mapper, variant caller and some filters.
 
 Available mappers: %s
 
@@ -77,7 +76,7 @@ Available filters: %s
 Available annotators: %s''' % (available_mappers(), available_callers(), available_filters(), available_annotators())
 
 def get_args():
-    args = argparse.ArgumentParser(description=desc, formatter_class=RawTextHelpFormatter)
+    args = argparse.ArgumentParser(description=get_desc(), formatter_class=RawTextHelpFormatter)
 
     args.add_argument("--workflow", "-w")
     args.add_argument("--input", "-i")
@@ -100,8 +99,6 @@ def get_args():
 
     args.add_argument("--annotators", nargs="+", help="List of annotators to run before filters. Available: %s" % available_annotators())
 
-    args.add_argument("--debug", action="store_true", help="More verbose logging.")
-
     return args
 
 def load_config(args):
@@ -120,12 +117,9 @@ def load_config(args):
     args.annotators = config.get("annotators")
 
 
-def main():
-    args = get_args().parse_args()
+def main(args=get_args()):
 
-    log_level = logging.DEBUG if args.debug else logging.INFO
-    logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s",
-                            level=log_level)
+    args = args.parse_args()
 
     make_aux = False
     if args.workflow and args.input:
