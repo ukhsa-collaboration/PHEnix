@@ -2,6 +2,23 @@
 
 Full documentation can be found at: http://phenix.readthedocs.org/en/latest/
 
+## Installation
+
+From source:
+
+```bash
+$ git clone https://github.com/phe-bioinformatics/PHEnix.git
+$ pip2 install -e PHEnix
+```
+   
+Directly from github:
+
+```bash
+$ pip install git+https://github.com/phe-bioinformatics/PHEnix.git
+```
+
+Installing from Pip - **Coming Soon**.
+
 ## Prereq
 
 The refence needs to be index in an appropriate way for different mapper/variant callers. This can be done using:
