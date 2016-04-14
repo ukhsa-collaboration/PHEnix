@@ -19,7 +19,7 @@ Directly from github:
 
 .. code-block:: bash
    
-   pip install git+git://github.com/phe-bioinformatics/PHEnix.git
+   pip install git+https://github.com/phe-bioinformatics/PHEnix.git
    
 .. NOTE:: Installing from Pip - Coming Soon.
 
