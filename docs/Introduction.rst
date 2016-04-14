@@ -5,6 +5,25 @@ Introduction
 
 :Date: |today|
 
+Installation
+------------
+
+From source:
+
+.. code-block:: bash
+
+   git clone https://github.com/phe-bioinformatics/PHEnix.git && cd PHEnix
+   pip2 install -e PHEnix
+   
+Directly from github:
+
+.. code-block:: bash
+   
+   pip install git+git://github.com/phe-bioinformatics/PHEnix.git
+   
+.. NOTE:: Installing from Pip - Coming Soon.
+
+
 Overview
 --------
 
@@ -27,7 +46,8 @@ prepare a bwa and gatk reference using a fasta file (myref.fasta)
 
 .. code-block:: bash
 
-   prepare_reference.py --mapper bwa \
+   prepare_reference.py \
+   --mapper bwa \
    --variant gatk \
    --reference myref.fasta
    
@@ -35,7 +55,8 @@ map, call and filter variants on fastq files (my.R1.fastq, my.R2.fastq). Filter 
 
 .. code-block:: bash
 
-   run_snp_pipeline.py -r1 my.R1.fastq \
+   run_snp_pipeline.py \
+   -r1 my.R1.fastq \
    -r2 my.R2.fastq \
    -r myref.fasta \
    --sample-name mysample \
