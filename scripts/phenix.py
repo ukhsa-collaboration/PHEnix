@@ -14,6 +14,7 @@ import filter_vcf
 import prepare_reference
 import run_snp_pipeline
 import vcf2fasta
+import versioneer
 
 
 def get_args():
@@ -21,11 +22,11 @@ def get_args():
 
     args.add_argument("--debug", action="store_true", help="More verbose logging (default: turned off).")
 
+    args.add_argument("--version", action="version", version=versioneer.get_version())
+
     subparsers = args.add_subparsers(dest='cmd')
 
-    # NOTES: it is important to include help=" " in the parsers,
-    #    otherwise Undocumented will appear in the sphinx docs.
-    #    add_help=False is also required, otherwise args conflict
+    # NOTES: add_help=False is also required, otherwise args conflict
     #    error will be shown.
 
     subparsers.add_parser("run_snp_pipeline",
@@ -56,21 +57,26 @@ def get_args():
     return args
 
 def main():
+    version = versioneer.get_versions()
 
-    args = get_args().parse_args()
+    args = vars(get_args().parse_args())
 
-    log_level = logging.DEBUG if args.debug else logging.INFO
+    log_level = logging.DEBUG if args["debug"] else logging.INFO
     logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s",
                             level=log_level)
 
-    if args.cmd == "run_snp_pipeline":
-        return run_snp_pipeline.main(args=get_args())
-    elif args.cmd == "filter_vcf":
-        return filter_vcf.main(args=get_args())
-    elif args.cmd == "prepare_reference":
-        return prepare_reference.main(args=get_args())
-    elif args.cmd == "vcf2fasta":
-        return vcf2fasta.main(args=get_args())
+    logging.info("Version: %s", version["version"])
+
+    args["version"] = version["version"]
+
+    if args["cmd"] == "run_snp_pipeline":
+        return run_snp_pipeline.main(args)
+    elif args["cmd"] == "filter_vcf":
+        return filter_vcf.main(args)
+    elif args["cmd"] == "prepare_reference":
+        return prepare_reference.main(args)
+    elif args["cmd"] == "vcf2fasta":
+        return vcf2fasta.main(args)
 
     return 1
 

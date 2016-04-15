@@ -4,10 +4,14 @@
 :Author: alex
 '''
 import argparse
+from collections import OrderedDict
 import logging
+
 import yaml
 
 from phe.variant import VariantSet
+import versioneer
+
 
 def get_desc():
     return "Filter the VCF using provided filters."
@@ -34,26 +38,29 @@ def load_config(config_path):
 
     return config.get("filters", {})
 
-def main(args=get_args()):
+def main(args):
 
-    args = args.parse_args()
+    if args.get("version") is None:
+        args["version"] = versioneer.get_version()
 
-    log_level = logging.DEBUG if args.debug else logging.INFO
-    logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s",
-                            level=log_level)
-
-    if args.config is not None:
-        args.filters = load_config(args.config)
-    elif args.filters is None and not args.only_good:
+    if args["config"] is not None:
+        args["filters"] = load_config(args["config"])
+    elif args["filters"] is None and not args["only_good"]:
         logging.error("Either --config or --filters needs to be specified.")
         return 1
 
-    var_set = VariantSet(args.vcf, filters=args.filters)
+    var_set = VariantSet(args["vcf"], filters=args["filters"])
 
-    if args.filters:
+    if args.get("version") is not None:
+        var_set.add_metadata(OrderedDict({"PHEnix-Version": (args["version"],)}))
+
+    if args["filters"]:
         var_set.filter_variants()
 
-    var_set.write_variants(args.output, only_good=args.only_good)
+    var_set.write_variants(args["output"], only_good=args["only_good"])
+
+    logging.info("Finished filtering")
+    return 0
 
 if __name__ == '__main__':
-    exit(main())
+    exit(main(vars(get_args().parse_args())))

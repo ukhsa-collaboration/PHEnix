@@ -1,0 +1,3 @@
+include *.txt
+recursive-include scipts *.pyinclude versioneer.py
+include scripts/_version.py

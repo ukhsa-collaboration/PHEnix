@@ -25,24 +25,23 @@ def get_args():
 
     return args
 
-def main(args=get_args()):
+def main(args):
 
     result = 0
-    args = args.parse_args()
 
-    logging.info("Creating auxilliary files for %s", args.reference)
+    logging.info("Creating auxilliary files for %s", args["reference"])
 
-    if args.mapper:
-        mapper = map_fac(args.mapper)
+    if args["mapper"]:
+        mapper = map_fac(args["mapper"])
 
-        if mapper is None or not mapper.create_aux_files(args.reference):
-            logging.error("Auxiliary files for %s mapper could not be created", args.mapper)
+        if mapper is None or not mapper.create_aux_files(args["reference"]):
+            logging.error("Auxiliary files for %s mapper could not be created", args["mapper"])
             result += 1
 
-    if args.variant:
-        variant = var_fac(args.variant)
-        if variant is None or not variant.create_aux_files(args.reference):
-            logging.error("Auxiliary files for %s variant caller could not be created", args.variant)
+    if args["variant"]:
+        variant = var_fac(args["variant"])
+        if variant is None or not variant.create_aux_files(args["reference"]):
+            logging.error("Auxiliary files for %s variant caller could not be created", args["variant"])
             result += 1
 
     logging.info("Finished creating auxilliary files.")
@@ -50,4 +49,4 @@ def main(args=get_args()):
     return result
 
 if __name__ == "__main__":
-    exit(main())
+    exit(main(vars(get_args().parse_args())))

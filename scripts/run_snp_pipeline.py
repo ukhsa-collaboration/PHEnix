@@ -1,5 +1,6 @@
 from argparse import RawTextHelpFormatter
 import argparse
+from collections import OrderedDict
 import glob
 import logging
 import os
@@ -13,6 +14,7 @@ from phe.variant import VariantSet
 from phe.variant.variant_factory import factory as variant_fac, \
     available_callers
 from phe.variant_filters import available_filters, str_to_filters, make_filters
+import versioneer
 
 
 def pipeline(workflow, input_dir):
@@ -103,85 +105,86 @@ def get_args():
 
 def load_config(args):
 
-    with open(args.config) as fp:
+    with open(args["config"]) as fp:
         config = yaml.load(fp)
 
-    args.mapper = config.get("mapper")
-    args.mapper_options = config.get("mapper-options")
+    args["mapper"] = config.get("mapper")
+    args["mapper_options"] = config.get("mapper-options")
 
-    args.variant = config.get("variant")
-    args.variant_options = config.get("variant-options")
+    args["variant"] = config.get("variant")
+    args["variant_options"] = config.get("variant-options")
 
-    args.filters = config.get("filters")
+    args["filters"] = config.get("filters")
 
-    args.annotators = config.get("annotators")
+    args["annotators"] = config.get("annotators")
 
 
-def main(args=get_args()):
+def main(args):
 
-    args = args.parse_args()
+    if args.get("version") is None:
+        args["version"] = versioneer.get_version()
 
     make_aux = False
-    if args.workflow and args.input:
+    if args["workflow"] and args["input"]:
         logging.info("PIPELINE_START")
-        workflow_config = pipeline(args.workflow, args.input)
+        workflow_config = pipeline(args["workflow"], args["input"])
         try:
-            args.r1 = workflow_config["r1"]
-            args.r2 = workflow_config["r2"]
-            args.outdir = workflow_config["outdir"]
-            args.config = workflow_config["config"]
-            args.reference = workflow_config["reference"]
-            args.sample_name = workflow_config["sample_name"]
+            args["r1"] = workflow_config["r1"]
+            args["r2"] = workflow_config["r2"]
+            args["outdir"] = workflow_config["outdir"]
+            args["config"] = workflow_config["config"]
+            args["reference"] = workflow_config["reference"]
+            args["sample_name"] = workflow_config["sample_name"]
             make_aux = True
         except KeyError:
-            logging.critical("Could not find parameters in %s", args.input)
+            logging.critical("Could not find parameters in %s", args["input"])
             return 5
 
     logging.info("Initialising data matrix.")
 
-    if args.outdir is None:
+    if args["outdir"] is None:
         sys.stdout.write("Please provide output directory.")
         return -1
-    elif not os.path.exists(args.outdir):
-        os.makedirs(args.outdir)
+    elif not os.path.exists(args["outdir"]):
+        os.makedirs(args["outdir"])
 
     # If config is specified, then load data from that.
-    if args.config:
+    if args["config"]:
         load_config(args)
 
     mapper = None
-    if args.mapper:
-        mapper = map_fac(mapper=args.mapper, custom_options=args.mapper_options)
+    if args["mapper"]:
+        mapper = map_fac(mapper=args["mapper"], custom_options=args["mapper_options"])
 
     variant = None
-    if args.variant:
-        variant = variant_fac(variant=args.variant, custom_options=args.variant_options)
+    if args["variant"]:
+        variant = variant_fac(variant=args["variant"], custom_options=args["variant_options"])
 
-    if args.annotators:
-        args.annotators = make_annotators(args.annotators)
+    if args["annotators"]:
+        args["annotators"] = make_annotators(args["annotators"])
 
-    if args.filters:
+    if args["filters"]:
         try:
-            if isinstance(args.filters, str):
-                args.filters = str_to_filters(args.filters)
-            elif isinstance(args.filters, dict):
-                args.filters = make_filters(args.filters)
+            if isinstance(args["filters"], str):
+                args["filters"] = str_to_filters(args["filters"])
+            elif isinstance(args["filters"], dict):
+                args["filters"] = make_filters(args["filters"])
             else:
-                logging.warn("Unknown filters specified: %s", args.filters)
+                logging.warn("Unknown filters specified: %s", args["filters"])
         except Exception:
             logging.error("Failed to recognise and create filters.")
             return 3
 
-    logging.info("Mapping data file with %s.", args.mapper)
-    if args.bam is not None:
-        bam_file = args.bam
-    elif args.vcf is None and mapper is not None:
-        bam_file = os.path.join(args.outdir, "%s.bam" % args.sample_name)
-        success = mapper.make_bam(ref=args.reference,
-                                  R1=args.r1,
-                                  R2=args.r2,
+    logging.info("Mapping data file with %s.", args["mapper"])
+    if args["bam"] is not None:
+        bam_file = args["bam"]
+    elif args["vcf"] is None and mapper is not None:
+        bam_file = os.path.join(args["outdir"], "%s.bam" % args["sample_name"])
+        success = mapper.make_bam(ref=args["reference"],
+                                  R1=args["r1"],
+                                  R2=args["r2"],
                                   out_file=bam_file,
-                                  sample_name=args.sample_name,
+                                  sample_name=args["sample_name"],
                                   make_aux=make_aux)
 
         if not success:
@@ -190,22 +193,22 @@ def main(args=get_args()):
     else:
         bam_file = None
 
-    logging.info("Creating digitised variants with %s.", args.variant)
-    if args.vcf:
-        vcf_file = args.vcf
+    logging.info("Creating digitised variants with %s.", args["variant"])
+    if args["vcf"]:
+        vcf_file = args["vcf"]
     elif bam_file is not None:
-        vcf_file = os.path.join(args.outdir, "%s.vcf" % args.sample_name)
+        vcf_file = os.path.join(args["outdir"], "%s.vcf" % args["sample_name"])
 
-        if variant and not variant.make_vcf(ref=args.reference, bam=bam_file, vcf_file=vcf_file, make_aux=make_aux):
+        if variant and not variant.make_vcf(ref=args["reference"], bam=bam_file, vcf_file=vcf_file, make_aux=make_aux):
             logging.error("VCF was not created.")
             return 2
     else:
         vcf_file = None
 
     annotators_metadata = []
-    if args.annotators and vcf_file:
+    if args["annotators"] and vcf_file:
         logging.info("Annotating")
-        for annotator in args.annotators:
+        for annotator in args["annotators"]:
             # TODO: This iterates over the VCF for each annotator. Not good.
             annotator.annotate(vcf_path=vcf_file)
 
@@ -214,23 +217,26 @@ def main(args=get_args()):
             if meta:
                 annotators_metadata.append(meta)
 
-    if args.filters and vcf_file:
-        logging.info("Applying filters: %s", [str(f) for f in args.filters])
-        var_set = VariantSet(vcf_file, filters=args.filters)
+    if args["filters"] and vcf_file:
+        logging.info("Applying filters: %s", [str(f) for f in args["filters"]])
+        var_set = VariantSet(vcf_file, filters=args["filters"])
 
         var_set.add_metadata(mapper.get_meta())
         var_set.add_metadata(variant.get_meta())
+
+        if args.get("version") is not None:
+            var_set.add_metadata(OrderedDict({"PHEnix-Version":(args["version"],)}))
 
         for annotator_md in annotators_metadata:
             var_set.add_metadata(annotator_md)
 
         var_set.filter_variants()
 
-        final_vcf = os.path.join(args.outdir, "%s.filtered.vcf" % args.sample_name)
+        final_vcf = os.path.join(args["outdir"], "%s.filtered.vcf" % args["sample_name"])
         var_set.write_variants(final_vcf)
 
-    if args.workflow and args.input:
-        component_complete = os.path.join(args.outdir, "ComponentComplete.txt")
+    if args["workflow"] and args["input"]:
+        component_complete = os.path.join(args["outdir"], "ComponentComplete.txt")
         open(component_complete, 'a').close()
 
         logging.info("PIPELINE_END")
@@ -238,4 +244,4 @@ def main(args=get_args()):
     return 0
 
 if __name__ == "__main__":
-    exit(main())
+    exit(main(vars(get_args().parse_args())))

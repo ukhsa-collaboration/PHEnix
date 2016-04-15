@@ -198,24 +198,20 @@ def get_args():
 
     return args
 
-def main(args=get_args()):
+def main(args):
     """
     Process VCF files and merge them into a single fasta file.
     """
-
-    args = args.parse_args()
-
-    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
 
     contigs = list()
 
     samples = list()
     valid_chars = ["A", "C", "G", "T"]
 
-    if args.count_dist_gaps:
+    if args["count_dist_gaps"]:
         valid_chars.append("-")
 
-    if args.count_dist_Ns:
+    if args["count_dist_Ns"]:
         valid_chars.append("N")
 
     # All positions available for analysis.
@@ -224,18 +220,18 @@ def main(args=get_args()):
     exclude = {}
     include = {}
 
-    if args.reference:
+    if args["reference"]:
         ref_seq = OrderedDict()
-        with open(args.reference) as fp:
+        with open(args["reference"]) as fp:
             for record in SeqIO.parse(fp, "fasta"):
                 ref_seq[record.id] = list(record.seq)
 
-        args.reference = ref_seq
+        args["reference"] = ref_seq
 
-    if args.exclude or args.include:
+    if args["exclude"] or args["include"]:
         pos = {}
         chr_pos = []
-        bed_file = args.include if args.include is not None else args.exclude
+        bed_file = args["include"] if args["include"] is not None else args["exclude"]
 
         with open(bed_file) as fp:
             for line in fp:
@@ -250,24 +246,24 @@ def main(args=get_args()):
 
         pos = {chrom: l for chrom, l in pos.items()}
 
-        if args.include:
+        if args["include"]:
             include = pos
         else:
             exclude = pos
 
 
-    if args.directory is not None and args.input is None:
-        regexp = args.regexp if args.regexp else "*.vcf"
-        args.input = glob.glob(os.path.join(args.directory, regexp))
+    if args["directory"] is not None and args["input"] is None:
+        regexp = args["regexp"] if args["regexp"] else "*.vcf"
+        args["input"] = glob.glob(os.path.join(args["directory"], regexp))
     else:
-        args.input = [args.input]
+        args["input"] = [args["input"]]
 
-    if not args.input:
+    if not args["input"]:
         logging.warn("No VCFs found.")
         return 0
 
     # First pass to get the references and the positions to be analysed.
-    for vcf_in in args.input:
+    for vcf_in in args["input"]:
         sample_name, _ = os.path.splitext(os.path.basename(vcf_in))
         samples.append(sample_name)
 
@@ -351,7 +347,7 @@ def main(args=get_args()):
                 position_data["stats"].N += 1
 
             # Filter columns when threashold reaches user specified value.
-            if isinstance(args.column_Ns, float) and float(position_data["stats"].N) / len(args.input) > args.column_Ns:
+            if isinstance(args["column_Ns"], float) and float(position_data["stats"].N) / len(args["input"]) > args["column_Ns"]:
                 avail_pos[record.CHROM].remove(record.POS)
 
                 # print "excluding %s" % record.POS
@@ -359,7 +355,7 @@ def main(args=get_args()):
                     exclude[record.CHROM] = set()
                 exclude[record.CHROM].add(record.POS)
 
-            if isinstance(args.column_gaps, float) and float(position_data["stats"].gap) / len(args.input) > args.column_gaps:
+            if isinstance(args["column_gaps"], float) and float(position_data["stats"].gap) / len(args["input"]) > args["column_gaps"]:
                 avail_pos[record.CHROM].remove(record.POS)
 
                 if record.CHROM not in exclude:
@@ -370,13 +366,14 @@ def main(args=get_args()):
     sample_stats = get_sample_stats(avail_pos, samples)
 
     # Exclude any samples with high Ns or gaps
-    if isinstance(args.sample_Ns, float):
+    if isinstance(args["sample_Ns"], float):
         ss = []
         for sample_name in samples:
             total_positions = 0
             for contig in contigs:
+                # FIXME: Is that correct? Doesn't this need to check same dict inside that?
                 total_positions += len(avail_pos[contig])
-            if sample_stats[sample_name].N / total_positions <= args.sample_Ns:
+            if sample_stats[sample_name].N / total_positions <= args["sample_Ns"]:
                 ss.append(sample_name)
             else:
                 pass
@@ -390,7 +387,7 @@ def main(args=get_args()):
     sample_seqs = { sample_name: [] for sample_name in samples }
     c = 0
 
-    if args.with_dist_mat:
+    if args["with_dist_mat"]:
         for i, sample_1 in enumerate(samples):
             dist_mat[sample_1] = {}
             for j, sample_2 in enumerate(samples):
@@ -402,18 +399,18 @@ def main(args=get_args()):
     for contig in contigs:
 
         # if contig is not in the avail pos then concatinate the whole reference.
-        if args.reference and contig not in avail_pos:
+        if args["reference"] and contig not in avail_pos:
             for sample in samples:
-                sample_seqs[sample] += args.reference[contig]
+                sample_seqs[sample] += args["reference"][contig]
             continue
 
         last_base = 0
         for pos in avail_pos[contig]:
             c += 1
-            if args.reference:
+            if args["reference"]:
                 # If need to output the whole reference, pad the spaces
                 #    between records with reference bases, excluding any excludes.
-                seq = _make_ref_insert(last_base, pos, args.reference[contig], exclude.get(contig, set()))
+                seq = _make_ref_insert(last_base, pos, args["reference"][contig], exclude.get(contig, set()))
                 for sample in samples:
                     sample_seqs[sample] += seq
 
@@ -428,7 +425,7 @@ def main(args=get_args()):
                 bases.add(sample_base)
 
                 # If we don't need distance matrix, then continue from top.
-                if not args.with_dist_mat or sample_base.upper() not in valid_chars:
+                if not args["with_dist_mat"] or sample_base.upper() not in valid_chars:
                     continue
 
                 for j, sample_2 in enumerate(samples):
@@ -448,13 +445,13 @@ def main(args=get_args()):
             last_base = pos
 
         # Fill from last snp to the end of reference.
-        if args.reference:
-            seq = _make_ref_insert(last_base, None, args.reference[contig], exclude.get(contig, set()))  # args.reference[contig][last_base:]
+        if args["reference"]:
+            seq = _make_ref_insert(last_base, None, args["reference"][contig], exclude.get(contig, set()))  # args.reference[contig][last_base:]
             for sample in samples:
                 sample_seqs[sample] += seq
 
     # Write the sequences out.
-    with open(args.out, "w") as fp:
+    with open(args["out"], "w") as fp:
         for sample in sample_seqs:
             fp.write(">%s\n%s\n" % (sample, ''.join(sample_seqs[sample])))
 
@@ -466,8 +463,8 @@ def main(args=get_args()):
         sample_stats[sample].total = total_positions
         print "%s\t%s" % (sample, str(sample_stats[sample]))
 
-    if args.with_dist_mat:
-        with open(args.with_dist_mat, "wb") as fp:
+    if args["with_dist_mat"]:
+        with open(args["with_dist_mat"], "wb") as fp:
             fp.write(",%s\n" % ",".join(samples))
             for i, sample_1 in enumerate(samples):
                 row = "%s" % sample_1
@@ -480,22 +477,22 @@ def main(args=get_args()):
                 fp.write("%s\n" % row)
 
     # If we can stats and asked to stats, then output the data
-    if args.with_stats:
-        with open(args.with_stats, "wb") as fp:
+    if args["with_stats"]:
+        with open(args["with_stats"], "wb") as fp:
             fp.write("contig,position,mutations,n_frac,n_gaps\n")
             for contig in contigs:
                 for pos in avail_pos[contig]:
                     position_data = avail_pos[contig][pos]
                     fp.write("%s,%i,%0.5f,%0.5f,%0.5f\n" % (contig,
                                                  pos,
-                                                 float(position_data["stats"].mut) / len(args.input),
-                                                 float(position_data["stats"].N) / len(args.input),
-                                                 float(position_data["stats"].gap) / len(args.input))
+                                                 float(position_data["stats"].mut) / len(args["input"]),
+                                                 float(position_data["stats"].N) / len(args["input"]),
+                                                 float(position_data["stats"].gap) / len(args["input"]))
                              )
         if can_stats:
-            plot_stats(avail_pos, len(samples) - 1, plots_dir=os.path.abspath(args.plots_dir))
+            plot_stats(avail_pos, len(samples) - 1, plots_dir=os.path.abspath(args["plots_dir"]))
 
     return 0
 
 if __name__ == '__main__':
-    exit(main())
+    exit(main(vars(get_args().parse_args())))
