@@ -24,7 +24,7 @@ Installing from Pip - **Coming Soon**.
 The refence needs to be index in an appropriate way for different mapper/variant callers. This can be done using:
 
 ```bash
-$ prepare_reference.py --mapper [bwa | bowtie2] --variant [gatk | mpileup] --reference <path_to_reference>
+$ phenix.py prepare_reference.py --mapper [bwa | bowtie2] --variant [gatk | mpileup] --reference <path_to_reference>
 ```
 
 Internally, when the pipeline is ran internally, the indexing will be done automatically, because it
@@ -39,7 +39,7 @@ lead to corrupted indeces.
 If you have a sample and you want to have one-stop-shop analysis run the following:
 
 ```bash
-$ run_snp_pipeline.py -r1 <path to R1.fastq> -r2 <path to R2.fastq> \ 
+$ phenix.py run_snp_pipeline.py -r1 <path to R1.fastq> -r2 <path to R2.fastq> \ 
 -r <path to reference> --sample-name <NAME> --mapper bwa --variant gatk \ 
 --filters min_depth:5,mq_score:30
 ```
@@ -87,7 +87,7 @@ A lot of downstream applications take on FASTA formated files, not VCFs. We have
 FASTA format.
 
 ```bash
-$ vcfs2fasta -d <path to directory of VCFs> -o <path to output FASTA>
+$ phenix.py vcfs2fasta -d <path to directory of VCFs> -o <path to output FASTA>
 ```
 
 This tool is also able to filter out samples and columns that may be bad quality. E.g. **--sample-Ns** specifies maximum fraction of Ns
@@ -154,7 +154,7 @@ Set *GATK_JAR* - full path to the GATK Java archive.
 The Picard tool suite is available from http://broadinstitute.github.io/picard/.
 
 Picard is needed for GATK to create dictionary of reference fasta.
-Either set *PICARD_TOOLS_PATH* - path to directory where different Picard jars are or set *PICARD_JAR* - path to **picard.jar**.
+Either set *PICARD_TOOLS_PATH* - path to directory where different Picard jars are (older versions) or set *PICARD_JAR* - path to **picard.jar**.
 Older Picard distributions have many different jars (use first suggestion), where as newer versions have merged all into one jar file. 
 
 ## Contributing to the project
