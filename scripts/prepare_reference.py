@@ -44,6 +44,9 @@ def main(args):
             logging.error("Auxiliary files for %s variant caller could not be created", args["variant"])
             result += 1
 
+    if args["mapper"] is None and args["variant"] is None:
+        logging.info("Nothing specified. Please provider either --mapper or --variant.")
+
     logging.info("Finished creating auxilliary files.")
 
     return result

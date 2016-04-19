@@ -46,7 +46,7 @@ prepare a bwa and gatk reference using a fasta file (myref.fasta)
 
 .. code-block:: bash
 
-   prepare_reference.py \
+   phenix.py prepare_reference.py \
    --mapper bwa \
    --variant gatk \
    --reference myref.fasta
@@ -55,7 +55,7 @@ map, call and filter variants on fastq files (my.R1.fastq, my.R2.fastq). Filter 
 
 .. code-block:: bash
 
-   run_snp_pipeline.py \
+   phenix.py run_snp_pipeline.py \
    -r1 my.R1.fastq \
    -r2 my.R2.fastq \
    -r myref.fasta \
@@ -68,7 +68,7 @@ generate a FASTA file of SNPs using filtered VCFs in current directory
 
 .. code-block:: bash
 
-   vcf2fastq.py -d ./ -o output.fasta --regex filtered
+   phenix.py vcf2fastq.py -d ./ -o output.fasta --regex filtered
 
 Requirements
 ------------

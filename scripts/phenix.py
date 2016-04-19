@@ -11,10 +11,10 @@ import argparse
 import logging
 
 import filter_vcf
+import phenix_versioneer
 import prepare_reference
 import run_snp_pipeline
 import vcf2fasta
-import versioneer
 
 
 def get_args():
@@ -22,7 +22,7 @@ def get_args():
 
     args.add_argument("--debug", action="store_true", help="More verbose logging (default: turned off).")
 
-    args.add_argument("--version", action="version", version=versioneer.get_version())
+    args.add_argument("--version", action="version", version=phenix_versioneer.get_version())
 
     subparsers = args.add_subparsers(dest='cmd')
 
@@ -57,7 +57,7 @@ def get_args():
     return args
 
 def main():
-    version = versioneer.get_versions()
+    version = phenix_versioneer.get_version()
 
     args = vars(get_args().parse_args())
 

@@ -10,7 +10,7 @@ import logging
 import yaml
 
 from phe.variant import VariantSet
-import versioneer
+import phenix_versioneer
 
 
 def get_desc():
@@ -41,7 +41,7 @@ def load_config(config_path):
 def main(args):
 
     if args.get("version") is None:
-        args["version"] = versioneer.get_version()
+        args["version"] = phenix_versioneer.get_version()
 
     if args["config"] is not None:
         args["filters"] = load_config(args["config"])

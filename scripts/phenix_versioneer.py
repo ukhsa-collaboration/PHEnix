@@ -1470,8 +1470,28 @@ def get_versions(verbose=False):
 
 def get_version():
     """Get the short version string for this project."""
-    return get_versions()["version"]
+    version = get_versions()
+    if version["error"] is not None:
+        default_version = get_default_version()
+        if default_version is not None:
+            version = {"version": default_version, "full-revisionid": None,
+                       "dirty": None, "error": "None"}
 
+    return version
+
+def get_default_version():
+    """Get default version from VERSION file."""
+    version_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "VERSION")
+    version = None
+
+    if os.path.exists(version_file):
+        try:
+            with open(version_file) as fp:
+                version = fp.next().strip()
+                version += "-static"
+        except IOError:
+            pass
+    return version
 
 def get_cmdclass():
     """Get the custom setuptools/distutils subclasses used by Versioneer."""

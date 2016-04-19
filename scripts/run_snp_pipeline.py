@@ -14,7 +14,7 @@ from phe.variant import VariantSet
 from phe.variant.variant_factory import factory as variant_fac, \
     available_callers
 from phe.variant_filters import available_filters, str_to_filters, make_filters
-import versioneer
+import phenix_versioneer
 
 
 def pipeline(workflow, input_dir):
@@ -122,7 +122,7 @@ def load_config(args):
 def main(args):
 
     if args.get("version") is None:
-        args["version"] = versioneer.get_version()
+        args["version"] = phenix_versioneer.get_version()
 
     make_aux = False
     if args["workflow"] and args["input"]:
