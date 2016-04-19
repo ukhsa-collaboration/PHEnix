@@ -181,19 +181,19 @@ class Mapper(PHEMetaData):
                     logging.error("%s", sort_stderr)
                     return False
 
-            self.last_command += " && %s && %s" % (view_cmd, sort_cmd)
-            if not out_file.endswith(".bam"):
-                out_file += ".bam"
+                self.last_command += " && %s && %s" % (view_cmd, sort_cmd)
+                if not out_file.endswith(".bam"):
+                    out_file += ".bam"
 
-            cmd = ["samtools", "index", out_file]
-            p = Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            (stdout, stderr) = p.communicate()
+                cmd = ["samtools", "index", out_file]
+                p = Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                (stdout, stderr) = p.communicate()
 
-            if p.returncode != 0:
-                logging.warn("Could not index the BAM.")
-                logging.warn("CMD: %s", " ".join(cmd))
-                logging.warn(stderr)
-                return False
+                if p.returncode != 0:
+                    logging.warn("Could not index the BAM.")
+                    logging.warn("CMD: %s", " ".join(cmd))
+                    logging.warn(stderr)
+                    return False
         return True
 
     @abc.abstractmethod
