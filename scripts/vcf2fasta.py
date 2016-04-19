@@ -217,6 +217,8 @@ def main(args):
     # All positions available for analysis.
     avail_pos = dict()
 
+    empty_tree = FastRBTree()
+
     exclude = {}
     include = {}
 
@@ -237,14 +239,14 @@ def main(args):
             for line in fp:
                 data = line.strip().split("\t")
 
-                chr_pos += set(range(int(data[1]), int(data[2]) + 1))
+                chr_pos += [ (i, False,) for i in xrange(int(data[1]), int(data[2]) + 1)]
 
                 if data[0] not in pos:
                     pos[data[0]] = []
 
                 pos[data[0]] += chr_pos
 
-        pos = {chrom: l for chrom, l in pos.items()}
+        pos = {chrom: FastRBTree(l) for chrom, l in pos.items()}
 
         if args["include"]:
             include = pos
@@ -284,7 +286,7 @@ def main(args):
                 #    continue
 
             # SKIP (or include) any pre-specified regions.
-            if include and record.POS not in include.get(record.CHROM, set()) or exclude and record.POS in exclude.get(record.CHROM, set()):
+            if include and record.POS not in include.get(record.CHROM, empty_tree) or exclude and record.POS in exclude.get(record.CHROM, empty_tree):
 #             if include.get(record.CHROM, empty_tree).get(record.POS, False) or \
 #                 not exclude.get(record.CHROM, empty_tree).get(record.POS, True):
                 continue
@@ -352,15 +354,15 @@ def main(args):
 
                 # print "excluding %s" % record.POS
                 if record.CHROM not in exclude:
-                    exclude[record.CHROM] = set()
-                exclude[record.CHROM].add(record.POS)
+                    exclude[record.CHROM] = FastRBTree()
+                exclude[record.CHROM].insert(record.POS, False)
 
             if isinstance(args["column_gaps"], float) and float(position_data["stats"].gap) / len(args["input"]) > args["column_gaps"]:
                 avail_pos[record.CHROM].remove(record.POS)
 
                 if record.CHROM not in exclude:
-                    exclude[record.CHROM] = set()
-                exclude[record.CHROM].add(record.POS)
+                    exclude[record.CHROM] = FastRBTree()
+                exclude[record.CHROM].insert(record.POS, False)
 
     # Compute per sample statistics.
     sample_stats = get_sample_stats(avail_pos, samples)
@@ -410,7 +412,7 @@ def main(args):
             if args["reference"]:
                 # If need to output the whole reference, pad the spaces
                 #    between records with reference bases, excluding any excludes.
-                seq = _make_ref_insert(last_base, pos, args["reference"][contig], exclude.get(contig, set()))
+                seq = _make_ref_insert(last_base, pos, args["reference"][contig], exclude.get(contig, empty_tree))
                 for sample in samples:
                     sample_seqs[sample] += seq
 
@@ -446,7 +448,7 @@ def main(args):
 
         # Fill from last snp to the end of reference.
         if args["reference"]:
-            seq = _make_ref_insert(last_base, None, args["reference"][contig], exclude.get(contig, set()))  # args.reference[contig][last_base:]
+            seq = _make_ref_insert(last_base, None, args["reference"][contig], exclude.get(contig, empty_tree))  # args.reference[contig][last_base:]
             for sample in samples:
                 sample_seqs[sample] += seq
 
