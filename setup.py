@@ -3,11 +3,17 @@
 :Date: 7 Apr, 2016
 :Author: Alex Jironkin
 '''
-
 from distutils.core import setup
+import os
+import sys
 
 import pip
 from pip.req import parse_requirements
+
+sys.path.append(os.path.join(os.path.dirname(__file__), "scripts"))
+
+import phenix_versioneer
+
 
 # At the time of writing there is an open issue on pip > 6.0
 #    Where session is required parameter. Breaks backwards compatibility.
@@ -19,7 +25,8 @@ else:
 install_requires = [str(ir.req) for ir in install_reqs]
 
 setup(name='PHEnix',
-      version='1.0',
+      version=phenix_versioneer.get_version(),
+      cmdclass=phenix_versioneer.get_cmdclass(),
       description='Public Health England(UK) SNP calling pipeline tools.',
       author='Public Health England',
       author_email='NGSSBioinformatics@phe.gov.uk',

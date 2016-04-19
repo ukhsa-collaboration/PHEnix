@@ -1,3 +1,4 @@
 include *.txt
-recursive-include scipts *.pyinclude versioneer.py
-include scripts/_version.py
+recursive-include scipts *.pyinclude
+include scripts/phenix_versioneer.py
+include VERSION

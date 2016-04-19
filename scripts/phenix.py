@@ -65,9 +65,9 @@ def main():
     logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s",
                             level=log_level)
 
-    logging.info("Version: %s", version["version"])
+    logging.info("Version: %s", version)
 
-    args["version"] = version["version"]
+    args["version"] = version
 
     if args["cmd"] == "run_snp_pipeline":
         return run_snp_pipeline.main(args)

@@ -1477,7 +1477,7 @@ def get_version():
             version = {"version": default_version, "full-revisionid": None,
                        "dirty": None, "error": "None"}
 
-    return version
+    return version["version"]
 
 def get_default_version():
     """Get default version from VERSION file."""
@@ -1559,11 +1559,11 @@ def get_cmdclass():
             _build_py.run(self)
             # now locate _version.py in the new build/ directory and replace
             # it with an updated value
-            if cfg.versionfile_build:
-                target_versionfile = os.path.join(self.build_lib,
-                                                  cfg.versionfile_build)
-                print("UPDATING %s" % target_versionfile)
-                write_to_version_file(target_versionfile, versions)
+#             if cfg.versionfile_build:
+#                 target_versionfile = os.path.join(self.build_lib,
+#                                                   cfg.versionfile_build)
+#                 print("UPDATING %s" % target_versionfile)
+#                 write_to_version_file(target_versionfile, versions)
     cmds["build_py"] = cmd_build_py
 
     if "cx_Freeze" in sys.modules:  # cx_freeze enabled?
@@ -1575,11 +1575,11 @@ def get_cmdclass():
                 cfg = get_config_from_root(root)
                 versions = get_versions()
                 target_versionfile = cfg.versionfile_source
-                print("UPDATING %s" % target_versionfile)
-                write_to_version_file(target_versionfile, versions)
-
-                _build_exe.run(self)
-                os.unlink(target_versionfile)
+#                 print("UPDATING %s" % target_versionfile)
+#                 write_to_version_file(target_versionfile, versions)
+#
+#                 _build_exe.run(self)
+#                 os.unlink(target_versionfile)
                 with open(cfg.versionfile_source, "w") as f:
                     LONG = LONG_VERSION_PY[cfg.VCS]
                     f.write(LONG %
@@ -1614,10 +1614,10 @@ def get_cmdclass():
             # now locate _version.py in the new base_dir directory
             # (remembering that it may be a hardlink) and replace it with an
             # updated value
-            target_versionfile = os.path.join(base_dir, cfg.versionfile_source)
-            print("UPDATING %s" % target_versionfile)
-            write_to_version_file(target_versionfile,
-                                  self._versioneer_generated_versions)
+#             target_versionfile = os.path.join(base_dir, cfg.versionfile_source)
+#             print("UPDATING %s" % target_versionfile)
+#             write_to_version_file(target_versionfile,
+#                                   self._versioneer_generated_versions)
     cmds["sdist"] = cmd_sdist
 
     return cmds
