@@ -12,8 +12,18 @@ from pip.req import parse_requirements
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "scripts"))
 
-import phenix_versioneer
+def get_version():
+    version_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "VERSION")
+    version = "N/A"
 
+    if os.path.exists(version_file):
+        try:
+            with open(version_file) as fp:
+                version = fp.next().strip()
+                version += "-static"
+        except IOError:
+            pass
+    return version
 
 # At the time of writing there is an open issue on pip > 6.0
 #    Where session is required parameter. Breaks backwards compatibility.
@@ -25,8 +35,7 @@ else:
 install_requires = [str(ir.req) for ir in install_reqs]
 
 setup(name='PHEnix',
-      version=phenix_versioneer.get_version(),
-      cmdclass=phenix_versioneer.get_cmdclass(),
+      version=get_version(),
       description='Public Health England(UK) SNP calling pipeline tools.',
       author='Public Health England',
       author_email='NGSSBioinformatics@phe.gov.uk',
