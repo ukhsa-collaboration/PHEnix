@@ -14,8 +14,20 @@ from phe.variant import VariantSet
 from phe.variant.variant_factory import factory as variant_fac, \
     available_callers
 from phe.variant_filters import available_filters, str_to_filters, make_filters
-import phenix_versioneer
 
+
+def get_version():
+    version_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "VERSION")
+    version = "N/A"
+
+    if os.path.exists(version_file):
+        try:
+            with open(version_file) as fp:
+                version = fp.next().strip()
+                version += "-static"
+        except IOError:
+            pass
+    return version
 
 def pipeline(workflow, input_dir):
     '''Setup config for pipeline run.
@@ -122,7 +134,7 @@ def load_config(args):
 def main(args):
 
     if args.get("version") is None:
-        args["version"] = phenix_versioneer.get_version()
+        args["version"] = get_version()
 
     make_aux = False
     if args["workflow"] and args["input"]:

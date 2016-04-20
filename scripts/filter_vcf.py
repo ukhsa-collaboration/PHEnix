@@ -6,12 +6,25 @@
 import argparse
 from collections import OrderedDict
 import logging
+import os
 
 import yaml
 
 from phe.variant import VariantSet
-import phenix_versioneer
 
+
+def get_version():
+    version_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "VERSION")
+    version = "N/A"
+
+    if os.path.exists(version_file):
+        try:
+            with open(version_file) as fp:
+                version = fp.next().strip()
+                version += "-static"
+        except IOError:
+            pass
+    return version
 
 def get_desc():
     return "Filter the VCF using provided filters."
@@ -41,7 +54,7 @@ def load_config(config_path):
 def main(args):
 
     if args.get("version") is None:
-        args["version"] = phenix_versioneer.get_version()
+        args["version"] = get_version()
 
     if args["config"] is not None:
         args["filters"] = load_config(args["config"])

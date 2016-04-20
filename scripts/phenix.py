@@ -9,20 +9,33 @@ Single script for running other scripts in the project.
 from argparse import RawTextHelpFormatter
 import argparse
 import logging
+import os
 
 import filter_vcf
-import phenix_versioneer
 import prepare_reference
 import run_snp_pipeline
 import vcf2fasta
 
+
+def get_version():
+    version_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "VERSION")
+    version = "N/A"
+
+    if os.path.exists(version_file):
+        try:
+            with open(version_file) as fp:
+                version = fp.next().strip()
+                version += "-static"
+        except IOError:
+            pass
+    return version
 
 def get_args():
     args = argparse.ArgumentParser()
 
     args.add_argument("--debug", action="store_true", help="More verbose logging (default: turned off).")
 
-    args.add_argument("--version", action="version", version=phenix_versioneer.get_version())
+    args.add_argument("--version", action="version", version=get_version())
 
     subparsers = args.add_subparsers(dest='cmd')
 
@@ -57,7 +70,7 @@ def get_args():
     return args
 
 def main():
-    version = phenix_versioneer.get_version()
+    version = get_version()
 
     args = vars(get_args().parse_args())
 
