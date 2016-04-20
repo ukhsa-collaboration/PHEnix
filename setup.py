@@ -10,8 +10,6 @@ import sys
 import pip
 from pip.req import parse_requirements
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "scripts"))
-
 def get_version():
     version_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "VERSION")
     version = "N/A"
