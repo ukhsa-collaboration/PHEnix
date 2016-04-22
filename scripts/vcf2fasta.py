@@ -266,10 +266,12 @@ def main(args):
 
     # First pass to get the references and the positions to be analysed.
     for vcf_in in args["input"]:
-        sample_name, _ = os.path.splitext(os.path.basename(vcf_in))
-        samples.append(sample_name)
 
         reader = vcf.Reader(filename=vcf_in)
+
+        # Get the sample name from the VCF file (usually the read group).
+        sample_name, _ = reader.samples[0]
+        samples.append(sample_name)
 
         # Go over every position in the reader.
         for record in reader:
