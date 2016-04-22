@@ -187,10 +187,11 @@ def main(args):
             logging.error("Failed to recognise and create filters.")
             return 3
 
-    logging.info("Mapping data file with %s.", args["mapper"])
     if args["bam"] is not None:
+        logging.info("Found BAM file: %s", args["bam"])
         bam_file = args["bam"]
     elif args["vcf"] is None and mapper is not None:
+        logging.info("Mapping data file with %s.", args["mapper"])
         bam_file = os.path.join(args["outdir"], "%s.bam" % args["sample_name"])
         success = mapper.make_bam(ref=args["reference"],
                                   R1=args["r1"],

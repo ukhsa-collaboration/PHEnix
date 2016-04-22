@@ -85,6 +85,7 @@ def factory(mapper=None, custom_options=None):
             try:
                 obj = _avail_mappers[mapper](cmd_options=custom_options)
             except Exception as e:
+                logging.error("Could not initialise mapper: %s", mapper)
                 logging.error(e.message)
                 obj = None
 
