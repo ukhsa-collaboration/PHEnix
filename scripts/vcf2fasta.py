@@ -257,8 +257,6 @@ def main(args):
     if args["directory"] is not None and args["input"] is None:
         regexp = args["regexp"] if args["regexp"] else "*.vcf"
         args["input"] = glob.glob(os.path.join(args["directory"], regexp))
-    else:
-        args["input"] = [args["input"]]
 
     if not args["input"]:
         logging.warn("No VCFs found.")
