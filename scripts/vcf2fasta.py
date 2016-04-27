@@ -268,7 +268,7 @@ def main(args):
         reader = vcf.Reader(filename=vcf_in)
 
         # Get the sample name from the VCF file (usually the read group).
-        sample_name, _ = reader.samples[0]
+        sample_name = reader.samples[0]
         samples.append(sample_name)
 
         # Go over every position in the reader.
