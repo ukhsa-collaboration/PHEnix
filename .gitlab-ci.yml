@@ -16,7 +16,7 @@ submit-jobs:
 python-tests:
   stage: test
   script:
-    - nosetests --with-coverage --cover-html --cover-package=phe test
+    - nosetests --all-modules --with-coverage --cover-html --cover-package=phe test
     - if [ $? -eq 0 ]; then grep pc_cov cover/index.html | egrep -o "[0-9]+\%" | awk '{ print "covered " $1;}' ; else exit 1; fi 
   only:
     - master
