@@ -6,6 +6,12 @@ stages:
   - deploy
 before_script:
   - source ~/virtualenvs/$PROJECT_NAME/bin/activate
+submit-jobs:
+  stage: build
+  script:
+    - module load anaconda samtools/1.3 bwa/0.7.13 jdk picard-tools gatk
+    - PYTHONPATH=.$PYTHONPATH scripts/phenix.py prepare_reference --mapper bwa --variant gatk -r test/scripts/data/reference.fa
+    - PYTHONPATH=.$PYTHONPATH scripts/phenix.py prepare_reference --mapper bowtie2 --variant mpileup -r test/scripts/data/reference.fa
 python-tests:
   stage: test
   script:
