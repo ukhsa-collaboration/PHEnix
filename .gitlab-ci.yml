@@ -15,6 +15,9 @@ submit-jobs:
     - PYTHONPATH=.$PYTHONPATH scripts/phenix.py prepare_reference --mapper bowtie2 --variant mpileup -r test/scripts/data/reference.fa
     - python test/submit_jobs.py test/scripts/data
     - sleep 20
+  cache:
+    paths:
+      - results
 python-tests:
   stage: test
   script:
