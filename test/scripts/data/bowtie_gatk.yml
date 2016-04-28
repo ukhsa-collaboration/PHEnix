@@ -1,0 +1,13 @@
+mapper: bowtie2
+mapper-options: -p 1 --mp 2
+variant: gatk
+variant-options: --sample_ploidy 2 --genotype_likelihoods_model SNP -rf BadCigar -out_mode EMIT_ALL_SITES -nt 1
+
+filters:
+  ad_ratio: 0.9
+  min_depth: 5
+  qual_score: 30
+  mq_score: 30
+  
+annotators:
+  - coverage
