@@ -10,7 +10,7 @@ submit-jobs:
   stage: build
   script:
     - . /etc/profile.d/profile.modules
-    - module load anaconda samtools/1.3 bwa/0.7.13 jdk picard-tools gatk
+    - module load anaconda samtools/1.3 bwa/0.7.13 bowtie2 jdk picard-tools gatk
     - PYTHONPATH=.$PYTHONPATH scripts/phenix.py prepare_reference --mapper bwa --variant gatk -r test/scripts/data/reference.fa
     - PYTHONPATH=.$PYTHONPATH scripts/phenix.py prepare_reference --mapper bowtie2 --variant mpileup -r test/scripts/data/reference.fa
 python-tests:
