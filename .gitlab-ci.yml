@@ -1,28 +1,24 @@
 variables:
   PROJECT_NAME: phoenix
-cache:
-  paths:
-    - results/
 stages:
   - build
   - test
   - deploy
 before_script:
   - source ~/virtualenvs/$PROJECT_NAME/bin/activate
-submit-jobs:
-  stage: build
+python-tests:
+  stage: test
+  script:
+    - nosetests --all-modules --with-coverage --cover-html --cover-package=phe test/phe
+    - if [ $? -eq 0 ]; then grep pc_cov cover/index.html | egrep -o "[0-9]+\%" | awk '{ print "covered " $1;}' ; else exit 1; fi 
+  only:
+    - master
+end-to-end-tests:
+  stage: test
   script:
     - . /etc/profile.d/profile.modules
     - module load uge anaconda samtools/1.3 bwa/0.7.13 bowtie2 jdk picard-tools gatk
     - PYTHONPATH=.$PYTHONPATH scripts/phenix.py prepare_reference --mapper bwa --variant gatk -r test/scripts/data/reference.fa
     - PYTHONPATH=.$PYTHONPATH scripts/phenix.py prepare_reference --mapper bowtie2 --variant mpileup -r test/scripts/data/reference.fa
     - python test/submit_jobs.py test/scripts/data
-    - sleep 20
-python-tests:
-  stage: test
-  script:
-    - sleep 20
-    - nosetests --all-modules --with-coverage --cover-html --cover-package=phe test
-    - if [ $? -eq 0 ]; then grep pc_cov cover/index.html | egrep -o "[0-9]+\%" | awk '{ print "covered " $1;}' ; else exit 1; fi 
-  only:
-    - master
+    - nosetests --all-modules test/scripts
