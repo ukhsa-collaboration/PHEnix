@@ -1,6 +1,6 @@
 # PHEnix
 
-Full documentation can be found at: http://phenix.readthedocs.org/en/latest/
+Full documentation can be found at: http://phenix.readthedocs.io/en/latest/
 
 ## Installation
 
