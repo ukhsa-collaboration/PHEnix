@@ -169,5 +169,3 @@ Aleksey Jironkin, Ali Al-Shahib, Anais Painset, Anthony Underwood, Georgia Kapat
 In the beginning there were 2 pipelines to call SNPs: upstairs and downstairs.
 One day we decided it was a bad idea to have 2 pipelines that did similar things.
 The existing pipelines faded away, and a new pipeline was born revitalised and regenerated from the previous two, just like the ancient myth of the phoenix or phenix as it was known as in middle English (https://en.wikipedia.org/wiki/Phoenix_(mythology))
-
-[![build status](http://bioinformatics-git.phe.gov.uk/ci/projects/1/status.png?ref=master)](http://bioinformatics-git.phe.gov.uk/ci/projects/1?ref=master)
