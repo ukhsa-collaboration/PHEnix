@@ -48,10 +48,7 @@ class DepthFilter(PHEFilterBase):
         try:
             record_dp = record.samples[0].data.DP
         except AttributeError:
-            record_dp = None
-
-        if record_dp is None:
-#             logging.debug("Falling back to INFO DP")
+            logging.debug("Falling back to INFO DP")
             record_dp = record.INFO.get("DP")
 
         if record_dp is None or record_dp < self.threshold:
