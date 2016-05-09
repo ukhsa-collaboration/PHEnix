@@ -23,7 +23,7 @@ proc ModulesHelp { } {
 module-whatis "loads the $name environment"
 
 if { ![is-loaded pyvcf] } {
-  module load pyvcf/python2.7.6/0.6.8dev
+  module load pyvcf/python2.7.6/0.6.8
   }
 
 
