@@ -15,7 +15,7 @@ Contents:
 
 .. toctree::
    :maxdepth: 2
-   
+
    Introduction
    Prerequisites
    Filters
@@ -24,6 +24,7 @@ Contents:
    Converting to FASTA
    api/modules
    scripts/modules
+   Galaxy
 
 Indices and tables
 ==================
@@ -31,4 +32,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
