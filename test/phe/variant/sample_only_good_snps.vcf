@@ -47,6 +47,8 @@
 ##FILTER=<ID=mq_score:30,Description="Filter sites by Mapping Quality (MQ) score. (MQ > 30)">
 ##FILTER=<ID=min_depth:5,Description="Filter sites by depth. (DP > 5)">
 ##FILTER=<ID=ad_ratio:0.9,Description="Filter sites by AD ratio. (AD ratio > 0.9 )">
-##contig=<ID=ATCC27545,length=715165>
+##contig=<ID=CHR1,length=715165>
+##contig=<ID=CHR2,length=715165>
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	MH10
-ATCC27545	10	.	A	G	9730.77	PASS	AF=1.0;AN=2;DP=250;Dels=0.0;FS=0.0;HaplotypeScore=0.0;MLEAC=2;MLEAF=1.0;MQ=60.0;MQ0=0;QD=28.49;AC=2	GT:AD:DP:GQ:PL	1/1:0,250:250:99:9759,722,0
+CHR1	10	.	A	G	9730.77	PASS	AF=1.0;AN=2;DP=250;Dels=0.0;FS=0.0;HaplotypeScore=0.0;MLEAC=2;MLEAF=1.0;MQ=60.0;MQ0=0;QD=28.49;AC=2	GT:AD:DP:GQ:PL	1/1:0,250:250:99:9759,722,0
+CHR2	10	.	A	G	9730.77	PASS	AF=1.0;AN=2;DP=250;Dels=0.0;FS=0.0;HaplotypeScore=0.0;MLEAC=2;MLEAF=1.0;MQ=60.0;MQ0=0;QD=28.49;AC=2	GT:AD:DP:GQ:PL	1/1:0,250:250:99:9759,722,0

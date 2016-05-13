@@ -27,7 +27,7 @@ class Test(unittest.TestCase):
         unittest.TestCase.tearDown(self)
 
     def test_consensus(self):
-        expected_consensus = ["W"] + 8 * ["N"] + ['G', 'W', 'Y', 'N', 'S', 'R', 'C']
+        expected_consensus = ["W"] + 8 * ["N"] + ['G', 'W', 'Y', 'N', 'S', 'R', 'C'] + 9 * ["N"] + ["G"]
         self.var_set.filter_variants()
 
         this_consensus = []

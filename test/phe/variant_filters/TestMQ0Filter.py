@@ -3,8 +3,10 @@ Created on 3 Dec 2015
 
 @author: alex
 '''
+from collections import defaultdict
 import os
 import unittest
+
 import vcf
 
 from phe.variant_filters.MQ0Filter import MQ0Filter
@@ -21,13 +23,16 @@ class TestMQ0Filter(unittest.TestCase):
         self.filter_config = {self.parameter: self.filter_threshold}
         self.filter = MQ0Filter(self.filter_config)
 
-        self.bad_positions = [1, 11, 13, 15, 16]
-        self.na_positions = [1, 11, 13]
-        self.good_positions = [10, 12, 14]
+        self.bad_positions = {"CHR1": [1, 11, 13, 15, 16]}
+        self.na_positions = {"CHR1": [1, 11, 13]}
+        self.good_positions = {"CHR1": [10, 12, 14], "CHR2": [10]}
 
-        self.bad_positions.sort()
-        self.good_positions.sort()
-        self.na_positions.sort()
+        for v in self.bad_positions.itervalues():
+            v.sort()
+        for v in self.good_positions.itervalues():
+            v.sort()
+        for v in self.na_positions.itervalues():
+            v.sort()
 
     def tearDown(self):
         pass
@@ -36,27 +41,30 @@ class TestMQ0Filter(unittest.TestCase):
 
         reader = vcf.Reader(filename=self.vcf_in)
 
-        bad_positions = []
-        na_positions = []
-        good_positions = []
+        bad_positions = defaultdict(list)
+        na_positions = defaultdict(list)
+        good_positions = defaultdict(list)
         for record in reader:
             result = self.filter(record)
 
             if result is None:
-                good_positions.append(record.POS)
+                good_positions[record.CHROM].append(record.POS)
                 continue
             elif result is False:
-                na_positions.append(record.POS)
+                na_positions[record.CHROM].append(record.POS)
 
-            bad_positions.append(record.POS)
+            bad_positions[record.CHROM].append(record.POS)
 
-        bad_positions.sort()
-        good_positions.sort()
-        na_positions.sort()
+        for v in bad_positions.itervalues():
+            v.sort()
+        for v in good_positions.itervalues():
+            v.sort()
+        for v in na_positions.itervalues():
+            v.sort()
 
-        self.assertListEqual(self.bad_positions, bad_positions)
-        self.assertListEqual(self.na_positions, na_positions)
-        self.assertListEqual(self.good_positions, good_positions)
+        self.assertDictEqual(self.bad_positions, bad_positions)
+        self.assertDictEqual(self.na_positions, na_positions)
+        self.assertDictEqual(self.good_positions, good_positions)
 
     def test_short_desc(self):
         short_desc = "Filter sites by MQ0 (Total Mapping Quality Zero Reads) to DP ratio. (MQ0 > %s)" % self.filter_threshold
