@@ -25,7 +25,6 @@ def get_version():
         try:
             with open(version_file) as fp:
                 version = fp.next().strip()
-                version += "-static"
         except IOError:
             pass
     return version
