@@ -155,8 +155,12 @@ class VariantSet(object):
             self._reader.filters[record_filter.filter_name()] = _Filter(record_filter.filter_name(), short_doc)
 
         _pos = 1
+        _chrom = None
         # For each record (POSITION) apply set of filters.
         for record in self._reader:
+
+            if _chrom != record.CHROM:
+                _pos, _chrom = 1, record.CHROM
 
             # Fill in any missing consecutive data with GT=./. records.
             while _pos <= record.POS:
@@ -191,6 +195,8 @@ class VariantSet(object):
                     self._variants.append(_record)
 
                 _pos += 1
+                if _chrom is None:
+                    _chrom = record.CHROM
 
         self._update_filters(self._reader.filters)
 
