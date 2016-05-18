@@ -19,6 +19,7 @@ from bintrees import FastRBTree
 
 from phe.utils.reader import ParallelVCFReader
 from phe.variant_filters import IUPAC_CODES
+from phe.utils import base_stats, is_uncallable
 
 
 # from phe.variant_filters import IUPAC_CODES
