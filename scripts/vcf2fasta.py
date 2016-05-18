@@ -16,6 +16,7 @@ from bintrees import FastRBTree
 import vcf
 
 from phe.variant_filters import IUPAC_CODES
+from phe.utils import base_stats, is_uncallable
 
 
 # Try importing the matplotlib and numpy for stats.
@@ -25,32 +26,6 @@ try:
     can_stats = True
 except ImportError:
     can_stats = False
-
-def is_uncallable(record):
-
-    uncall = False
-    try:
-        if record.samples[0].data.GT in ("./.", None):
-            uncall = True
-    except:
-        uncall = None
-
-    if record.FILTER is not None and "LowQual" in record.FILTER:
-        uncall = True
-
-    return uncall
-
-
-class base_stats(object):
-    def __init__(self):
-        self.N = 0
-        self.mut = 0
-        self.gap = 0
-        self.mix = 0
-        self.total = 0
-
-    def __str__(self):
-        return "N: %i, mut: %i, mix: %i, gap: %i, total: %i" % (self.N, self.mut, self.mix, self.gap, self.total)
 
 def get_sample_stats(all_positions, samples):
     sample_stats = {sample: base_stats() for sample in samples }
