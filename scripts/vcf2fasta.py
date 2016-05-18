@@ -19,6 +19,7 @@ from bintrees import FastRBTree
 
 from phe.utils.reader import ParallelVCFReader
 from phe.variant_filters import IUPAC_CODES
+from phe.utils import base_stats, is_uncallable
 
 
 # from phe.variant_filters import IUPAC_CODES
@@ -30,45 +31,21 @@ try:
 except ImportError:
     CAN_STATS = False
 
-class BaseStats(object):
-    """Simple class to keep statistics about a base."""
-    def __init__(self, records=None):
-        self.N = 0
-        self.mut = 0
-        self.gap = 0
-        self.mix = 0
-        self.total = 0
-        self.NA = 0
+def get_sample_stats(all_positions, samples):
+    sample_stats = {sample: base_stats() for sample in samples }
+    for positions in all_positions.itervalues():
+        for position in positions:
+            for sample in samples:
+                base = positions[position].get(sample)
 
-    def __str__(self):
-        return "N: %i, mut: %i, mix: %i, gap: %i, total: %i" % (self.N,
-                                                                self.mut,
-                                                                self.mix,
-                                                                self.gap,
-                                                                self.total)
-    def __add__(self, other):
-        self.mut += other.mut
-        self.N += other.N
-        self.gap += other.gap
-        self.mix += other.mix
-        self.total += other.total
-        self.NA += other.NA
+                if base == "-":
+                    sample_stats[sample].gap += 1
+                elif base == "N":
+                    sample_stats[sample].N += 1
+                elif base is not None and base != positions[position].get("reference"):
+                    sample_stats[sample].mut += 1
 
-        return self
-
-    def update(self, position_data, sample, reference):
-        for k, v in position_data.iteritems():
-            if k != sample:
-                continue
-            if v == "-":
-                self.gap += 1
-            elif v == "N":
-                self.N += 1
-            elif v in ["A", "C", "G", "T"]:
-                self.mut += 1
-            else:
-                self.mix += 1
-        self.total += 1
+    return sample_stats
 
 def _make_ref_insert(start, stop, reference, exclude):
     '''Create reference insert taking account exclude positions.'''
