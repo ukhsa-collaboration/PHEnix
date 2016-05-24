@@ -12,7 +12,8 @@ import pprint
 from Bio import Phylo
 from Bio.Phylo import TreeConstruction
 
-from phe.utils import base_stats, parse_vcf_files, is_uncallable, get_dist_mat
+from phe.utils import base_stats, parse_vcf_files
+from phe.utils import is_uncallable, get_dist_mat
 
 # --------------------------------------------------------------------------------------------------
 
@@ -87,18 +88,10 @@ def get_args():
                        default=None,
                        help="Exclude any positions specified in the BED file.")
 
-    parser.add_argument('--remove_recombination',
+    parser.add_argument('--remove-recombination',
                         action="store_true",
                         default=False,
                         help="Attempt to remove recombination from distance matrix. [don't]")
-
-    parser.add_argument('--method',
-                        '-e',
-                        metavar="STRING",
-                        default='pairwise',
-                        choices=['pairwise', 'average'],
-                        dest="method",
-                        help="Method of recombination filtering. Either 'pairwise' or 'average' ['pairwise']")
 
     parser.add_argument("--refgenome",
                         "-g",
@@ -136,10 +129,9 @@ def get_args():
                         type=str,
                         metavar="STRING",
                         dest="format",
-                        choices=['tsv', 'csv'],
+                        choices=['tsv', 'csv', 'mega'],
                         default='tsv',
                         help="Change format for output file. Available options csv and tsv.")
-
 
     return parser
 
@@ -196,32 +188,46 @@ def main(dArgs):
                            '211702_H15522021601': 'A'}})}
     """
 
-    # print avail_pos
+    number_of_sites = sum([len(x) for _, x in avail_pos.items()])
+    logging.info("%i total variant positions found" % (number_of_sites))
+
+    if dArgs['deletion'] == 'complete':
+        for contig, oBT in avail_pos.items():
+            for iPos in oBT:
+                if oBT[iPos]['stats'].N > 0 or oBT[iPos]['stats'].gap > 0:
+                    oBT.remove(iPos)
+        logging.info("%i total variant positions left after complete removal" % (sum([len(x) for _, x in avail_pos.items()])))
+    else: # deletion is pairwise, which is implicit during matrix creation
+        pass
 
     dist_mat = {}
     dist_mat = get_dist_mat(aSampleNames, avail_pos, dArgs)
 
     pprint.pprint(dist_mat)
 
-    sep = '\t' if dArgs['format'] == 'tsv' else ','
-    # aSimpleMatrix = []
-    with open(dArgs['out'], "wb") as fp:
-        fp.write("%s%s\n" % (sep, sep.join(aSampleNames)))
-        for i, sample_1 in enumerate(aSampleNames):
-            row = "%s" % sample_1
-            # mat_line = []
-            for j, sample_2 in enumerate(aSampleNames):
-                if j < i:
-                    dist = dist_mat[sample_2][sample_1]
-                    # mat_line.append(dist)
-                elif j == i:
-                    # mat_line.append(0)
-                    dist = dist_mat[sample_1][sample_2]
-                else:
-                    dist = dist_mat[sample_1][sample_2]
-                row += "%s%e" % (sep, dist)
-            fp.write("%s\n" % row)
-            # aSimpleMatrix.append(mat_line)
+
+    if dArgs['format'] == 'mega':
+        write_mega_file(dArgs, aSampleNames, dist_mat, number_of_sites)
+    else:
+        sep = '\t' if dArgs['format'] == 'tsv' else ','
+        # aSimpleMatrix = []
+        with open(dArgs['out'], "wb") as fp:
+            # fp.write("%s%s\n" % (sep, sep.join(aSampleNames)))
+            for i, sample_1 in enumerate(aSampleNames):
+                row = sample_1
+                # mat_line = []
+                for j, sample_2 in enumerate(aSampleNames):
+                    if j < i:
+                        dist = dist_mat[sample_2][sample_1]
+                        # mat_line.append(dist)
+                    # elif j == i:
+                        # mat_line.append(0)
+                    #     dist = dist_mat[sample_1][sample_2]
+                    # else:
+                    #    dist = dist_mat[sample_1][sample_2]
+                        row += "%s%e" % (sep, dist)
+                fp.write("%s\n" % row)
+                # aSimpleMatrix.append(mat_line)
 
     # oDistMat = TreeConstruction._DistanceMatrix(aSampleNames, aSimpleMatrix)
     # constructor = TreeConstruction.DistanceTreeConstructor()
@@ -231,6 +237,59 @@ def main(dArgs):
     #     Phylo.draw_ascii(oTree)
 
     return 0
+
+# --------------------------------------------------------------------------------------------------
+
+def write_mega_file(dArgs, aSampleNames, dist_mat, number_of_sites=0):
+
+    header = """#mega
+!Title: fasta file;
+!Format DataType=Distance DataFormat=LowerLeft NTaxa=<number_of_taxa>;
+!Description
+  Analysis
+    Analysis ---------------------- Distance Estimation
+    Scope ------------------------- Pairs of taxa
+  Estimate Variance
+    Variance Estimation Method ---- None
+  Substitution Model
+    Substitutions Type ------------ Nucleotide
+    Model/Method ------------------ <model>
+    Substitutions to Include ------ d: Transitions + Transversions
+  Rates and Patterns
+    Rates among Sites ------------- Uniform rates
+    Pattern among Lineages -------- Same (Homogeneous)
+  Data Subset to Use
+    Gaps/Missing Data Treatment --- <deletion> deletion
+  No. of Sites : <number_of_sites>
+  d : Estimate
+;"""
+
+    header = header.replace('<number_of_taxa>', str(len(aSampleNames)))
+    header = header.replace('<model>', dArgs['substitution'])
+    header = header.replace('<deletion>', dArgs['deletion'])
+    header = header.replace('<number_of_sites>', str(number_of_sites))
+
+    spacing1 = len(str(len(aSampleNames)))
+    with open(dArgs['out'], "wb") as fp:
+        fp.write('%s\n\n' % (header))
+        for i, name in enumerate(aSampleNames):
+            fp.write("[%s] #%s\n" % (str(i+1).rjust(spacing1), name))
+
+        fp.write('\n')
+        fp.write('[              %s ]\n' % ('            '.join([str(x) for x in range(1, len(aSampleNames) + 1)])))
+        for i, sample_1 in enumerate(aSampleNames):
+            row = "[%s] " % (str(i+1).rjust(spacing1))
+            for j, sample_2 in enumerate(aSampleNames):
+                if j < i:
+                    dist = dist_mat[sample_2][sample_1]
+                    row += " %12.10f" % (dist)
+            fp.write("%s\n" % row)
+
+
+
+
+    return 0
+
 
 # end of main --------------------------------------------------------------------------------------
 
