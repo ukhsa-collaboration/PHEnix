@@ -7,6 +7,10 @@ import vcf
 from bintrees import FastRBTree
 import math
 import logging
+from numpy import std
+from numpy import mean
+
+import pprint
 
 dValChars = {'A': 1, 'C': 1, 'G': 1, 'T': 1}
 
@@ -48,6 +52,97 @@ def is_uncallable(record):
         uncall = True
 
     return uncall
+
+# --------------------------------------------------------------------------------------------------
+
+def precompute_snp_densities(avail_pos, sample_names):
+    """
+    avail_pos:
+    {'gi|194097589|ref|NC_011035.1|':
+        FastRBTree({2329: {'stats': <vcf2distancematrix.base_stats object at 0x40fb590>,
+                           'reference': 'A',
+                           '211700_H15498026501': 'C',
+                           '211701_H15510030401': 'C',
+                           '211702_H15522021601': 'C'},
+                    3837: {'211700_H15498026501': 'G',
+                           'stats': <vcf2distancematrix.base_stats object at 0x40fbf90>,
+                           '211701_H15510030401': 'G',
+                           'reference': 'T',
+                           '211702_H15522021601': 'G'},
+                    4140: {'211700_H15498026501': 'A',
+                           'stats': <vcf2distancematrix.base_stats object at 0x40fb790>,
+                           '211701_H15510030401': 'A',
+                           'reference': 'G',
+                           '211702_H15522021601': 'A'}})}
+
+    returns dDen:
+    {'gi|194097589|ref|NC_011035.1|': {2329: {'211700_H15498026501': 0.001,
+                                              '211701_H15510030401': 0.001,
+                                              '211702_H15522021601': 0.001},
+                                       3837: {'211700_H15498026501': 0.002,
+                                              '211701_H15510030401': 0.002,
+                                              '211702_H15522021601': 0.002},
+                                       4140: {'211700_H15498026501': 0.002,
+                                              '211701_H15510030401': 0.002,
+                                              '211702_H15522021601': 0.002},
+                                       12159: {'211700_H15498026501': 0.009,
+                                               '211701_H15510030401': 0.008,
+                                               '211702_H15522021601': 0.008},
+                                       12309: {'211700_H15498026501': 0.149,
+                                               '211701_H15510030401': 0.148,
+                                               '211702_H15522021601': 0.148}},
+     'per_samplepair_threshold': {'211700_H15498026501': {},
+                                  '211701_H15510030401': {'211700_H15498026501': 0.20127650534341832},
+                                  '211702_H15522021601': {'211700_H15498026501': 0.20836662410991291,
+                                                          '211701_H15510030401': 0.20455899117993009}}}
+    """
+
+    dDen = {}
+    dPerSample = {}
+    for contig, oBT in avail_pos.items():
+            dDen[contig] = {}
+            for iPos in oBT:
+                ref_base = oBT[iPos]['reference']
+                if dValChars.get(ref_base, None) == None:
+                    continue
+                for sname in sample_names:
+                    try:
+                        sam_base = oBT[iPos][sname]
+                    except KeyError:
+                        continue
+                    if dValChars.get(sam_base, None) == None:
+                        continue
+                    if sam_base != ref_base:
+                        flSNPsInWin = 0.0
+                        for x in range((iPos - 499), (iPos + 501)):
+                            try:
+                                if oBT[x][sname] != oBT[x]['reference']:
+                                    flSNPsInWin += 1.0
+                            except KeyError:
+                                continue
+                        flDnsty = flSNPsInWin / 1000.0
+                        try:
+                            dPerSample[sname].append(flDnsty)
+                        except KeyError:
+                            dPerSample[sname] = [flDnsty]
+                        try:
+                            dDen[contig][iPos][sname] = flDnsty
+                        except KeyError:
+                            dDen[contig][iPos] = {}
+                            dDen[contig][iPos][sname] = flDnsty
+
+    dDen['per_samplepair_threshold'] = {}
+
+    for i, sname1 in enumerate(sample_names):
+        dDen['per_samplepair_threshold'][sname1] = {}
+        for j, sname2 in enumerate(sample_names):
+            if j <= i:
+                continue
+            density_windows = dPerSample[sname1] + dPerSample[sname2]
+            dDen['per_samplepair_threshold'][sname1][sname2] = mean(density_windows) + \
+                                                               (1.0 * std(density_windows))
+
+    return dDen
 
 # --------------------------------------------------------------------------------------------------
 
@@ -133,10 +228,8 @@ def parse_vcf_files(dArgs, avail_pos, aSampleNames):
             if record.is_uncallable:
                 # TODO: Mentioned in issue: #7(gitlab)
                 position_data[sample_name] = "-"
-
                 # Update stats
                 position_data["stats"].gap += 1
-
 
             elif not record.FILTER:
                 # If filter PASSED!
@@ -157,13 +250,8 @@ def parse_vcf_files(dArgs, avail_pos, aSampleNames):
 
             # Filter(s) failed
             elif record.is_snp:
-                # mix = get_mixture(record, args.with_mixtures)
-                # Currently we are only using first filter to call consensus.
-                extended_code = "N"
-                if extended_code == "N":
-                    position_data["stats"].N += 1
-                position_data[sample_name] = extended_code
-
+                position_data[sample_name] = 'N'
+                position_data["stats"].N += 1
             else:
                 # filter fail; code as N for consistency
                 position_data[sample_name] = "N"
@@ -195,6 +283,9 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
                            'reference': 'G',
                            '211702_H15522021601': 'A'}})}
     """
+    dDen = None
+    if dArgs['remove_recombination'] == True:
+        dDen = precompute_snp_densities(avail_pos, aSampleNames)
 
     # initialise empty matrix
     dist_mat = {}
@@ -218,15 +309,37 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
             ref_base = avail_pos[sContig][pos].get("reference")
             for i, sample_1 in enumerate(aSampleNames):
                 s1_base = avail_pos[sContig][pos].get(sample_1, ref_base)
+                # consider only differences between valid characters -> pairwise deletion
                 if dValChars.get(s1_base.upper(), None) == None:
                     continue
                 for j, sample_2 in enumerate(aSampleNames):
                     if j <= i:
                         continue
                     s2_base = avail_pos[sContig][pos].get(sample_2, ref_base)
+                    # consider only differences between valid characters -> pairwise deletion
                     if dValChars.get(s2_base.upper(), None) == None:
                         continue
 
+                    if dDen != None and s1_base != s2_base:
+
+                        #print pos
+                        #print sample_1
+                        #print sample_2
+                        #print s1_base
+                        #print s2_base
+                        #pprint.pprint(avail_pos[sContig][pos])
+                        #pprint.pprint(dDen[sContig][pos])
+
+                        flLocalDensity1 = dDen[sContig][pos].get(sample_1, 0.0)
+                        flLocalDensity2 = dDen[sContig][pos].get(sample_2, 0.0)
+                        flPairThreshold = dDen['per_samplepair_threshold'][sample_1][sample_2]
+
+                        #print flLocalDensity1
+                        #print flLocalDensity2
+                        #print flPairThreshold
+
+                        if (flLocalDensity1 > flPairThreshold) or (flLocalDensity2 > flPairThreshold):
+                            continue
 
                     if dArgs['substitution'] == 'k80' or dArgs['substitution'] == 't93':
                         k = get_difference_value(s1_base.upper(), s2_base.upper(), dArgs['substitution'])
@@ -236,10 +349,11 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
                         if s1_base > s2_base:
                             s1_base, s2_base = s2_base, s1_base
                         dist_mat[sample_1][sample_2][s1_base][s2_base] += 1.0
-                    else:
+                    elif dArgs['substitution'] == 'number_of_differences' or dArgs['substitution'] == 'jc69':
                         k = get_difference_value(s1_base.upper(), s2_base.upper(), dArgs['substitution'])
                         dist_mat[sample_1][sample_2] += k
-
+                    else:
+                        raise NotImplementedError
 
     if dArgs['substitution'] == 'jc69':
         dist_mat = normalise_jc69(dist_mat, dArgs['refgenome'], aSampleNames)
@@ -249,6 +363,8 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
         dist_mat = normalise_tn84(dist_mat, dArgs['refgenome'], aSampleNames)
     elif dArgs['substitution'] == 't93':
         dist_mat = normalise_t93(dist_mat, dArgs['refgenome'], aSampleNames)
+    elif dArgs['substitution'] == 'number_of_differences':
+        pass
     else:
         raise NotImplementedError
 
@@ -463,3 +579,5 @@ def get_ref_freqs(ref):
 
     logging.info("genome length: %s" % flGenLen)
     return (dRefFreq, flGenLen)
+
+# --------------------------------------------------------------------------------------------------
