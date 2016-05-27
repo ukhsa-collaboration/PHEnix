@@ -452,6 +452,9 @@ def main(args):
             for sample in samples:
                 sample_seqs[sample] += seq
 
+    for i, s in sample_seqs.iteritems():
+        assert len(s) == len(sample_seqs["reference"])
+
     # Write the sequences out.
     with open(args["out"], "w") as fp:
         for sample in sample_seqs:
