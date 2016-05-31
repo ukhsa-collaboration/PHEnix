@@ -343,10 +343,18 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
                             dist_mat[sample_1][sample_2][0] += k[0]
                             dist_mat[sample_1][sample_2][1] += k[1]
                         elif dArgs['substitution'] == 'tn84':
+
                             if s1_base > s2_base:
-                                s1_base, s2_base = s2_base, s1_base
-                            dist_mat[sample_1][sample_2][s1_base][s2_base] += 1.0
+                                # don't do this:
+                                # s1_base, s2_base = s2_base, s1_base
+                                # dist_mat[sample_1][sample_2][s1_base][s2_base] += 1.0
+                                # => messes up the references
+                                dist_mat[sample_1][sample_2][s2_base][s1_base] += 1.0
+                            else:
+                                dist_mat[sample_1][sample_2][s1_base][s2_base] += 1.0
+
                         elif dArgs['substitution'] == 'number_of_differences' or dArgs['substitution'] == 'jc69':
+
                             k = get_difference_value(s1_base.upper(), s2_base.upper(), dArgs['substitution'])
                             dist_mat[sample_1][sample_2] += k
                         else:
@@ -431,6 +439,7 @@ def normalise_tn84(d, ref, names):
         for j, sample_2 in enumerate(names):
             if j < i:
                 iNofDiff = getTotalNofDiff_tn84(d[sample_1][sample_2])
+
                 p = iNofDiff / flGenLen
                 sum2 = 0.0
                 for m, nuc1 in enumerate(['A', 'C', 'G', 'T']):
@@ -484,6 +493,7 @@ def normalise_jc69(d, ref, names):
          doi: 10.1038/npg.els.0005108
          http://www.umich.edu/~zhanglab/publications/2003/a0005108.pdf, equation 7
     """
+
     flGenLen = 0.0
     with open(ref, 'r') as fRef:
         for sLine in fRef:
