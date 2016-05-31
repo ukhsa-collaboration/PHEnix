@@ -7,7 +7,6 @@ import argparse
 import glob
 import logging
 import os
-import pprint
 
 from Bio import Phylo
 from Bio.Phylo import TreeConstruction
@@ -101,29 +100,13 @@ def get_args():
                         default=None,
                         help="Reference genome used for SNP calling [Required for 'jc69', 'k80', 'tn84' and 't93' substitution, else ignored].")
 
-    parser.add_argument("--window-size",
-                        "-w",
-                        type=int,
-                        metavar="INTEGER",
-                        dest="winsize",
-                        default=200,
-                        help="Window size of SNP density calculation. [200]")
-
-    parser.add_argument("--max-snps",
-                        "-m",
-                        type=int,
-                        metavar="INTEGER",
-                        dest="maxsnps",
-                        default=5,
-                        help="Maximum number of SNPs in window with no SNPs in other sample [5].")
-
     parser.add_argument("--threshold",
-                        "-r",
+                        "-k",
                         type=float,
                         metavar="FLOAT",
-                        dest="threshold",
-                        default=2.0,
-                        help="Maxium allowable density ratio in two windows.[2.0 i.e. double].")
+                        dest="k",
+                        default=1.0,
+                        help="Density tyhreshold above mean density for relevant pair. [1.0].")
 
     parser.add_argument("--format",
                         type=str,
@@ -132,6 +115,14 @@ def get_args():
                         choices=['tsv', 'csv', 'mega'],
                         default='tsv',
                         help="Change format for output file. Available options csv and tsv.")
+
+    parser.add_argument("--tree",
+                        "-t",
+                        type=str,
+                        metavar="FILE",
+                        dest="tree",
+                        default=None,
+                        help="Make an NJ tree and write it to the given file in newick format. [Default: Don't make tree, only matrix]")
 
     return parser
 
@@ -193,9 +184,12 @@ def main(dArgs):
 
     if dArgs['deletion'] == 'complete':
         for contig, oBT in avail_pos.items():
+            to_del = []
             for iPos in oBT:
                 if oBT[iPos]['stats'].N > 0 or oBT[iPos]['stats'].gap > 0:
-                    oBT.remove(iPos)
+                    to_del.append(iPos)
+            for r in to_del:
+                oBT.remove(r)
         logging.info("%i total variant positions left after complete removal" % (sum([len(x) for _, x in avail_pos.items()])))
     else: # deletion is pairwise, which is implicit during matrix creation
         pass
@@ -203,38 +197,23 @@ def main(dArgs):
     dist_mat = {}
     dist_mat = get_dist_mat(aSampleNames, avail_pos, dArgs)
 
-    pprint.pprint(dist_mat)
-
-
     if dArgs['format'] == 'mega':
         write_mega_file(dArgs, aSampleNames, dist_mat, number_of_sites)
     else:
         sep = '\t' if dArgs['format'] == 'tsv' else ','
-        # aSimpleMatrix = []
         with open(dArgs['out'], "wb") as fp:
-            # fp.write("%s%s\n" % (sep, sep.join(aSampleNames)))
             for i, sample_1 in enumerate(aSampleNames):
                 row = sample_1
-                # mat_line = []
                 for j, sample_2 in enumerate(aSampleNames):
                     if j < i:
-                        dist = dist_mat[sample_2][sample_1]
-                        # mat_line.append(dist)
-                    # elif j == i:
-                        # mat_line.append(0)
-                    #     dist = dist_mat[sample_1][sample_2]
-                    # else:
-                    #    dist = dist_mat[sample_1][sample_2]
+                        dist = dist_mat[sample_1][sample_2]
                         row += "%s%e" % (sep, dist)
                 fp.write("%s\n" % row)
-                # aSimpleMatrix.append(mat_line)
 
-    # oDistMat = TreeConstruction._DistanceMatrix(aSampleNames, aSimpleMatrix)
-    # constructor = TreeConstruction.DistanceTreeConstructor()
-    # oTree = constructor.nj(oDistMat)
-    # Phylo.write(oTree, oArgs.tree,'newick')
-    # if oArgs.ascii == True:
-    #     Phylo.draw_ascii(oTree)
+    if dArgs['tree'] != None:
+        make_nj_tree(dist_mat, dArgs, aSampleNames)
+
+    logging.info("Done.")
 
     return 0
 
@@ -281,247 +260,36 @@ def write_mega_file(dArgs, aSampleNames, dist_mat, number_of_sites=0):
             row = "[%s] " % (str(i+1).rjust(spacing1))
             for j, sample_2 in enumerate(aSampleNames):
                 if j < i:
-                    dist = dist_mat[sample_2][sample_1]
+                    dist = dist_mat[sample_1][sample_2]
                     row += " %12.10f" % (dist)
             fp.write("%s\n" % row)
-
-
-
 
     return 0
 
 
 # end of main --------------------------------------------------------------------------------------
 
+def make_nj_tree(dist_mat, dArgs, aSampleNames):
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def get_dist_mat_average(aSampleNames, avail_pos, dValChars, oArgs):
-
-    avg_den_mat = {}
-    dist_mat = {}
+    aSimpleMatrix = []
     for i, sample_1 in enumerate(aSampleNames):
-        avg_den_mat[sample_1] = {}
-        dist_mat[sample_1] = {}
+        mat_line = []
         for j, sample_2 in enumerate(aSampleNames):
             if j < i:
-                continue
-            avg_den_mat[sample_1][sample_2] = 0
-            dist_mat[sample_1][sample_2] = 0
+                mat_line.append(dist_mat[sample_1][sample_2])
+            elif j == i:
+                mat_line.append(0)
+            else:
+                pass
+        aSimpleMatrix.append(mat_line)
 
-    for i, sample_1 in enumerate(aSampleNames):
-        for j, sample_2 in enumerate(aSampleNames):
-            if j <= i:
-                continue
-            iNofSNPs = 0
-            for sContig in avail_pos.keys():
-                for pos in avail_pos[sContig]:
-                    ref_base = avail_pos[sContig][pos].get("reference").upper()
-                    s1_base = avail_pos[sContig][pos].get(sample_1, ref_base).upper()
-                    s2_base = avail_pos[sContig][pos].get(sample_2, ref_base).upper()
-                    if dValChars.get(s1_base, None) == None:
-                        continue
-                    if dValChars.get(s2_base, None) == None:
-                        continue
-                    if s1_base != s2_base:
-                        iNofSNPs += 1
-            avg_den_mat[sample_1][sample_2] = iNofSNPs/float(oArgs.genomesize)
+    oDistMat = TreeConstruction._DistanceMatrix(aSampleNames, aSimpleMatrix)
+    constructor = TreeConstruction.DistanceTreeConstructor()
+    oTree = constructor.nj(oDistMat)
+    Phylo.write(oTree, dArgs['tree'], 'newick')
+    logging.info("Tree file written.")
 
-    for sContig in avail_pos.keys():
-        for pos in avail_pos[sContig]:
-            ref_base = avail_pos[sContig][pos].get("reference")
-            # Position has been seen or no reference available.
-            for i, sample_1 in enumerate(aSampleNames):
-                s1_base = avail_pos[sContig][pos].get(sample_1, ref_base)
-                if dValChars.get(s1_base.upper(), None) == None:
-                    continue
-                for j, sample_2 in enumerate(aSampleNames):
-                    if j <= i:
-                        continue
-                    s2_base = avail_pos[sContig][pos].get(sample_2, ref_base)
-                    if dValChars.get(s2_base.upper(), None) == None:
-                        continue
-                    if s1_base != s2_base:
-                        # dist_mat[sample_1][sample_2] += 1
-                        if sample_1 == 'reference' or sample_2 == 'reference':
-                            dist_mat[sample_1][sample_2] += 1
-                        else:
-                            if is_this_a_recombinant_site_average(avail_pos,
-                                                                  sContig,
-                                                                  pos,
-                                                                  sample_1,
-                                                                  sample_2,
-                                                                  avg_den_mat[sample_1][sample_2],
-                                                                  oArgs.winsize,
-                                                                  oArgs.threshold,
-                                                                  dValChars) == False:
-                                dist_mat[sample_1][sample_2] += 1
-
-    return dist_mat
-
-# --------------------------------------------------------------------------------------------------
-
-def get_dist_mat_pairwise(aSampleNames, avail_pos, dValChars, oArgs):
-
-    dist_mat = {}
-    for i, sample_1 in enumerate(aSampleNames):
-        dist_mat[sample_1] = {}
-        for j, sample_2 in enumerate(aSampleNames):
-            if j < i:
-                continue
-            dist_mat[sample_1][sample_2] = 0
-
-    for sContig in avail_pos.keys():
-        for pos in avail_pos[sContig]:
-            ref_base = avail_pos[sContig][pos].get("reference")
-            # Position has been seen or no reference available.
-            for i, sample_1 in enumerate(aSampleNames):
-                s1_base = avail_pos[sContig][pos].get(sample_1, ref_base)
-                if dValChars.get(s1_base.upper(), None) == None:
-                    continue
-                for j, sample_2 in enumerate(aSampleNames):
-                    if j <= i:
-                        continue
-                    s2_base = avail_pos[sContig][pos].get(sample_2, ref_base)
-                    if dValChars.get(s2_base.upper(), None) == None:
-                        continue
-                    if s1_base != s2_base:
-                        # dist_mat[sample_1][sample_2] += 1
-                        if sample_1 == 'reference' or sample_2 == 'reference':
-                            dist_mat[sample_1][sample_2] += 1
-                        else:
-                            if is_this_a_recombinant_site(avail_pos,
-                                                          sContig,
-                                                          pos,
-                                                          sample_1,
-                                                          sample_2,
-                                                          oArgs.winsize,
-                                                          oArgs.maxsnps,
-                                                          oArgs.threshold) == False:
-                                dist_mat[sample_1][sample_2] += 1
-
-    return dist_mat
-
-# --------------------------------------------------------------------------------------------------
-
-def is_this_a_recombinant_site_average(avail_pos,
-                                       sContig,
-                                       pos,
-                                       sample_1,
-                                       sample_2,
-                                       avg_den,
-                                       winsize,
-                                       threshold,
-                                       dValChars):
-
-    bIsIt = False
-
-    den = 0.0
-    half_window = int((winsize/2.0)+0.5)
-
-    start = pos - half_window
-    start = 0 if start < 0 else start
-
-    snp_cnt = 0.0
-    pos_info = None
-    for i in range(start, pos + half_window):
-
-        try:
-            pos_info = avail_pos[sContig][i]
-        except KeyError:
-            continue
-
-        ref_base = pos_info.get("reference").upper()
-        s1_base = pos_info.get(sample_1, ref_base).upper()
-        s2_base = pos_info.get(sample_2, ref_base).upper()
-        if dValChars.get(s1_base, None) == None:
-            continue
-        if dValChars.get(s2_base, None) == None:
-            continue
-        if s1_base != s2_base:
-            snp_cnt += 1.0
-
-    den = snp_cnt/(2.0*half_window)
-
-    if den > avg_den * threshold:
-        bIsIt = True
-
-    # print snp_cnt, den, avg_den, winsize, threshold, bIsIt
-
-    return bIsIt
-
-# --------------------------------------------------------------------------------------------------
-
-def is_this_a_recombinant_site(avail_pos, contig, pos, sample_1, sample_2, window_size, max_snps, threshold):
-
-    bIsIt = False
-
-    (density_1, snp_cnt_1) = get_local_snp_density(avail_pos, contig, pos, sample_1, window_size)
-    (density_2, snp_cnt_2) = get_local_snp_density(avail_pos, contig, pos, sample_2, window_size)
-
-    assert snp_cnt_1 > 0.0 or snp_cnt_2 > 0.0
-
-    den_ratio = 0.0
-
-    if snp_cnt_2 == 0.0 or snp_cnt_1 == 0.0:
-        if max(snp_cnt_1, snp_cnt_2) >= float(max_snps):
-            bIsIt = True
-        else:
-            bIsIt = False
-    else:
-        den_ratio = density_1 / density_2
-
-        if den_ratio >= (1/float(threshold)) and den_ratio <= float(threshold):
-            bIsIt = False
-        else:
-            bIsIt = True
-
-    return bIsIt
-
-# --------------------------------------------------------------------------------------------------
-
-def get_local_snp_density(avail_pos, contig, pos, sample, window_size):
-
-    den = 0.0
-    half_window = int((window_size/2.0)+0.5)
-
-    start = pos - half_window
-    start = 0 if start < 0 else start
-
-    snp_cnt = 0.0
-    pos_info = None
-    for i in range(start, pos + half_window):
-
-        try:
-            pos_info = avail_pos[contig][i]
-        except KeyError:
-            continue
-
-        snp_base = pos_info.get(sample, None)
-        if snp_base != None and snp_base.upper() in ["A", "C", "G", "T"]:
-            snp_cnt += 1.0
-
-    den = snp_cnt/(2.0*half_window)
-
-    return (den, snp_cnt)
+    return 0
 
 # --------------------------------------------------------------------------------------------------
 

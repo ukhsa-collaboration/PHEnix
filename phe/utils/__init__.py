@@ -1,6 +1,6 @@
 '''
 :Date: 12May2016
-:Author: Publich Health England
+:Author: Public Health England
 '''
 
 import vcf
@@ -10,7 +10,8 @@ import logging
 from numpy import std
 from numpy import mean
 
-import pprint
+from pprint import pprint
+from collections import OrderedDict
 
 dValChars = {'A': 1, 'C': 1, 'G': 1, 'T': 1}
 
@@ -55,7 +56,7 @@ def is_uncallable(record):
 
 # --------------------------------------------------------------------------------------------------
 
-def precompute_snp_densities(avail_pos, sample_names):
+def precompute_snp_densities(avail_pos, sample_names, k):
     """
     avail_pos:
     {'gi|194097589|ref|NC_011035.1|':
@@ -100,47 +101,50 @@ def precompute_snp_densities(avail_pos, sample_names):
     dDen = {}
     dPerSample = {}
     for contig, oBT in avail_pos.items():
-            dDen[contig] = {}
-            for iPos in oBT:
-                ref_base = oBT[iPos]['reference']
-                if dValChars.get(ref_base, None) == None:
+        dDen[contig] = {}
+        for iPos in oBT:
+            ref_base = oBT[iPos]['reference']
+            if dValChars.get(ref_base, None) == None:
+                continue
+            for sname in sample_names:
+                try:
+                    sam_base = oBT[iPos][sname]
+                except KeyError:
                     continue
-                for sname in sample_names:
+                if dValChars.get(sam_base, None) == None:
+                    continue
+                if sam_base != ref_base:
+                    flSNPsInWin = 0.0
+                    for x in range((iPos - 499), (iPos + 501)):
+                        try:
+                            if oBT[x][sname] != oBT[x]['reference']:
+                                flSNPsInWin += 1.0
+                        except KeyError:
+                            continue
+                    flDnsty = flSNPsInWin / 1000.0
                     try:
-                        sam_base = oBT[iPos][sname]
+                        dPerSample[sname].append(flDnsty)
                     except KeyError:
-                        continue
-                    if dValChars.get(sam_base, None) == None:
-                        continue
-                    if sam_base != ref_base:
-                        flSNPsInWin = 0.0
-                        for x in range((iPos - 499), (iPos + 501)):
-                            try:
-                                if oBT[x][sname] != oBT[x]['reference']:
-                                    flSNPsInWin += 1.0
-                            except KeyError:
-                                continue
-                        flDnsty = flSNPsInWin / 1000.0
-                        try:
-                            dPerSample[sname].append(flDnsty)
-                        except KeyError:
-                            dPerSample[sname] = [flDnsty]
-                        try:
-                            dDen[contig][iPos][sname] = flDnsty
-                        except KeyError:
-                            dDen[contig][iPos] = {}
-                            dDen[contig][iPos][sname] = flDnsty
+                        dPerSample[sname] = [flDnsty]
+                    try:
+                        dDen[contig][iPos][sname] = flDnsty
+                    except KeyError:
+                        dDen[contig][iPos] = {}
+                        dDen[contig][iPos][sname] = flDnsty
 
     dDen['per_samplepair_threshold'] = {}
 
     for i, sname1 in enumerate(sample_names):
         dDen['per_samplepair_threshold'][sname1] = {}
         for j, sname2 in enumerate(sample_names):
-            if j <= i:
-                continue
-            density_windows = dPerSample[sname1] + dPerSample[sname2]
-            dDen['per_samplepair_threshold'][sname1][sname2] = mean(density_windows) + \
-                                                               (1.0 * std(density_windows))
+            if j < i:
+                density_windows = []
+                if sname1 != 'reference':
+                    density_windows += dPerSample[sname1]
+                if sname2 != 'reference':
+                    density_windows += dPerSample[sname2]
+                dDen['per_samplepair_threshold'][sname1][sname2] = mean(density_windows) + \
+                                                                   (k * std(density_windows))
 
     return dDen
 
@@ -181,6 +185,8 @@ def parse_vcf_files(dArgs, avail_pos, aSampleNames):
         else:
             exclude = pos
 
+    dSamNms = {'reference': None}
+
     # First pass to get the references and the positions to be analysed.
     for vcf_in in dArgs['input']:
 
@@ -188,7 +194,8 @@ def parse_vcf_files(dArgs, avail_pos, aSampleNames):
 
         # Get the sample name from the VCF file (usually the read group).
         sample_name = reader.samples[0]
-        aSampleNames.append(sample_name)
+        assert dSamNms.has_key(sample_name) == False, "ERROR: %s is not a unique sample name in the set of vcfs" % (sample_name)
+        dSamNms[sample_name] = None
 
         # Go over every position in the reader.
         for record in reader:
@@ -256,8 +263,10 @@ def parse_vcf_files(dArgs, avail_pos, aSampleNames):
                 # filter fail; code as N for consistency
                 position_data[sample_name] = "N"
                 position_data["stats"].N += 1
-
     # finished parsing
+
+    for sn in dSamNms.keys():
+        aSampleNames.append(sn)
 
     return 0
 
@@ -283,26 +292,28 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
                            'reference': 'G',
                            '211702_H15522021601': 'A'}})}
     """
+
     dDen = None
     if dArgs['remove_recombination'] == True:
-        dDen = precompute_snp_densities(avail_pos, aSampleNames)
+        dDen = precompute_snp_densities(avail_pos, aSampleNames, dArgs['k'])
 
     # initialise empty matrix
     dist_mat = {}
     for i, sample_1 in enumerate(aSampleNames):
         dist_mat[sample_1] = {}
         for j, sample_2 in enumerate(aSampleNames):
-            if j < i:
-                continue
-            if dArgs['substitution'] == 'k80' or dArgs['substitution'] == 't93':
-                dist_mat[sample_1][sample_2] = [0.0, 0.0]
-            elif dArgs['substitution'] == 'tn84':
-                dist_mat[sample_1][sample_2] = {'A': {'A': 0.0, 'C': 0.0, 'G': 0.0, 'T': 0.0},
-                                                'C': {'A': 0.0, 'C': 0.0, 'G': 0.0, 'T': 0.0},
-                                                'G': {'A': 0.0, 'C': 0.0, 'G': 0.0, 'T': 0.0},
-                                                'T': {'A': 0.0, 'C': 0.0, 'G': 0.0, 'T': 0.0}}
-            else:
-                dist_mat[sample_1][sample_2] = 0.0
+            if j <= i:
+                if dArgs['substitution'] == 'k80' or dArgs['substitution'] == 't93':
+                    dist_mat[sample_1][sample_2] = [0.0, 0.0]
+                elif dArgs['substitution'] == 'tn84':
+                    dist_mat[sample_1][sample_2] = {'A': {'A': 0.0, 'C': 0.0, 'G': 0.0, 'T': 0.0},
+                                                    'C': {'A': 0.0, 'C': 0.0, 'G': 0.0, 'T': 0.0},
+                                                    'G': {'A': 0.0, 'C': 0.0, 'G': 0.0, 'T': 0.0},
+                                                    'T': {'A': 0.0, 'C': 0.0, 'G': 0.0, 'T': 0.0}}
+                else:
+                    dist_mat[sample_1][sample_2] = 0.0
+            else: # j > i
+                pass
 
     for sContig in avail_pos.keys():
         for pos in avail_pos[sContig]:
@@ -313,47 +324,35 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
                 if dValChars.get(s1_base.upper(), None) == None:
                     continue
                 for j, sample_2 in enumerate(aSampleNames):
-                    if j <= i:
-                        continue
-                    s2_base = avail_pos[sContig][pos].get(sample_2, ref_base)
-                    # consider only differences between valid characters -> pairwise deletion
-                    if dValChars.get(s2_base.upper(), None) == None:
-                        continue
-
-                    if dDen != None and s1_base != s2_base:
-
-                        #print pos
-                        #print sample_1
-                        #print sample_2
-                        #print s1_base
-                        #print s2_base
-                        #pprint.pprint(avail_pos[sContig][pos])
-                        #pprint.pprint(dDen[sContig][pos])
-
-                        flLocalDensity1 = dDen[sContig][pos].get(sample_1, 0.0)
-                        flLocalDensity2 = dDen[sContig][pos].get(sample_2, 0.0)
-                        flPairThreshold = dDen['per_samplepair_threshold'][sample_1][sample_2]
-
-                        #print flLocalDensity1
-                        #print flLocalDensity2
-                        #print flPairThreshold
-
-                        if (flLocalDensity1 > flPairThreshold) or (flLocalDensity2 > flPairThreshold):
+                    if j < i:
+                        s2_base = avail_pos[sContig][pos].get(sample_2, ref_base)
+                        # consider only differences between valid characters -> pairwise deletion
+                        if dValChars.get(s2_base.upper(), None) == None:
                             continue
 
-                    if dArgs['substitution'] == 'k80' or dArgs['substitution'] == 't93':
-                        k = get_difference_value(s1_base.upper(), s2_base.upper(), dArgs['substitution'])
-                        dist_mat[sample_1][sample_2][0] += k[0]
-                        dist_mat[sample_1][sample_2][1] += k[1]
-                    elif dArgs['substitution'] == 'tn84':
-                        if s1_base > s2_base:
-                            s1_base, s2_base = s2_base, s1_base
-                        dist_mat[sample_1][sample_2][s1_base][s2_base] += 1.0
-                    elif dArgs['substitution'] == 'number_of_differences' or dArgs['substitution'] == 'jc69':
-                        k = get_difference_value(s1_base.upper(), s2_base.upper(), dArgs['substitution'])
-                        dist_mat[sample_1][sample_2] += k
-                    else:
-                        raise NotImplementedError
+                        if dDen != None and s1_base != s2_base:
+
+                            flLocalDensity1 = dDen[sContig][pos].get(sample_1, 0.0)
+                            flLocalDensity2 = dDen[sContig][pos].get(sample_2, 0.0)
+                            flPairThreshold = dDen['per_samplepair_threshold'][sample_1][sample_2]
+                            if (flLocalDensity1 > flPairThreshold) or (flLocalDensity2 > flPairThreshold):
+                                continue
+
+                        if dArgs['substitution'] == 'k80' or dArgs['substitution'] == 't93':
+                            k = get_difference_value(s1_base.upper(), s2_base.upper(), dArgs['substitution'])
+                            dist_mat[sample_1][sample_2][0] += k[0]
+                            dist_mat[sample_1][sample_2][1] += k[1]
+                        elif dArgs['substitution'] == 'tn84':
+                            if s1_base > s2_base:
+                                s1_base, s2_base = s2_base, s1_base
+                            dist_mat[sample_1][sample_2][s1_base][s2_base] += 1.0
+                        elif dArgs['substitution'] == 'number_of_differences' or dArgs['substitution'] == 'jc69':
+                            k = get_difference_value(s1_base.upper(), s2_base.upper(), dArgs['substitution'])
+                            dist_mat[sample_1][sample_2] += k
+                        else:
+                            raise NotImplementedError
+                    else: # j >= i
+                        pass
 
     if dArgs['substitution'] == 'jc69':
         dist_mat = normalise_jc69(dist_mat, dArgs['refgenome'], aSampleNames)
@@ -387,13 +386,13 @@ def normalise_t93(d, ref, names):
     for i, sample_1 in enumerate(names):
         for j, sample_2 in enumerate(names):
             if j < i:
-                Q = d[sample_2][sample_1][1] / flGenLen
-                p = sum(d[sample_2][sample_1]) / flGenLen
+                Q = d[sample_1][sample_2][1] / flGenLen
+                p = sum(d[sample_1][sample_2]) / flGenLen
                 x1 = -h * math.log(1.0 - p/h - Q)
                 x2 = 0.5 * (1.0 - h) * math.log(1.0 - (2.0 * Q))
-                d[sample_2][sample_1] = x1 - x2
+                d[sample_1][sample_2] = x1 - x2
             elif i == j:
-                d[sample_2][sample_1] = 0.0
+                d[sample_1][sample_2] = 0.0
 
     return d
 
@@ -431,19 +430,21 @@ def normalise_tn84(d, ref, names):
     for i, sample_1 in enumerate(names):
         for j, sample_2 in enumerate(names):
             if j < i:
-                iNofDiff = getTotalNofDiff_tn84(d[sample_2][sample_1])
+                iNofDiff = getTotalNofDiff_tn84(d[sample_1][sample_2])
                 p = iNofDiff / flGenLen
                 sum2 = 0.0
                 for m, nuc1 in enumerate(['A', 'C', 'G', 'T']):
                     for n, nuc2 in enumerate(['A', 'C', 'G', 'T']):
                         if m < n:
-                            flFreqNucPair = d[sample_2][sample_1][nuc1][nuc2] / flGenLen
-                            sum2 += (flFreqNucPair ** 2.0) / (2.0 * dRefFreq[nuc1] * dRefFreq[nuc2])
-                b = 0.5 * ((1.0 - sum1) + (p * p / sum2))
-                dist = -b * math.log(1.0 - (p / b))
-                d[sample_2][sample_1] = dist
+                            flFreqNucPair = d[sample_1][sample_2][nuc1][nuc2] / flGenLen
+                            sum2 += ((flFreqNucPair ** 2.0) / (2.0 * dRefFreq[nuc1] * dRefFreq[nuc2]))
+                if sum2 == 0.0: # samples are "identical"
+                    d[sample_1][sample_2] = 0.0
+                else:
+                    b = 0.5 * ((1.0 - sum1) + (p * p / sum2))
+                    d[sample_1][sample_2] = -b * math.log(1.0 - (p / b))
             elif i == j:
-                d[sample_2][sample_1] = 0.0
+                d[sample_1][sample_2] = 0.0
             else: # j > i
                 pass
 
@@ -464,14 +465,13 @@ def normalise_k80(d, ref, names):
     for i, sample_1 in enumerate(names):
         for j, sample_2 in enumerate(names):
             if j < i:
-                P = d[sample_2][sample_1][0] / flGenLen
-                Q = d[sample_2][sample_1][1] / flGenLen
+                P = d[sample_1][sample_2][0] / flGenLen
+                Q = d[sample_1][sample_2][1] / flGenLen
                 w1 = 1.0 - (2.0 * P) - Q
                 w2 = 1.0 - (2.0 * Q)
-                x = (-0.5 * math.log(w1)) - (0.25 * math.log(w2))
-                d[sample_2][sample_1] = x
+                d[sample_1][sample_2] = (-0.5 * math.log(w1)) - (0.25 * math.log(w2))
             elif i == j:
-                d[sample_2][sample_1] = 0.0
+                d[sample_1][sample_2] = 0.0
 
     return d
 
@@ -497,9 +497,8 @@ def normalise_jc69(d, ref, names):
     for i, sample_1 in enumerate(names):
         for j, sample_2 in enumerate(names):
             if j < i:
-                p = d[sample_2][sample_1] / flGenLen
-                x = (-3.0/4.0) * math.log(1.0-((4.0/3.0) * p))
-                d[sample_2][sample_1] = x
+                p = d[sample_1][sample_2] / flGenLen
+                d[sample_1][sample_2] = (-3.0/4.0) * math.log(1.0-((4.0/3.0) * p))
 
     return d
 
