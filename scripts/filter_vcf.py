@@ -67,10 +67,7 @@ def main(args):
     if args.get("version") is not None:
         var_set.add_metadata(OrderedDict({"PHEnix-Version": (args["version"],)}))
 
-    if args["filters"]:
-        var_set.filter_variants()
-
-    var_set.write_variants(args["output"], only_good=args["only_good"])
+    var_set.filter_variants(out_vcf=args["output"])
 
     logging.info("Finished filtering")
     return 0

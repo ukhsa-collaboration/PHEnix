@@ -120,8 +120,23 @@ class VariantSet(object):
             elif not var.FILTER :
                 yield var
 
-    def filter_variants(self, keep_only_snps=True):
-        """Create a variant """
+    def filter_variants(self, keep_only_snps=True, out_vcf=None):
+        """Filter the VCF records.
+
+        Parameters
+        ----------
+        keep_only_snps: bool, optional
+            Retain only SNP variants (default: False).
+        out_vcf: str, optional
+            If specified, filtered record will be written to *out_vcf*
+            instead of being retianed in memory.
+        
+        Returns
+        -------
+        list or int:
+            If *out_vcf* is specified, then total number of written records is returned.
+            Otherwise, list of records is returned.
+         """
 
         if self._reader is None:
             # Create a reader class from input VCF.
@@ -154,6 +169,17 @@ class VariantSet(object):
 
             self._reader.filters[record_filter.filter_name()] = _Filter(record_filter.filter_name(), short_doc)
 
+        # Update the filters for output.
+        self._update_filters(self._reader.filters)
+
+        if out_vcf:
+            out_vcf_fp = gzip.open(out_vcf, "wb") if out_vcf.endswith(".gz") else open(out_vcf, "wb")
+#             close_func = gzip.close if out_vcf.endswith(".gz") else close
+            _writer = vcf.Writer(out_vcf_fp, self.out_template)
+        else:
+            _writer = None
+
+        records = 0
         _pos = 1
         _chrom = None
         # For each record (POSITION) apply set of filters.
@@ -167,6 +193,8 @@ class VariantSet(object):
                 if _pos == record.POS:
                     _record = record
                 else:
+                    # This is a padding "N" record when records do not follow each other,
+                    #    and there is a gap. e,g, 1,2,3,5,6 -> in 4 "N" will be inserted.
                     _record = vcf.model._Record(record.CHROM, _pos, ".", "N", [None], 0, [], {}, 'GT', None)
                     _calls = []
                     sorted_samples = sorted(record._sample_indexes.items(), key=operator.itemgetter(1))
@@ -190,17 +218,22 @@ class VariantSet(object):
                     _record.FILTER = []
                     # FIXME: Does this work for indels?
                     if keep_only_snps and _record.is_snp:
-                        self._variants.append(_record)
-                else:
+                        if _writer is not None:
+                            _writer.write_record(_record)
+                            records += 1
+                        else:
+                            self._variants.append(_record)
+                elif _writer is None:
                     self._variants.append(_record)
 
                 _pos += 1
                 if _chrom is None:
                     _chrom = record.CHROM
-
-        self._update_filters(self._reader.filters)
-
-        return [ variant for variant in self._variants if not variant.FILTER]
+        if _writer is None:
+            return [ variant for variant in self._variants if not variant.FILTER]
+        else:
+            out_vcf_fp.close()
+            return records
 
     def _filter_record(self, record, removed_filters=list()):
         '''**PRIVATE** Filter record.
