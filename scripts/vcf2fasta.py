@@ -42,15 +42,64 @@ def is_uncallable(record):
 
 
 class base_stats(object):
-    def __init__(self):
+    def __init__(self, records=None):
+
         self.N = 0
         self.mut = 0
         self.gap = 0
         self.mix = 0
         self.total = 0
+        self.NA = 0
 
     def __str__(self):
         return "N: %i, mut: %i, mix: %i, gap: %i, total: %i" % (self.N, self.mut, self.mix, self.gap, self.total)
+
+class ParallelVCFReader(object):
+
+    def __init__(self, vcfs):
+        """Instantiate ParallelVCFReader.
+        
+        Parameters
+        ----------
+        vcfs: list
+            List of path s to the VCF files to read.
+        """
+        self._readers = { vcf_in: vcf.Reader(filename=vcf_in) for vcf_in in vcfs}
+        self._records = { vcf: reader.next() for vcf, reader in self._readers.iteritems()}
+
+    def __iter__(self):
+        return self.get_records()
+
+    def get_records(self):
+        while self._readers:
+            # Find the lowest record position in all readers.
+            min_pos = min([ record.POS for record in self._records.itervalues()])
+
+            # FIXME: Need to figure out proper chromosome arrangement.
+            chrom = [ record.CHROM for record in self._records.itervalues()][0]
+
+            # Only get the records for vcfs that are in lowest currect position.
+            records = {}
+            for vcf, record in self._records.iteritems():
+                if record.POS == min_pos:
+                    records[self._readers[vcf].samples[0]] = record
+
+            # FIXME: get the reference properly.
+            reference = [ record.REF for record in records.itervalues()][0]
+
+#             for vcf, record in self._records.iteritems():
+#                 if record.POS != min_pos:
+#                     records[self._readers[vcf].samples[0]] = reference
+
+#             records["reference"] = reference
+
+            yield chrom, min_pos, reference, records
+
+            # Update the records only of the readers we used, i.e. lowest position.
+            for vcf, reader in self._readers.iteritems():
+                if self._records[vcf].POS == min_pos:
+                    self._records[vcf] = reader.next()
+
 
 def get_sample_stats(all_positions, samples):
     sample_stats = {sample: base_stats() for sample in samples }
@@ -261,49 +310,30 @@ def main(args):
     if not args["input"]:
         logging.warn("No VCFs found.")
         return 0
+    parallelReader = ParallelVCFReader(args["input"])
 
-    # First pass to get the references and the positions to be analysed.
-    for vcf_in in args["input"]:
+    for chrom, pos, reference, records in parallelReader:
+        # Keep list of all samples.
+        for sample_name in records:
+            if sample_name not in samples:
+                samples.append(sample_name)
 
-        reader = vcf.Reader(filename=vcf_in)
+        # SKIP (or include) any pre-specified regions.
+        if include and pos not in include.get(chrom, empty_tree) or exclude and pos in exclude.get(chrom, empty_tree):
+            continue
 
-        # Get the sample name from the VCF file (usually the read group).
-        sample_name = reader.samples[0]
-        samples.append(sample_name)
-
-        # Go over every position in the reader.
-        for record in reader:
+        position_data = {"reference": str(reference), "stats": base_stats()}
+        for sample_name, record in records.iteritems():
 
             # Inject a property about uncallable genotypes into record.
             record.__setattr__("is_uncallable", is_uncallable(record))  # is_uncallable = types.MethodType(is_uncallable, record)
 
             # SKIP indels, if not handled then can cause REF base to be >1
             if record.is_indel and not (record.is_uncallable or record.is_monomorphic) or len(record.REF) > 1:
-            # if len(record.REF) > 1:
-                # print "%s\t%s\t%s\t%s\t%s" % (sample_name,record.POS,-1,record.FILTER,record)
-                continue
-                # if record.is_deletion and not record.is_uncallable:
-                #    continue
-
-            # SKIP (or include) any pre-specified regions.
-            if include and record.POS not in include.get(record.CHROM, empty_tree) or exclude and record.POS in exclude.get(record.CHROM, empty_tree):
-#             if include.get(record.CHROM, empty_tree).get(record.POS, False) or \
-#                 not exclude.get(record.CHROM, empty_tree).get(record.POS, True):
+                position_data["stats"].N += 1
                 continue
 
-            # Setup the RB tree for contigs not in the data structure.
-            if record.CHROM not in contigs:
-                contigs.append(record.CHROM)
-                avail_pos[record.CHROM] = FastRBTree()
-
-            # Setup the position data to contain reference and stats.
-            if avail_pos[record.CHROM].get(record.POS, None) is None:
-                avail_pos[record.CHROM].insert(record.POS, {"reference": str(record.REF),
-                                                            "stats": base_stats()})
-
-            position_data = avail_pos[record.CHROM].get(record.POS)
-
-            assert len(position_data["reference"]) == 1, "Reference base must be singluar: in %s found %s @ %s" % (position_data["reference"], sample_name, record.POS)
+            assert len(position_data["reference"]) == 1, "Reference base must be singluar: in %s found %s @ %s" % (sample_name, position_data["reference"], record.POS)
 
             # IF this is uncallable genotype, add gap "-"
             if record.is_uncallable:
@@ -317,7 +347,7 @@ def main(args):
             elif not record.FILTER:
                 # If filter PASSED!
                 # Make sure the reference base is the same. Maybe a vcf from different species snuck in here?!
-                assert str(record.REF) == position_data["reference"] or str(record.REF) == 'N' or position_data["reference"] == 'N', "SOMETHING IS REALLY WRONG because reference for the same position is DIFFERENT! %s in %s (%s, %s)" % (record.POS, vcf_in, str(record.REF), position_data["reference"])
+                assert str(record.REF) == position_data["reference"] or str(record.REF) == 'N' or position_data["reference"] == 'N', "SOMETHING IS REALLY WRONG because reference for the same position is DIFFERENT! %s in %s (%s, %s)" % (record.POS, sample_name, str(record.REF), position_data["reference"])
                 # update position_data['reference'] to a real base if possible
                 if position_data['reference'] == 'N' and str(record.REF) != 'N':
                     position_data['reference'] = str(record.REF)
@@ -350,20 +380,23 @@ def main(args):
 
             # Filter columns when threashold reaches user specified value.
             if isinstance(args["column_Ns"], float) and float(position_data["stats"].N) / len(args["input"]) > args["column_Ns"]:
-                avail_pos[record.CHROM].remove(record.POS)
-
-                # print "excluding %s" % record.POS
-                if record.CHROM not in exclude:
-                    exclude[record.CHROM] = FastRBTree()
-                exclude[record.CHROM].insert(record.POS, False)
+                break
+#                 avail_pos[record.CHROM].remove(record.POS)
+#
+#                 # print "excluding %s" % record.POS
+#                 if record.CHROM not in exclude:
+#                     exclude[record.CHROM] = FastRBTree()
+#                 exclude[record.CHROM].insert(record.POS, False)
 
             if isinstance(args["column_gaps"], float) and float(position_data["stats"].gap) / len(args["input"]) > args["column_gaps"]:
-                avail_pos[record.CHROM].remove(record.POS)
+                break
+#                 avail_pos[record.CHROM].remove(record.POS)
+#
+#                 if record.CHROM not in exclude:
+#                     exclude[record.CHROM] = FastRBTree()
+#                 exclude[record.CHROM].insert(record.POS, False)
 
-                if record.CHROM not in exclude:
-                    exclude[record.CHROM] = FastRBTree()
-                exclude[record.CHROM].insert(record.POS, False)
-
+    exit()
     # Compute per sample statistics.
     sample_stats = get_sample_stats(avail_pos, samples)
 
