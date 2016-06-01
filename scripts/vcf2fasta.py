@@ -4,8 +4,9 @@ Merge SNP data from multiple VCF files into a single fasta file.
 :Date: 5 October, 2015
 :Author: Alex Jironkin
 '''
+from _collections import defaultdict
 import argparse
-from collections import OrderedDict
+from collections import OrderedDict, Counter
 import glob
 import itertools
 import logging
@@ -14,6 +15,7 @@ import os
 from Bio import SeqIO
 from bintrees import FastRBTree
 import vcf
+from vcf.utils import walk_together
 
 from phe.variant_filters import IUPAC_CODES
 
@@ -65,40 +67,94 @@ class ParallelVCFReader(object):
             List of path s to the VCF files to read.
         """
         self._readers = { vcf_in: vcf.Reader(filename=vcf_in) for vcf_in in vcfs}
-        self._records = { vcf: reader.next() for vcf, reader in self._readers.iteritems()}
+
+        self._records = {}
+
+        self.update()  # { vcf: reader.next() for vcf, reader in self._readers.iteritems()}
 
     def __iter__(self):
+#         return walk_together(*self._readers.values())
         return self.get_records()
 
-    def get_records(self):
-        while self._readers:
-            # Find the lowest record position in all readers.
-            min_pos = min([ record.POS for record in self._records.itervalues()])
+    def _vote_best_ref(self, refs):
 
-            # FIXME: Need to figure out proper chromosome arrangement.
-            chrom = [ record.CHROM for record in self._records.itervalues()][0]
+        counts = 0
+        try:
+            counts = max(Counter(refs).iteritems(), key=lambda x: x[1])[0]
+        except ValueError:
+            counts = 0
+
+        return counts
+
+    def get_samples(self):
+        return [reader.samples[0] for reader in self._readers.itervalues()]
+
+    def update(self, ids=None):
+        """Update all records in the readers."""
+        if ids is None:
+            ids = self._readers.keys()
+
+        for k in ids:
+            try:
+                self._records[k] = self._readers[k].next()
+                self._records[k].__setattr__("is_uncallable", is_uncallable(self._records[k]))
+            except StopIteration:
+                self._records[k] = None
+
+    def get_records(self):
+        chrom = None
+        c = 0
+        while self._readers and not all(r is None for r in self._records.itervalues()):
+
+            if chrom is None:
+                chrom = self._vote_best_ref([ record.CHROM for record in self._records.itervalues() if record])
+
+            try:
+                # Find the lowest record position in all readers.
+                min_pos = min([ record.POS for record in self._records.itervalues() if record and record.CHROM == chrom])
+            except ValueError:
+                # This happens when all records have different chrom.
+                self.update()
+                chrom = self._vote_best_ref([ record.CHROM for record in self._records.itervalues() if record])
+                continue
 
             # Only get the records for vcfs that are in lowest currect position.
-            records = {}
-            for vcf, record in self._records.iteritems():
-                if record.POS == min_pos:
-                    records[self._readers[vcf].samples[0]] = record
+            records = defaultdict(list)
 
-            # FIXME: get the reference properly.
-            reference = [ record.REF for record in records.itervalues()][0]
+            for vcf_in, record in self._records.iteritems():
 
-#             for vcf, record in self._records.iteritems():
-#                 if record.POS != min_pos:
-#                     records[self._readers[vcf].samples[0]] = reference
+                while record and record.CHROM == chrom and record.POS == min_pos:
+                    records[self._readers[vcf_in].samples[0]].append(record)
+                    self.update([vcf_in])
 
-#             records["reference"] = reference
+                    record = self._records[vcf_in]
 
-            yield chrom, min_pos, reference, records
+#                 # All the resons for skipping a record.
+#                 if record.is_indel and not (record.is_uncallable or record.is_monomorphic) or len(record.REF) > 1:
+#                     self.update(ids=[vcf_in])
+#                     record = self._records[vcf_in]
+#
+#                 if record.POS == min_pos and record.CHROM == chrom:
+#                     records[self._readers[vcf_in].samples[0]] = record
+
+
+#             reference = [ record.REF for record in records.itervalues()]
+#             valid = not reference or reference.count(reference[0]) == len(reference)
+
+#             assert valid, "Position %s is not valid as multiple references found: %s" % (min_pos, reference)
+
+            if not records:
+                continue
+#             else:
+#                 reference = reference[0]
+
+            c += 1
+            yield chrom, min_pos, records
 
             # Update the records only of the readers we used, i.e. lowest position.
-            for vcf, reader in self._readers.iteritems():
-                if self._records[vcf].POS == min_pos:
-                    self._records[vcf] = reader.next()
+            for vcf_in in self._readers:
+                if self._records[vcf_in] and self._records[vcf_in].POS == min_pos and self._records[vcf_in].CHROM == chrom:
+                    self.update([vcf_in])
 
 
 def get_sample_stats(all_positions, samples):
@@ -154,6 +210,50 @@ def plot_stats(pos_stats, total_samples, plots_dir="plots", discarded={}):
 
         contig = contig.replace("/", "-")
         plt.savefig(os.path.join(plots_dir, "%s.png" % contig), dpi=100)
+
+def validate_record(record):
+    if record.is_indel and not (record.is_uncallable or record.is_monomorphic) or len(record.REF) > 1:
+        return False
+    else:
+        return True
+def pick_best_records(records):
+    """ Pick single record from multiple records for the same position.
+
+    Parameters
+    ----------
+    records: dict
+        Dictionary of lists containing records for the samples (1-many).
+    
+    Returns
+    -------
+    dict: Dictionary with a 1-1 mapping of samples to records.
+    """
+
+    final_selection = {}
+    for k, v in records.iteritems():
+        if len(v) == 1:
+            if validate_record(v[0]):
+                final_selection[k] = v[0]
+            else:
+                logging.debug("Discarding %s:%s from %s", v[0].CHROM, v[0].POS, k)
+        else:
+            logging.debug("Resolving multi-record ambiguity for %s (%s)", k, ",".join(str(r) for r in v))
+            r = None
+            for record in v:
+                if not validate_record(record):
+                    continue
+                elif r is None:
+                    r = record
+                else:
+                    if len(record.FILTER) > len(r.FILTER):
+                        # Pick only those that have more failed filters, than current.
+                        r = record
+            if r is None:
+                logging.error("Should have picked something, but everything failed.")
+            final_selection[k] = r
+
+    return final_selection
+
 
 def get_mixture(record, threshold):
     mixtures = {}
@@ -310,23 +410,37 @@ def main(args):
     if not args["input"]:
         logging.warn("No VCFs found.")
         return 0
+
     parallelReader = ParallelVCFReader(args["input"])
 
-    for chrom, pos, reference, records in parallelReader:
-        # Keep list of all samples.
-        for sample_name in records:
-            if sample_name not in samples:
-                samples.append(sample_name)
+    sample_seqs = { sample_name: [] for sample_name in parallelReader.get_samples() }
+    sample_seqs["reference"] = []
+
+    samples = parallelReader.get_samples() + ["reference"]
+
+    for chrom, pos, records in parallelReader:
+
+        final_records = pick_best_records(records)
+        reference = [ record.REF for record in final_records.itervalues()]
+        valid = not reference or reference.count(reference[0]) == len(reference)
+
+        # Make sure reference is the same across all samples.
+        assert valid, "Position %s is not valid as multiple references found: %s" % (pos, reference)
+
+        if not reference:
+            continue
+        else:
+            reference = reference[0]
 
         # SKIP (or include) any pre-specified regions.
         if include and pos not in include.get(chrom, empty_tree) or exclude and pos in exclude.get(chrom, empty_tree):
             continue
 
         position_data = {"reference": str(reference), "stats": base_stats()}
-        for sample_name, record in records.iteritems():
+        for sample_name, record in final_records.iteritems():
 
-            # Inject a property about uncallable genotypes into record.
-            record.__setattr__("is_uncallable", is_uncallable(record))  # is_uncallable = types.MethodType(is_uncallable, record)
+#             # Inject a property about uncallable genotypes into record.
+#             record.__setattr__("is_uncallable", is_uncallable(record))  # is_uncallable = types.MethodType(is_uncallable, record)
 
             # SKIP indels, if not handled then can cause REF base to be >1
             if record.is_indel and not (record.is_uncallable or record.is_monomorphic) or len(record.REF) > 1:
@@ -396,139 +510,142 @@ def main(args):
 #                     exclude[record.CHROM] = FastRBTree()
 #                 exclude[record.CHROM].insert(record.POS, False)
 
-    exit()
-    # Compute per sample statistics.
-    sample_stats = get_sample_stats(avail_pos, samples)
+#         continue
 
-    # Exclude any samples with high Ns or gaps
-    if isinstance(args["sample_Ns"], float):
-        ss = []
-        for sample_name in samples:
-            total_positions = 0
-            for contig in contigs:
-                # FIXME: Is that correct? Doesn't this need to check same dict inside that?
-                total_positions += len(avail_pos[contig])
-            if sample_stats[sample_name].N / total_positions <= args["sample_Ns"]:
-                ss.append(sample_name)
-            else:
-                pass
-                # print "EXCLUDING: %s for high N fraction: %s" % (sample_name, sample_stats[sample_name].N / total_positions)
+#     exit()
 
-        samples = ss
+#     # Compute per sample statistics.
+#     sample_stats = get_sample_stats(avail_pos, samples)
+#
+#     # Exclude any samples with high Ns or gaps
+#     if isinstance(args["sample_Ns"], float):
+#         ss = []
+#         for sample_name in samples:
+#             total_positions = 0
+#             for contig in contigs:
+#                 # FIXME: Is that correct? Doesn't this need to check same dict inside that?
+#                 total_positions += len(avail_pos[contig])
+#             if sample_stats[sample_name].N / total_positions <= args["sample_Ns"]:
+#                 ss.append(sample_name)
+#             else:
+#                 pass
+#                 # print "EXCLUDING: %s for high N fraction: %s" % (sample_name, sample_stats[sample_name].N / total_positions)
+#
+#         samples = ss
+#
+#     # ALWAYS APPEND reference
+#     samples.append("reference")
+#     dist_mat = {}
+#     sample_seqs = { sample_name: [] for sample_name in samples }
+#     c = 0
+#
+#     if args["with_dist_mat"]:
+#         for i, sample_1 in enumerate(samples):
+#             dist_mat[sample_1] = {}
+#             for j, sample_2 in enumerate(samples):
+#                 if j < i:
+#                     continue
+#                 dist_mat[sample_1][sample_2] = 0
 
-    # ALWAYS APPEND reference
-    samples.append("reference")
-    dist_mat = {}
-    sample_seqs = { sample_name: [] for sample_name in samples }
-    c = 0
+#     # For each contig concatinate sequences.
+#     for contig in contigs:
 
-    if args["with_dist_mat"]:
-        for i, sample_1 in enumerate(samples):
-            dist_mat[sample_1] = {}
-            for j, sample_2 in enumerate(samples):
-                if j < i:
-                    continue
-                dist_mat[sample_1][sample_2] = 0
-
-    # For each contig concatinate sequences.
-    for contig in contigs:
-
-        # if contig is not in the avail pos then concatinate the whole reference.
-        if args["reference"] and contig not in avail_pos:
-            for sample in samples:
-                sample_seqs[sample] += args["reference"][contig]
-            continue
+#         # if contig is not in the avail pos then concatinate the whole reference.
+#         if args["reference"] and contig not in avail_pos:
+#             for sample in samples:
+#                 sample_seqs[sample] += args["reference"][contig]
+#             continue
 
         last_base = 0
-        for pos in avail_pos[contig]:
-            c += 1
-            if args["reference"]:
-                # If need to output the whole reference, pad the spaces
-                #    between records with reference bases, excluding any excludes.
-                seq = _make_ref_insert(last_base, pos, args["reference"][contig], exclude.get(contig, empty_tree))
-                for sample in samples:
-                    sample_seqs[sample] += seq
+#         for pos in avail_pos[contig]:
+#         c += 1
+#         if args["reference"]:
+#             # If need to output the whole reference, pad the spaces
+#             #    between records with reference bases, excluding any excludes.
+#             seq = _make_ref_insert(last_base, pos, args["reference"][contig], exclude.get(contig, empty_tree))
+#             for sample in samples:
+#                 sample_seqs[sample] += seq
 
-            bases = set()
-            ref_base = avail_pos[contig][pos].get("reference")
-            # Position has been seen or no reference available.
-            for i, sample in enumerate(samples):
+        bases = set()
+        ref_base = position_data.get("reference")
+        # Position has been seen or no reference available.
+        for i, sample in enumerate(samples):
 
-                sample_base = avail_pos[contig][pos].get(sample, ref_base)
+            sample_base = position_data.get(sample, ref_base)
 
-                sample_seqs[sample] += [sample_base]
-                bases.add(sample_base)
+            sample_seqs[sample] += [sample_base]
+            bases.add(sample_base)
 
-                # If we don't need distance matrix, then continue from top.
-                if not args["with_dist_mat"] or sample_base.upper() not in valid_chars:
-                    continue
+            # If we don't need distance matrix, then continue from top.
+            if not args["with_dist_mat"] or sample_base.upper() not in valid_chars:
+                continue
 
-                for j, sample_2 in enumerate(samples):
-                    if j <= i:
-                        continue
+#             for j, sample_2 in enumerate(samples):
+#                 if j <= i:
+#                     continue
 
-                    s2_base = avail_pos[contig][pos].get(sample_2, ref_base)
+#                 s2_base = position_data.get(sample_2, ref_base)
+#
+#                 if sample_base != s2_base and s2_base.upper() in valid_chars:
+#                     dist_mat[sample][sample_2] += 1
 
-                    if sample_base != s2_base and s2_base.upper() in valid_chars:
-                        dist_mat[sample][sample_2] += 1
+        # Do the internal check that positions have at least 2 different characters.
+        # assert len(bases) > 1, "Internal consustency check failed for position %s bases: %s" % (pos, bases)
+        # removed the check because when removing a sample based on sample-Ns can lead to non SNP bases in column.
 
-            # Do the internal check that positions have at least 2 different characters.
-            # assert len(bases) > 1, "Internal consustency check failed for position %s bases: %s" % (pos, bases)
-            # removed the check because when removing a sample based on sample-Ns can lead to non SNP bases in column.
-
-            # Keep track of the last processed position.
-            last_base = pos
+        # Keep track of the last processed position.
+#         last_base = pos
 
         # Fill from last snp to the end of reference.
-        if args["reference"]:
-            seq = _make_ref_insert(last_base, None, args["reference"][contig], exclude.get(contig, empty_tree))  # args.reference[contig][last_base:]
-            for sample in samples:
-                sample_seqs[sample] += seq
+#         if args["reference"]:
+#             seq = _make_ref_insert(last_base, None, args["reference"][contig], exclude.get(contig, empty_tree))  # args.reference[contig][last_base:]
+#             for sample in samples:
+#                 sample_seqs[sample] += seq
 
     for i, s in sample_seqs.iteritems():
-        assert len(s) == len(sample_seqs["reference"])
+        assert len(s) == len(sample_seqs["reference"]), "Sample %s length %s, reference length %s" % (i, len(s), len(sample_seqs["reference"]))
 
     # Write the sequences out.
     with open(args["out"], "w") as fp:
         for sample in sample_seqs:
             fp.write(">%s\n%s\n" % (sample, ''.join(sample_seqs[sample])))
 
-    # Compute the stats.
-    for sample in sample_stats:
-        total_positions = 0
-        for contig in contigs:
-            total_positions += len(avail_pos[contig])
-        sample_stats[sample].total = total_positions
-        print "%s\t%s" % (sample, str(sample_stats[sample]))
-
-    if args["with_dist_mat"]:
-        with open(args["with_dist_mat"], "wb") as fp:
-            fp.write(",%s\n" % ",".join(samples))
-            for i, sample_1 in enumerate(samples):
-                row = "%s" % sample_1
-                for j, sample_2 in enumerate(samples):
-                    if j < i:
-                        dist = dist_mat[sample_2][sample_1]
-                    else:
-                        dist = dist_mat[sample_1][sample_2]
-                    row += ",%i" % dist
-                fp.write("%s\n" % row)
-
-    # If we can stats and asked to stats, then output the data
-    if args["with_stats"]:
-        with open(args["with_stats"], "wb") as fp:
-            fp.write("contig,position,mutations,n_frac,n_gaps\n")
-            for contig in contigs:
-                for pos in avail_pos[contig]:
-                    position_data = avail_pos[contig][pos]
-                    fp.write("%s,%i,%0.5f,%0.5f,%0.5f\n" % (contig,
-                                                 pos,
-                                                 float(position_data["stats"].mut) / len(args["input"]),
-                                                 float(position_data["stats"].N) / len(args["input"]),
-                                                 float(position_data["stats"].gap) / len(args["input"]))
-                             )
-        if can_stats:
-            plot_stats(avail_pos, len(samples) - 1, plots_dir=os.path.abspath(args["plots_dir"]))
+#     # Compute the stats.
+#     for sample in sample_stats:
+#         total_positions = 0
+#         for contig in contigs:
+#             total_positions += len(avail_pos[contig])
+#         sample_stats[sample].total = total_positions
+#         print "%s\t%s" % (sample, str(sample_stats[sample]))
+#
+#     if args["with_dist_mat"]:
+#         with open(args["with_dist_mat"], "wb") as fp:
+#             fp.write(",%s\n" % ",".join(samples))
+#             for i, sample_1 in enumerate(samples):
+#                 row = "%s" % sample_1
+#                 for j, sample_2 in enumerate(samples):
+#                     if j < i:
+#                         dist = dist_mat[sample_2][sample_1]
+#                     else:
+#                         dist = dist_mat[sample_1][sample_2]
+#                     row += ",%i" % dist
+#                 fp.write("%s\n" % row)
+#
+#     # If we can stats and asked to stats, then output the data
+#     if args["with_stats"]:
+#         with open(args["with_stats"], "wb") as fp:
+#             fp.write("contig,position,mutations,n_frac,n_gaps\n")
+#             for contig in contigs:
+#                 for pos in avail_pos[contig]:
+#                     position_data = avail_pos[contig][pos]
+#                     fp.write("%s,%i,%0.5f,%0.5f,%0.5f\n" % (contig,
+#                                                  pos,
+#                                                  float(position_data["stats"].mut) / len(args["input"]),
+#                                                  float(position_data["stats"].N) / len(args["input"]),
+#                                                  float(position_data["stats"].gap) / len(args["input"]))
+#                              )
+#         if can_stats:
+#             plot_stats(avail_pos, len(samples) - 1, plots_dir=os.path.abspath(args["plots_dir"]))
 
     return 0
 
