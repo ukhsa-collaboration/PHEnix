@@ -336,7 +336,7 @@ def get_args():
     args.add_argument("--column-Ns", type=positive_float, help="Keeps columns with fraction of Ns below specified threshold.")
     args.add_argument("--column-gaps", type=positive_float, help="Keeps columns with fraction of Ns below specified threshold.")
 
-    args.add_argument("--sample-Ns", type=positive_float, help="Keeps samples with fraction of Ns below specified threshold.")
+#     args.add_argument("--sample-Ns", type=positive_float, help="Keeps samples with fraction of Ns below specified threshold.")
 
     args.add_argument("--reference", type=str, help="If path to reference specified (FASTA), then whole genome will be written.")
 
