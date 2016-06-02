@@ -313,6 +313,12 @@ def print_stats(stats, pos_stats, total_vars):
 def get_desc():
     return "Combine multiple VCFs into a single FASTA file."
 
+def positive_float(value):
+    x = float(value)
+    if 0.0 > x > 1.0:
+        raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % x)
+    return x
+
 def get_args():
     args = argparse.ArgumentParser(description=get_desc())
 
@@ -324,12 +330,12 @@ def get_args():
 
     args.add_argument("--out", "-o", required=True, help="Path to the output FASTA file.")
 
-    args.add_argument("--with-mixtures", type=float, help="Specify this option with a threshold to output mixtures above this threshold.")
+    args.add_argument("--with-mixtures", type=positive_float, help="Specify this option with a threshold to output mixtures above this threshold.")
 
-    args.add_argument("--column-Ns", type=float, help="Keeps columns with fraction of Ns below specified threshold.")
-    args.add_argument("--column-gaps", type=float, help="Keeps columns with fraction of Ns below specified threshold.")
+    args.add_argument("--column-Ns", type=positive_float, help="Keeps columns with fraction of Ns below specified threshold.")
+    args.add_argument("--column-gaps", type=positive_float, help="Keeps columns with fraction of Ns below specified threshold.")
 
-    args.add_argument("--sample-Ns", type=float, help="Keeps samples with fraction of Ns below specified threshold.")
+    args.add_argument("--sample-Ns", type=positive_float, help="Keeps samples with fraction of Ns below specified threshold.")
 
     args.add_argument("--reference", type=str, help="If path to reference specified (FASTA), then whole genome will be written.")
 
@@ -354,7 +360,6 @@ def main(args):
 
     contigs = list()
 
-    samples = list()
     valid_chars = ["A", "C", "G", "T"]
 
     if args["count_dist_gaps"]:
@@ -437,17 +442,8 @@ def main(args):
             continue
 
         position_data = {"reference": str(reference), "stats": base_stats()}
+
         for sample_name, record in final_records.iteritems():
-
-#             # Inject a property about uncallable genotypes into record.
-#             record.__setattr__("is_uncallable", is_uncallable(record))  # is_uncallable = types.MethodType(is_uncallable, record)
-
-            # SKIP indels, if not handled then can cause REF base to be >1
-            if record.is_indel and not (record.is_uncallable or record.is_monomorphic) or len(record.REF) > 1:
-                position_data["stats"].N += 1
-                continue
-
-            assert len(position_data["reference"]) == 1, "Reference base must be singluar: in %s found %s @ %s" % (sample_name, position_data["reference"], record.POS)
 
             # IF this is uncallable genotype, add gap "-"
             if record.is_uncallable:
@@ -495,24 +491,15 @@ def main(args):
             # Filter columns when threashold reaches user specified value.
             if isinstance(args["column_Ns"], float) and float(position_data["stats"].N) / len(args["input"]) > args["column_Ns"]:
                 break
-#                 avail_pos[record.CHROM].remove(record.POS)
-#
-#                 # print "excluding %s" % record.POS
-#                 if record.CHROM not in exclude:
-#                     exclude[record.CHROM] = FastRBTree()
-#                 exclude[record.CHROM].insert(record.POS, False)
+#                 del position_data[sample_name]
 
             if isinstance(args["column_gaps"], float) and float(position_data["stats"].gap) / len(args["input"]) > args["column_gaps"]:
                 break
-#                 avail_pos[record.CHROM].remove(record.POS)
-#
-#                 if record.CHROM not in exclude:
-#                     exclude[record.CHROM] = FastRBTree()
-#                 exclude[record.CHROM].insert(record.POS, False)
+#                 del position_data[sample_name]
 
 #         continue
 
-#     exit()
+
 
 #     # Compute per sample statistics.
 #     sample_stats = get_sample_stats(avail_pos, samples)
@@ -546,17 +533,17 @@ def main(args):
 #                 if j < i:
 #                     continue
 #                 dist_mat[sample_1][sample_2] = 0
-
+#
 #     # For each contig concatinate sequences.
 #     for contig in contigs:
-
+#
 #         # if contig is not in the avail pos then concatinate the whole reference.
 #         if args["reference"] and contig not in avail_pos:
 #             for sample in samples:
 #                 sample_seqs[sample] += args["reference"][contig]
 #             continue
-
-        last_base = 0
+#
+#         last_base = 0
 #         for pos in avail_pos[contig]:
 #         c += 1
 #         if args["reference"]:
@@ -565,42 +552,43 @@ def main(args):
 #             seq = _make_ref_insert(last_base, pos, args["reference"][contig], exclude.get(contig, empty_tree))
 #             for sample in samples:
 #                 sample_seqs[sample] += seq
-
-        bases = set()
-        ref_base = position_data.get("reference")
-        # Position has been seen or no reference available.
-        for i, sample in enumerate(samples):
-
-            sample_base = position_data.get(sample, ref_base)
-
-            sample_seqs[sample] += [sample_base]
-            bases.add(sample_base)
-
-            # If we don't need distance matrix, then continue from top.
-            if not args["with_dist_mat"] or sample_base.upper() not in valid_chars:
-                continue
-
-#             for j, sample_2 in enumerate(samples):
-#                 if j <= i:
-#                     continue
-
-#                 s2_base = position_data.get(sample_2, ref_base)
 #
-#                 if sample_base != s2_base and s2_base.upper() in valid_chars:
-#                     dist_mat[sample][sample_2] += 1
+#         bases = set()
+#         ref_base = position_data.get("reference")
+#         # Position has been seen or no reference available.
+#         for i, sample in enumerate(samples):
+        else:
+            for i, sample_name in enumerate(samples):
+                sample_base = position_data.get(sample_name, reference)
 
-        # Do the internal check that positions have at least 2 different characters.
-        # assert len(bases) > 1, "Internal consustency check failed for position %s bases: %s" % (pos, bases)
-        # removed the check because when removing a sample based on sample-Ns can lead to non SNP bases in column.
+                sample_seqs[sample_name] += [sample_base]
+#             bases.add(sample_base)
 
-        # Keep track of the last processed position.
-#         last_base = pos
-
-        # Fill from last snp to the end of reference.
-#         if args["reference"]:
-#             seq = _make_ref_insert(last_base, None, args["reference"][contig], exclude.get(contig, empty_tree))  # args.reference[contig][last_base:]
-#             for sample in samples:
-#                 sample_seqs[sample] += seq
+#             # If we don't need distance matrix, then continue from top.
+# #             if not args["with_dist_mat"] or sample_base.upper() not in valid_chars:
+# #                 continue
+#
+# #             for j, sample_2 in enumerate(samples):
+# #                 if j <= i:
+# #                     continue
+#
+# #                 s2_base = position_data.get(sample_2, ref_base)
+# #
+# #                 if sample_base != s2_base and s2_base.upper() in valid_chars:
+# #                     dist_mat[sample][sample_2] += 1
+#
+#         # Do the internal check that positions have at least 2 different characters.
+#         # assert len(bases) > 1, "Internal consustency check failed for position %s bases: %s" % (pos, bases)
+#         # removed the check because when removing a sample based on sample-Ns can lead to non SNP bases in column.
+#
+#         # Keep track of the last processed position.
+# #         last_base = pos
+#
+#         # Fill from last snp to the end of reference.
+# #         if args["reference"]:
+# #             seq = _make_ref_insert(last_base, None, args["reference"][contig], exclude.get(contig, empty_tree))  # args.reference[contig][last_base:]
+# #             for sample in samples:
+# #                 sample_seqs[sample] += seq
 
     for i, s in sample_seqs.iteritems():
         assert len(s) == len(sample_seqs["reference"]), "Sample %s length %s, reference length %s" % (i, len(s), len(sample_seqs["reference"]))
