@@ -11,6 +11,7 @@ import glob
 import itertools
 import logging
 import os
+import tempfile
 
 from Bio import SeqIO
 from bintrees import FastRBTree
@@ -347,10 +348,6 @@ def get_args():
     args.add_argument("--with-stats", help="If a path is specified, then position of the outputed SNPs is stored in this file. Requires mumpy and matplotlib.")
     args.add_argument("--plots-dir", default="plots", help="Where to write summary plots on SNPs extracted. Requires mumpy and matplotlib.")
 
-    args.add_argument("--with-dist-mat", help="If this option is specified, then distance matrix is calculated for the samples.")
-    args.add_argument("--count-dist-gaps", action="store_true", help="Counr gaps as valid character in distance matrix.")
-    args.add_argument("--count-dist-Ns", action="store_true", help="Counr Ns as valid character in distance matrix.")
-
     return args
 
 def main(args):
@@ -375,6 +372,9 @@ def main(args):
 
     exclude = {}
     include = {}
+    out_dir = os.path.join(os.path.dirname(args["out"]), "tmp")
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
 
     if args["reference"]:
         ref_seq = OrderedDict()
@@ -418,10 +418,11 @@ def main(args):
 
     parallelReader = ParallelVCFReader(args["input"])
 
-    sample_seqs = { sample_name: [] for sample_name in parallelReader.get_samples() }
-    sample_seqs["reference"] = []
+    sample_seqs = { sample_name: tempfile.NamedTemporaryFile(prefix=sample_name, dir=out_dir) for sample_name in parallelReader.get_samples() }
+    sample_seqs["reference"] = tempfile.NamedTemporaryFile(prefix="reference", dir=out_dir)
 
     samples = parallelReader.get_samples() + ["reference"]
+    last_base = 0
 
     for chrom, pos, records in parallelReader:
 
@@ -526,14 +527,6 @@ def main(args):
 #     sample_seqs = { sample_name: [] for sample_name in samples }
 #     c = 0
 #
-#     if args["with_dist_mat"]:
-#         for i, sample_1 in enumerate(samples):
-#             dist_mat[sample_1] = {}
-#             for j, sample_2 in enumerate(samples):
-#                 if j < i:
-#                     continue
-#                 dist_mat[sample_1][sample_2] = 0
-#
 #     # For each contig concatinate sequences.
 #     for contig in contigs:
 #
@@ -558,45 +551,57 @@ def main(args):
 #         # Position has been seen or no reference available.
 #         for i, sample in enumerate(samples):
         else:
+            if args["reference"]:
+                seq = _make_ref_insert(last_base, None, args["reference"][chrom], exclude.get(chrom, empty_tree))
+                for sample in samples:
+#                     sample_seqs[sample] += seq
+                    sample_seqs[sample].write(''.join(seq))
+
             for i, sample_name in enumerate(samples):
                 sample_base = position_data.get(sample_name, reference)
 
-                sample_seqs[sample_name] += [sample_base]
-#             bases.add(sample_base)
+#                 sample_seqs[sample_name] += [sample_base]
+                sample_seqs[sample_name].write(sample_base)
 
-#             # If we don't need distance matrix, then continue from top.
-# #             if not args["with_dist_mat"] or sample_base.upper() not in valid_chars:
-# #                 continue
-#
-# #             for j, sample_2 in enumerate(samples):
-# #                 if j <= i:
-# #                     continue
-#
-# #                 s2_base = position_data.get(sample_2, ref_base)
-# #
-# #                 if sample_base != s2_base and s2_base.upper() in valid_chars:
-# #                     dist_mat[sample][sample_2] += 1
-#
-#         # Do the internal check that positions have at least 2 different characters.
-#         # assert len(bases) > 1, "Internal consustency check failed for position %s bases: %s" % (pos, bases)
-#         # removed the check because when removing a sample based on sample-Ns can lead to non SNP bases in column.
-#
-#         # Keep track of the last processed position.
-# #         last_base = pos
-#
-#         # Fill from last snp to the end of reference.
-# #         if args["reference"]:
-# #             seq = _make_ref_insert(last_base, None, args["reference"][contig], exclude.get(contig, empty_tree))  # args.reference[contig][last_base:]
-# #             for sample in samples:
-# #                 sample_seqs[sample] += seq
+            last_base = pos
 
-    for i, s in sample_seqs.iteritems():
-        assert len(s) == len(sample_seqs["reference"]), "Sample %s length %s, reference length %s" % (i, len(s), len(sample_seqs["reference"]))
+        # Fill from last snp to the end of reference.
 
-    # Write the sequences out.
-    with open(args["out"], "w") as fp:
-        for sample in sample_seqs:
-            fp.write(">%s\n%s\n" % (sample, ''.join(sample_seqs[sample])))
+    if args["reference"]:
+        seq = _make_ref_insert(last_base, None, args["reference"][chrom], exclude.get(chrom, empty_tree))
+        for sample in samples:
+#             sample_seqs[sample] += seq
+            sample_seqs[sample].write(''.join(seq))
+
+    for handle in sample_seqs.itervalues():
+        handle.seek(0)
+
+    reference = ""
+    for c in sample_seqs["reference"]:
+        reference += c
+
+    sample_seqs["reference"].close()
+    del sample_seqs["reference"]
+    try:
+        with open(args["out"], "w") as fp:
+            for sample_name, tmp_iter in sample_seqs.iteritems():
+                # These are dumped as single long string of data. Calling next() should read it all.
+                s = tmp_iter.next()
+                assert len(s) == len(reference), "Sample %s has length %s, but should be %s (reference)" % (i, len(s), len(reference))
+
+                fp.write(">%s\n%s\n" % (sample_name, ''.join(s)))
+    except AssertionError as e:
+        logging.error(e.message)
+        logging.error("Uneven length FASTA is detected. Final FASTA file is not going to be written.")
+
+        # Need to delete the malformed file.
+        os.unlink(args["out"])
+
+    finally:
+        # Close all the tmp handles.
+        for tmp_iter in sample_seqs.itervalues():
+            tmp_iter.close()
+        os.unlink(out_dir)
 
 #     # Compute the stats.
 #     for sample in sample_stats:
@@ -605,19 +610,6 @@ def main(args):
 #             total_positions += len(avail_pos[contig])
 #         sample_stats[sample].total = total_positions
 #         print "%s\t%s" % (sample, str(sample_stats[sample]))
-#
-#     if args["with_dist_mat"]:
-#         with open(args["with_dist_mat"], "wb") as fp:
-#             fp.write(",%s\n" % ",".join(samples))
-#             for i, sample_1 in enumerate(samples):
-#                 row = "%s" % sample_1
-#                 for j, sample_2 in enumerate(samples):
-#                     if j < i:
-#                         dist = dist_mat[sample_2][sample_1]
-#                     else:
-#                         dist = dist_mat[sample_1][sample_2]
-#                     row += ",%i" % dist
-#                 fp.write("%s\n" % row)
 #
 #     # If we can stats and asked to stats, then output the data
 #     if args["with_stats"]:
