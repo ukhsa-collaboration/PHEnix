@@ -576,7 +576,7 @@ def main(args):
 
     # Compute the stats.
     for sample in sample_stats:
-        if sample != reference:
+        if sample != "reference":
             print "%s\t%s" % (sample, str(sample_stats[sample]))
 #
 #     # If we can stats and asked to stats, then output the data
