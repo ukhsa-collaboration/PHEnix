@@ -336,7 +336,8 @@ def get_args():
     args.add_argument("--column-Ns", type=positive_float, help="Keeps columns with fraction of Ns below specified threshold.")
     args.add_argument("--column-gaps", type=positive_float, help="Keeps columns with fraction of Ns below specified threshold.")
 
-#     args.add_argument("--sample-Ns", type=positive_float, help="Keeps samples with fraction of Ns below specified threshold.")
+    args.add_argument("--sample-Ns", type=positive_float, help="Keeps samples with fraction of Ns below specified threshold.")
+    args.add_argument("--sample-gaps", type=positive_float, help="Keeps samples with fraction of gaps below specified threshold.")
 
     args.add_argument("--reference", type=str, help="If path to reference specified (FASTA), then whole genome will be written.")
 
@@ -364,6 +365,8 @@ def main(args):
 
     if args["count_dist_Ns"]:
         valid_chars.append("N")
+
+
 
     # All positions available for analysis.
     avail_pos = dict()
@@ -416,15 +419,16 @@ def main(args):
         logging.warn("No VCFs found.")
         return 0
 
-    parallelReader = ParallelVCFReader(args["input"])
+    parallel_reader = ParallelVCFReader(args["input"])
 
-    sample_seqs = { sample_name: tempfile.NamedTemporaryFile(prefix=sample_name, dir=out_dir) for sample_name in parallelReader.get_samples() }
+    sample_seqs = { sample_name: tempfile.NamedTemporaryFile(prefix=sample_name, dir=out_dir) for sample_name in parallel_reader.get_samples() }
     sample_seqs["reference"] = tempfile.NamedTemporaryFile(prefix="reference", dir=out_dir)
 
-    samples = parallelReader.get_samples() + ["reference"]
+    samples = parallel_reader.get_samples() + ["reference"]
+    sample_stats = {sample: base_stats() for sample in samples }
     last_base = 0
 
-    for chrom, pos, records in parallelReader:
+    for chrom, pos, records in parallel_reader:
 
         final_records = pick_best_records(records)
         reference = [ record.REF for record in final_records.itervalues()]
@@ -446,6 +450,8 @@ def main(args):
 
         for sample_name, record in final_records.iteritems():
 
+            sample_stats[sample_name].total += 1
+
             # IF this is uncallable genotype, add gap "-"
             if record.is_uncallable:
                 # TODO: Mentioned in issue: #7(gitlab)
@@ -453,6 +459,7 @@ def main(args):
 
                 # Update stats
                 position_data["stats"].gap += 1
+                sample_stats[sample_name].gap += 1
 
 
             elif not record.FILTER:
@@ -467,11 +474,13 @@ def main(args):
                         logging.info("POS %s passed filters but has multiple alleles REF: %s, ALT: %s. Inserting N" % (record.POS, str(record.REF), str(record.ALT)))
                         position_data[sample_name] = "N"
                         position_data["stats"].N += 1
+                        sample_stats[sample_name].N += 1
 
                     else:
                         position_data[sample_name] = str(record.ALT[0])
 
                         position_data["stats"].mut += 1
+                        sample_stats[sample_name].mut += 1
 
             # Filter(s) failed
             elif record.is_snp:
@@ -481,6 +490,7 @@ def main(args):
 
                 if extended_code == "N":
                     position_data["stats"].N += 1
+                    sample_stats[sample_name].N += 1
 
                 position_data[sample_name] = extended_code
 
@@ -488,6 +498,7 @@ def main(args):
                 # filter fail; code as N for consistency
                 position_data[sample_name] = "N"
                 position_data["stats"].N += 1
+                sample_stats[sample_name].N += 1
 
             # Filter columns when threashold reaches user specified value.
             if isinstance(args["column_Ns"], float) and float(position_data["stats"].N) / len(args["input"]) > args["column_Ns"]:
@@ -498,58 +509,6 @@ def main(args):
                 break
 #                 del position_data[sample_name]
 
-#         continue
-
-
-
-#     # Compute per sample statistics.
-#     sample_stats = get_sample_stats(avail_pos, samples)
-#
-#     # Exclude any samples with high Ns or gaps
-#     if isinstance(args["sample_Ns"], float):
-#         ss = []
-#         for sample_name in samples:
-#             total_positions = 0
-#             for contig in contigs:
-#                 # FIXME: Is that correct? Doesn't this need to check same dict inside that?
-#                 total_positions += len(avail_pos[contig])
-#             if sample_stats[sample_name].N / total_positions <= args["sample_Ns"]:
-#                 ss.append(sample_name)
-#             else:
-#                 pass
-#                 # print "EXCLUDING: %s for high N fraction: %s" % (sample_name, sample_stats[sample_name].N / total_positions)
-#
-#         samples = ss
-#
-#     # ALWAYS APPEND reference
-#     samples.append("reference")
-#     dist_mat = {}
-#     sample_seqs = { sample_name: [] for sample_name in samples }
-#     c = 0
-#
-#     # For each contig concatinate sequences.
-#     for contig in contigs:
-#
-#         # if contig is not in the avail pos then concatinate the whole reference.
-#         if args["reference"] and contig not in avail_pos:
-#             for sample in samples:
-#                 sample_seqs[sample] += args["reference"][contig]
-#             continue
-#
-#         last_base = 0
-#         for pos in avail_pos[contig]:
-#         c += 1
-#         if args["reference"]:
-#             # If need to output the whole reference, pad the spaces
-#             #    between records with reference bases, excluding any excludes.
-#             seq = _make_ref_insert(last_base, pos, args["reference"][contig], exclude.get(contig, empty_tree))
-#             for sample in samples:
-#                 sample_seqs[sample] += seq
-#
-#         bases = set()
-#         ref_base = position_data.get("reference")
-#         # Position has been seen or no reference available.
-#         for i, sample in enumerate(samples):
         else:
             if args["reference"]:
                 seq = _make_ref_insert(last_base, None, args["reference"][chrom], exclude.get(chrom, empty_tree))
@@ -565,8 +524,7 @@ def main(args):
 
             last_base = pos
 
-        # Fill from last snp to the end of reference.
-
+    # Fill from last snp to the end of reference.
     if args["reference"]:
         seq = _make_ref_insert(last_base, None, args["reference"][chrom], exclude.get(chrom, empty_tree))
         for sample in samples:
@@ -582,6 +540,27 @@ def main(args):
 
     sample_seqs["reference"].close()
     del sample_seqs["reference"]
+
+    # Exclude any samples with high Ns or gaps
+    if isinstance(args["sample_Ns"], float):
+        for sample_name in samples:
+            if sample == "reference":
+                continue
+            n_fraction = sample_stats[sample_name].N / sample_stats[sample_name].total
+            if n_fraction > args["sample_Ns"]:
+                logging.info("Removing %s due to high sample Ns fraction %s", sample_name, n_fraction)
+                samples.remove(sample_name)
+    # Exclude any samples with high gap fraction.
+    if isinstance(args["sample_gaps"], float):
+        for sample_name in samples:
+            if sample == "reference":
+                continue
+
+            gap_fractoin = sample_stats[sample_name].gaps / sample_stats[sample_name].total
+            if gap_fractoin > args["sample_gaps"]:
+                logging.info("Removing %s due to high sample gaps fraction %s", sample_name, gap_fractoin)
+                samples.remove(sample_name)
+
     try:
         with open(args["out"], "w") as fp:
             for sample_name, tmp_iter in sample_seqs.iteritems():
@@ -603,13 +582,9 @@ def main(args):
             tmp_iter.close()
         os.unlink(out_dir)
 
-#     # Compute the stats.
-#     for sample in sample_stats:
-#         total_positions = 0
-#         for contig in contigs:
-#             total_positions += len(avail_pos[contig])
-#         sample_stats[sample].total = total_positions
-#         print "%s\t%s" % (sample, str(sample_stats[sample]))
+    # Compute the stats.
+    for sample in sample_stats:
+        print "%s\t%s" % (sample, str(sample_stats[sample]))
 #
 #     # If we can stats and asked to stats, then output the data
 #     if args["with_stats"]:
