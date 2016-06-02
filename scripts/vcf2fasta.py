@@ -360,14 +360,6 @@ def main(args):
 
     valid_chars = ["A", "C", "G", "T"]
 
-    if args["count_dist_gaps"]:
-        valid_chars.append("-")
-
-    if args["count_dist_Ns"]:
-        valid_chars.append("N")
-
-
-
     # All positions available for analysis.
     avail_pos = dict()
 
@@ -511,7 +503,7 @@ def main(args):
 
         else:
             if args["reference"]:
-                seq = _make_ref_insert(last_base, None, args["reference"][chrom], exclude.get(chrom, empty_tree))
+                seq = _make_ref_insert(last_base, pos, args["reference"][chrom], exclude.get(chrom, empty_tree))
                 for sample in samples:
 #                     sample_seqs[sample] += seq
                     sample_seqs[sample].write(''.join(seq))
@@ -531,13 +523,8 @@ def main(args):
 #             sample_seqs[sample] += seq
             sample_seqs[sample].write(''.join(seq))
 
-    for handle in sample_seqs.itervalues():
-        handle.seek(0)
-
-    reference = ""
-    for c in sample_seqs["reference"]:
-        reference += c
-
+    sample_seqs["reference"].seek(0)
+    reference = sample_seqs["reference"].next()
     sample_seqs["reference"].close()
     del sample_seqs["reference"]
 
@@ -563,10 +550,15 @@ def main(args):
 
     try:
         with open(args["out"], "w") as fp:
+            fp.write(">reference\n%s\n" % reference)
+            reference_length = len(reference)
+            del reference
+
             for sample_name, tmp_iter in sample_seqs.iteritems():
+                tmp_iter.seek(0)
                 # These are dumped as single long string of data. Calling next() should read it all.
                 s = tmp_iter.next()
-                assert len(s) == len(reference), "Sample %s has length %s, but should be %s (reference)" % (i, len(s), len(reference))
+                assert len(s) == reference_length, "Sample %s has length %s, but should be %s (reference)" % (i, len(s), reference_length)
 
                 fp.write(">%s\n%s\n" % (sample_name, ''.join(s)))
     except AssertionError as e:
@@ -580,11 +572,12 @@ def main(args):
         # Close all the tmp handles.
         for tmp_iter in sample_seqs.itervalues():
             tmp_iter.close()
-        os.unlink(out_dir)
+        os.rmdir(out_dir)
 
     # Compute the stats.
     for sample in sample_stats:
-        print "%s\t%s" % (sample, str(sample_stats[sample]))
+        if sample != reference:
+            print "%s\t%s" % (sample, str(sample_stats[sample]))
 #
 #     # If we can stats and asked to stats, then output the data
 #     if args["with_stats"]:
