@@ -315,7 +315,7 @@ def get_desc():
 
 def positive_float(value):
     x = float(value)
-    if 0.0 > x > 1.0:
+    if not 0.0 <= x <= 1.0:
         raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % x)
     return x
 
