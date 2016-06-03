@@ -7,12 +7,13 @@ from collections import Counter, defaultdict
 import vcf
 
 def is_uncallable(record):
+    """Is the Record uncallable?"""
 
     uncall = False
     try:
         if record.samples[0].data.GT in ("./.", None):
             uncall = True
-    except:
+    except AttributeError:
         uncall = None
 
     if record.FILTER is not None and "LowQual" in record.FILTER:
@@ -25,7 +26,7 @@ class ParallelVCFReader(object):
 
     def __init__(self, vcfs):
         """Instantiate ParallelVCFReader.
-        
+
         Parameters
         ----------
         vcfs: list
@@ -73,17 +74,17 @@ class ParallelVCFReader(object):
 
     def get_records(self):
         """Generator of records, one position at the time.
-        
+
         Returns
         -------
         str: Chromosome
         int: Position
         dict: Records in dictionary of lists for each sample.
             E.e. {"sample1":[r1, r2], "sample2": [r3]}
-            
         """
 
         chrom = None
+        # Iterate while we have reader and they are not None.
         while self._readers and not all(r is None for r in self._records.itervalues()):
 
             # Find the 'best' - most frequent chromosome.
