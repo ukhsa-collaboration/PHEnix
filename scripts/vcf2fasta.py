@@ -18,6 +18,7 @@ from bintrees import FastRBTree
 import vcf
 from vcf.utils import walk_together
 
+from phe.utils.reader import ParallelVCFReader
 from phe.variant_filters import IUPAC_CODES
 
 
@@ -28,21 +29,6 @@ try:
     can_stats = True
 except ImportError:
     can_stats = False
-
-def is_uncallable(record):
-
-    uncall = False
-    try:
-        if record.samples[0].data.GT in ("./.", None):
-            uncall = True
-    except:
-        uncall = None
-
-    if record.FILTER is not None and "LowQual" in record.FILTER:
-        uncall = True
-
-    return uncall
-
 
 class base_stats(object):
     def __init__(self, records=None):
@@ -56,123 +42,6 @@ class base_stats(object):
 
     def __str__(self):
         return "N: %i, mut: %i, mix: %i, gap: %i, total: %i" % (self.N, self.mut, self.mix, self.gap, self.total)
-
-class ParallelVCFReader(object):
-
-    def __init__(self, vcfs):
-        """Instantiate ParallelVCFReader.
-        
-        Parameters
-        ----------
-        vcfs: list
-            List of path s to the VCF files to read.
-        """
-        self._readers = { vcf_in: vcf.Reader(filename=vcf_in) for vcf_in in vcfs}
-
-        self._records = {}
-
-        self.update()  # { vcf: reader.next() for vcf, reader in self._readers.iteritems()}
-
-    def __iter__(self):
-#         return walk_together(*self._readers.values())
-        return self.get_records()
-
-    def _vote_best_ref(self, refs):
-
-        counts = 0
-        try:
-            counts = max(Counter(refs).iteritems(), key=lambda x: x[1])[0]
-        except ValueError:
-            counts = 0
-
-        return counts
-
-    def get_samples(self):
-        return [reader.samples[0] for reader in self._readers.itervalues()]
-
-    def update(self, ids=None):
-        """Update all records in the readers."""
-        if ids is None:
-            ids = self._readers.keys()
-
-        for k in ids:
-            try:
-                self._records[k] = self._readers[k].next()
-                self._records[k].__setattr__("is_uncallable", is_uncallable(self._records[k]))
-            except StopIteration:
-                self._records[k] = None
-
-    def get_records(self):
-        chrom = None
-        c = 0
-        while self._readers and not all(r is None for r in self._records.itervalues()):
-
-            if chrom is None:
-                chrom = self._vote_best_ref([ record.CHROM for record in self._records.itervalues() if record])
-
-            try:
-                # Find the lowest record position in all readers.
-                min_pos = min([ record.POS for record in self._records.itervalues() if record and record.CHROM == chrom])
-            except ValueError:
-                # This happens when all records have different chrom.
-                self.update()
-                chrom = self._vote_best_ref([ record.CHROM for record in self._records.itervalues() if record])
-                continue
-
-            # Only get the records for vcfs that are in lowest currect position.
-            records = defaultdict(list)
-
-            for vcf_in, record in self._records.iteritems():
-
-                while record and record.CHROM == chrom and record.POS == min_pos:
-                    records[self._readers[vcf_in].samples[0]].append(record)
-                    self.update([vcf_in])
-
-                    record = self._records[vcf_in]
-
-#                 # All the resons for skipping a record.
-#                 if record.is_indel and not (record.is_uncallable or record.is_monomorphic) or len(record.REF) > 1:
-#                     self.update(ids=[vcf_in])
-#                     record = self._records[vcf_in]
-#
-#                 if record.POS == min_pos and record.CHROM == chrom:
-#                     records[self._readers[vcf_in].samples[0]] = record
-
-
-#             reference = [ record.REF for record in records.itervalues()]
-#             valid = not reference or reference.count(reference[0]) == len(reference)
-
-#             assert valid, "Position %s is not valid as multiple references found: %s" % (min_pos, reference)
-
-            if not records:
-                continue
-#             else:
-#                 reference = reference[0]
-
-            c += 1
-            yield chrom, min_pos, records
-
-            # Update the records only of the readers we used, i.e. lowest position.
-            for vcf_in in self._readers:
-                if self._records[vcf_in] and self._records[vcf_in].POS == min_pos and self._records[vcf_in].CHROM == chrom:
-                    self.update([vcf_in])
-
-
-def get_sample_stats(all_positions, samples):
-    sample_stats = {sample: base_stats() for sample in samples }
-    for positions in all_positions.itervalues():
-        for position in positions:
-            for sample in samples:
-                base = positions[position].get(sample)
-
-                if base == "-":
-                    sample_stats[sample].gap += 1
-                elif base == "N":
-                    sample_stats[sample].N += 1
-                elif base is not None and base != positions[position].get("reference"):
-                    sample_stats[sample].mut += 1
-
-    return sample_stats
 
 def _make_ref_insert(start, stop, reference, exclude):
     '''Create reference insert taking account exclude positions.'''
@@ -217,6 +86,7 @@ def validate_record(record):
         return False
     else:
         return True
+
 def pick_best_records(records):
     """ Pick single record from multiple records for the same position.
 
@@ -314,13 +184,16 @@ def print_stats(stats, pos_stats, total_vars):
 def get_desc():
     return "Combine multiple VCFs into a single FASTA file."
 
-def positive_float(value):
-    x = float(value)
-    if not 0.0 <= x <= 1.0:
-        raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % x)
-    return x
+
 
 def get_args():
+
+    def positive_float(value):
+        x = float(value)
+        if not 0.0 <= x <= 1.0:
+            raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % x)
+        return x
+
     args = argparse.ArgumentParser(description=get_desc())
 
     group = args.add_mutually_exclusive_group(required=True)
