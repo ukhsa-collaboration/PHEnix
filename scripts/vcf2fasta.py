@@ -8,7 +8,6 @@ Merge SNP data from multiple VCF files into a single fasta file.
 import argparse
 from collections import OrderedDict
 import glob
-import itertools
 import logging
 import os
 import tempfile
@@ -17,7 +16,7 @@ from Bio import SeqIO
 from bintrees import FastRBTree
 
 from phe.utils.reader import ParallelVCFReader
-from phe.variant_filters import IUPAC_CODES
+# from phe.variant_filters import IUPAC_CODES
 
 
 # Try importing the matplotlib and numpy for stats.
