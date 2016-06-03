@@ -4,9 +4,9 @@ Merge SNP data from multiple VCF files into a single fasta file.
 :Date: 5 October, 2015
 :Author: Alex Jironkin
 '''
-from _collections import defaultdict
+
 import argparse
-from collections import OrderedDict, Counter
+from collections import OrderedDict
 import glob
 import itertools
 import logging
@@ -15,8 +15,6 @@ import tempfile
 
 from Bio import SeqIO
 from bintrees import FastRBTree
-import vcf
-from vcf.utils import walk_together
 
 from phe.utils.reader import ParallelVCFReader
 from phe.variant_filters import IUPAC_CODES
@@ -26,13 +24,13 @@ from phe.variant_filters import IUPAC_CODES
 try:
     from matplotlib import pyplot as plt
     import numpy
-    can_stats = True
+    CAN_STATS = True
 except ImportError:
-    can_stats = False
+    CAN_STATS = False
 
-class base_stats(object):
+class BaseStats(object):
+    """Simple class to keep statistics about a base."""
     def __init__(self, records=None):
-
         self.N = 0
         self.mut = 0
         self.gap = 0
@@ -41,7 +39,11 @@ class base_stats(object):
         self.NA = 0
 
     def __str__(self):
-        return "N: %i, mut: %i, mix: %i, gap: %i, total: %i" % (self.N, self.mut, self.mix, self.gap, self.total)
+        return "N: %i, mut: %i, mix: %i, gap: %i, total: %i" % (self.N,
+                                                                self.mut,
+                                                                self.mix,
+                                                                self.gap,
+                                                                self.total)
 
 def _make_ref_insert(start, stop, reference, exclude):
     '''Create reference insert taking account exclude positions.'''
@@ -82,6 +84,7 @@ def plot_stats(pos_stats, total_samples, plots_dir="plots", discarded={}):
         plt.savefig(os.path.join(plots_dir, "%s.png" % contig), dpi=100)
 
 def validate_record(record):
+    """Validate the record."""
     if record.is_indel and not (record.is_uncallable or record.is_monomorphic) or len(record.REF) > 1:
         return False
     else:
@@ -94,7 +97,7 @@ def pick_best_records(records):
     ----------
     records: dict
         Dictionary of lists containing records for the samples (1-many).
-    
+
     Returns
     -------
     dict: Dictionary with a 1-1 mapping of samples to records.
@@ -126,50 +129,49 @@ def pick_best_records(records):
     return final_selection
 
 
-def get_mixture(record, threshold):
-    mixtures = {}
-    try:
-        if len(record.samples[0].data.AD) > 1:
-
-            total_depth = sum(record.samples[0].data.AD)
-            # Go over all combinations of touples.
-            for comb in itertools.combinations(range(0, len(record.samples[0].data.AD)), 2):
-                i = comb[0]
-                j = comb[1]
-
-                alleles = list()
-
-                if 0 in comb:
-                    alleles.append(str(record.REF))
-
-                if i != 0:
-                    alleles.append(str(record.ALT[i - 1]))
-                    mixture = record.samples[0].data.AD[i]
-                if j != 0:
-                    alleles.append(str(record.ALT[j - 1]))
-                    mixture = record.samples[0].data.AD[j]
-
-                ratio = float(mixture) / total_depth
-                if ratio == 1.0:
-                    logging.debug("This is only designed for mixtures! %s %s %s %s", record, ratio, record.samples[0].data.AD, record.FILTER)
-
-                    if ratio not in mixtures:
-                        mixtures[ratio] = []
-                    mixtures[ratio].append(alleles.pop())
-
-                elif ratio >= threshold:
-                    try:
-                        code = IUPAC_CODES[frozenset(alleles)]
-                        if ratio not in mixtures:
-                            mixtures[ratio] = []
-                            mixtures[ratio].append(code)
-                    except KeyError:
-                        logging.warn("Could not retrieve IUPAC code for %s from %s", alleles, record)
-    except AttributeError:
-        mixtures = {}
-
-    return mixtures
-
+# def get_mixture(record, threshold):
+#     mixtures = {}
+#     try:
+#         if len(record.samples[0].data.AD) > 1:
+#
+#             total_depth = sum(record.samples[0].data.AD)
+#             # Go over all combinations of touples.
+#             for comb in itertools.combinations(range(0, len(record.samples[0].data.AD)), 2):
+#                 i = comb[0]
+#                 j = comb[1]
+#
+#                 alleles = list()
+#
+#                 if 0 in comb:
+#                     alleles.append(str(record.REF))
+#
+#                 if i != 0:
+#                     alleles.append(str(record.ALT[i - 1]))
+#                     mixture = record.samples[0].data.AD[i]
+#                 if j != 0:
+#                     alleles.append(str(record.ALT[j - 1]))
+#                     mixture = record.samples[0].data.AD[j]
+#
+#                 ratio = float(mixture) / total_depth
+#                 if ratio == 1.0:
+#                     logging.debug("This is only designed for mixtures! %s %s %s %s", record, ratio, record.samples[0].data.AD, record.FILTER)
+#
+#                     if ratio not in mixtures:
+#                         mixtures[ratio] = []
+#                     mixtures[ratio].append(alleles.pop())
+#
+#                 elif ratio >= threshold:
+#                     try:
+#                         code = IUPAC_CODES[frozenset(alleles)]
+#                         if ratio not in mixtures:
+#                             mixtures[ratio] = []
+#                             mixtures[ratio].append(code)
+#                     except KeyError:
+#                         logging.warn("Could not retrieve IUPAC code for %s from %s", alleles, record)
+#     except AttributeError:
+#         mixtures = {}
+#
+#     return mixtures
 
 def print_stats(stats, pos_stats, total_vars):
     for contig in stats:
@@ -180,15 +182,13 @@ def print_stats(stats, pos_stats, total_vars):
         for pos, info in pos_stats[contig].iteritems():
             print "%s,%i,%i,%i,%i" % (contig, pos, info.get("N", "NA"), info.get("-", "NA"), info.get("mut", "NA"))
 
-
 def get_desc():
     return "Combine multiple VCFs into a single FASTA file."
-
-
 
 def get_args():
 
     def positive_float(value):
+        """Make type for float 0<x<1."""
         x = float(value)
         if not 0.0 <= x <= 1.0:
             raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % x)
@@ -230,11 +230,6 @@ def main(args):
     """
 
     contigs = list()
-
-    valid_chars = ["A", "C", "G", "T"]
-
-    # All positions available for analysis.
-    avail_pos = dict()
 
     empty_tree = FastRBTree()
 
@@ -290,7 +285,7 @@ def main(args):
     sample_seqs["reference"] = tempfile.NamedTemporaryFile(prefix="reference", dir=out_dir)
 
     samples = parallel_reader.get_samples() + ["reference"]
-    sample_stats = {sample: base_stats() for sample in samples }
+    sample_stats = {sample: BaseStats() for sample in samples }
     last_base = 0
 
     for chrom, pos, records in parallel_reader:
@@ -311,7 +306,7 @@ def main(args):
         if include and pos not in include.get(chrom, empty_tree) or exclude and pos in exclude.get(chrom, empty_tree):
             continue
 
-        position_data = {"reference": str(reference), "stats": base_stats()}
+        position_data = {"reference": str(reference), "stats": BaseStats()}
 
         for sample_name, record in final_records.iteritems():
 
@@ -336,7 +331,7 @@ def main(args):
                     position_data['reference'] = str(record.REF)
                 if record.is_snp:
                     if len(record.ALT) > 1:
-                        logging.info("POS %s passed filters but has multiple alleles REF: %s, ALT: %s. Inserting N" % (record.POS, str(record.REF), str(record.ALT)))
+                        logging.info("POS %s passed filters but has multiple alleles REF: %s, ALT: %s. Inserting N", record.POS, str(record.REF), str(record.ALT))
                         position_data[sample_name] = "N"
                         position_data["stats"].N += 1
                         sample_stats[sample_name].N += 1
@@ -390,6 +385,7 @@ def main(args):
             last_base = pos
 
     # Fill from last snp to the end of reference.
+    # FIXME: A little naughty to use chrom outside the loop!
     if args["reference"]:
         seq = _make_ref_insert(last_base, None, args["reference"][chrom], exclude.get(chrom, empty_tree))
         for sample in samples:
@@ -430,10 +426,10 @@ def main(args):
             for sample_name, tmp_iter in sample_seqs.iteritems():
                 tmp_iter.seek(0)
                 # These are dumped as single long string of data. Calling next() should read it all.
-                s = tmp_iter.next()
-                assert len(s) == reference_length, "Sample %s has length %s, but should be %s (reference)" % (i, len(s), reference_length)
+                snp_sequence = tmp_iter.next()
+                assert len(snp_sequence) == reference_length, "Sample %s has length %s, but should be %s (reference)" % (i, len(snp_sequence), reference_length)
 
-                fp.write(">%s\n%s\n" % (sample_name, ''.join(s)))
+                fp.write(">%s\n%s\n" % (sample_name, ''.join(snp_sequence)))
     except AssertionError as e:
         logging.error(e.message)
         logging.error("Uneven length FASTA is detected. Final FASTA file is not going to be written.")
@@ -465,7 +461,7 @@ def main(args):
 #                                                  float(position_data["stats"].N) / len(args["input"]),
 #                                                  float(position_data["stats"].gap) / len(args["input"]))
 #                              )
-#         if can_stats:
+#         if CAN_STATS:
 #             plot_stats(avail_pos, len(samples) - 1, plots_dir=os.path.abspath(args["plots_dir"]))
 
     return 0
