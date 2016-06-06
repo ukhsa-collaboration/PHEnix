@@ -97,7 +97,6 @@ class ParallelVCFReader(object):
                 min_pos = min([ record.POS for record in self._records.itervalues() if record and record.CHROM == chrom])
             except ValueError:
                 # This happens when all records have different chrom.
-                self.update()
                 chrom = self._vote_best_ref([ record.CHROM for record in self._records.itervalues() if record])
                 continue
 
