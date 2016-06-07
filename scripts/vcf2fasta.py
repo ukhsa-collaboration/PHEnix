@@ -43,6 +43,27 @@ class BaseStats(object):
                                                                 self.mix,
                                                                 self.gap,
                                                                 self.total)
+    def __add__(self, other):
+        self.mut += other.mut
+        self.N += other.N
+        self.gap += other.gap
+        self.mix += other.mix
+        self.total += other.total
+        self.NA += other.NA
+
+        return self
+
+    def update(self, position_data, sample, reference):
+        for k, v in position_data.iteritems():
+            if k != sample:
+                continue
+            if v == "-":
+                self.gap += 1
+            elif v == "N":
+                self.N += 1
+            elif v != reference:
+                self.mut += 1
+        self.total += 1
 
 def _make_ref_insert(start, stop, reference, exclude):
     '''Create reference insert taking account exclude positions.'''
@@ -278,6 +299,13 @@ def main(args):
         logging.warn("No VCFs found.")
         return 0
 
+
+    # If we can stats and asked to stats, then output the data
+    if args["with_stats"] is not None:
+        args["with_stats"] = open(args["with_stats"], "wb")
+        args["with_stats"].write("contig,position,mutations,n_frac,n_gaps\n")
+
+
     parallel_reader = ParallelVCFReader(args["input"])
 
     sample_seqs = { sample_name: tempfile.NamedTemporaryFile(prefix=sample_name, dir=out_dir) for sample_name in parallel_reader.get_samples() }
@@ -309,7 +337,7 @@ def main(args):
 
         for sample_name, record in final_records.iteritems():
 
-            sample_stats[sample_name].total += 1
+            position_data["stats"].total += 1
 
             # IF this is uncallable genotype, add gap "-"
             if record.is_uncallable:
@@ -318,7 +346,6 @@ def main(args):
 
                 # Update stats
                 position_data["stats"].gap += 1
-                sample_stats[sample_name].gap += 1
 
 
             elif not record.FILTER:
@@ -333,13 +360,11 @@ def main(args):
                         logging.info("POS %s passed filters but has multiple alleles REF: %s, ALT: %s. Inserting N", record.POS, str(record.REF), str(record.ALT))
                         position_data[sample_name] = "N"
                         position_data["stats"].N += 1
-                        sample_stats[sample_name].N += 1
 
                     else:
                         position_data[sample_name] = str(record.ALT[0])
 
                         position_data["stats"].mut += 1
-                        sample_stats[sample_name].mut += 1
 
             # Filter(s) failed
             elif record.is_snp:
@@ -349,7 +374,6 @@ def main(args):
 
                 if extended_code == "N":
                     position_data["stats"].N += 1
-                    sample_stats[sample_name].N += 1
 
                 position_data[sample_name] = extended_code
 
@@ -357,7 +381,6 @@ def main(args):
                 # filter fail; code as N for consistency
                 position_data[sample_name] = "N"
                 position_data["stats"].N += 1
-                sample_stats[sample_name].N += 1
 
             # Filter columns when threashold reaches user specified value.
             if isinstance(args["column_Ns"], float) and float(position_data["stats"].N) / len(args["input"]) > args["column_Ns"]:
@@ -380,6 +403,15 @@ def main(args):
 
 #                 sample_seqs[sample_name] += [sample_base]
                 sample_seqs[sample_name].write(sample_base)
+                sample_stats[sample_name].update(position_data, sample_name, reference)
+
+            if args["with_stats"] is not None:
+                args["with_stats"].write("%s,%i,%0.5f,%0.5f,%0.5f\n" % (chrom,
+                                             pos,
+                                             float(position_data["stats"].mut) / len(args["input"]),
+                                             float(position_data["stats"].N) / len(args["input"]),
+                                             float(position_data["stats"].gap) / len(args["input"]))
+                         )
 
             last_base = pos
 
@@ -442,24 +474,14 @@ def main(args):
             tmp_iter.close()
         os.rmdir(out_dir)
 
+        if args["with_stats"] is not None:
+            args["with_stats"].close()
+
     # Compute the stats.
     for sample in sample_stats:
         if sample != "reference":
             print "%s\t%s" % (sample, str(sample_stats[sample]))
-#
-#     # If we can stats and asked to stats, then output the data
-#     if args["with_stats"]:
-#         with open(args["with_stats"], "wb") as fp:
-#             fp.write("contig,position,mutations,n_frac,n_gaps\n")
-#             for contig in contigs:
-#                 for pos in avail_pos[contig]:
-#                     position_data = avail_pos[contig][pos]
-#                     fp.write("%s,%i,%0.5f,%0.5f,%0.5f\n" % (contig,
-#                                                  pos,
-#                                                  float(position_data["stats"].mut) / len(args["input"]),
-#                                                  float(position_data["stats"].N) / len(args["input"]),
-#                                                  float(position_data["stats"].gap) / len(args["input"]))
-#                              )
+
 #         if CAN_STATS:
 #             plot_stats(avail_pos, len(samples) - 1, plots_dir=os.path.abspath(args["plots_dir"]))
 
