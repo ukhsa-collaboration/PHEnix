@@ -66,7 +66,7 @@ And on OpenSUSE the commands should be:
 
 .. code-block:: bash
 
-    sudo zypper install gcc
+    sudo zypper install gcc-c++
     sudo zypper install gcc-fortran
     sudo zypper install zlib-devel
     sudo zypper install samtools
