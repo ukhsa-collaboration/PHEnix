@@ -35,13 +35,51 @@ How to install Phenix to your Galaxy server:
 
 This page (https://wiki.galaxyproject.org/Admin/Tools/AddToolFromToolShedTutorial) describes the general procedure of installing a tool from the toolshed. Here is a click-by-click guide to what you need to do to install Phenix.
 
- - Make sure that you can access ftp sites from the command line running your Galaxy server. This is normally enabled by default, but sometimes requires an additional proxy setting. Try this command
+**Prerequisites:**
+
+There is a small number of Linux packages that need to be installed on your machine, so that Phenix can be installed and run propery. These are:
+
+- a C++ compiler
+- a Fortran compiler
+- the zlib development libraries
+- the samtools package
+
+The exact name of these packages and the commands to install them depend on yout Linux distribution. For Ubuntu, Mint and Debian Linux the required commands should be:
+
+.. code-block:: bash
+
+    sudo apt-get install build-essential
+    sudo apt-get install gfortran
+    sudo apt-get install zlib-devel
+    sudo apt-get install samtools
+
+On Fedora the commands should be:
+
+.. code-block:: bash
+
+    sudo dnf install gcc-c++
+    sudo dnf install gcc-gfortran
+    sudo dnf install zlib-devel
+    sudo dnf install samtools
+
+And on OpenSUSE the commands should be:
+
+.. code-block:: bash
+
+    sudo zypper install gcc-c++
+    sudo zypper install gcc-fortran
+    sudo zypper install zlib-devel
+    sudo zypper install samtools
+
+For more esoteric Linux distributions please refer to your local IT expert and/or Google. After you have successfully installed these packages, follow the instructions below.
+
+- Make sure that you can access ftp sites from the command line running your Galaxy server. This is normally enabled by default, but sometimes requires an additional proxy setting. Try this command
 
 .. code-block:: bash
 
    wget ftp://ftp.gnu.org/gnu/libtool/libtool-2.4.tar.gz
 
-If that does not download a file named 'libtool-2.4.tar.gz' to your current folder, speak to your local system's administrator.
+If that does not download a file named 'libtool-2.4.tar.gz' to your current folder, speak to your local systems' administrator.
 
 - In your config/galaxy.ini files, set
 
