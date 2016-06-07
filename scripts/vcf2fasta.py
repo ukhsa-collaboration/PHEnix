@@ -318,7 +318,7 @@ def main(args):
     for chrom, pos, records in parallel_reader:
 
         final_records = pick_best_records(records)
-        reference = [ record.REF for record in final_records.itervalues()]
+        reference = [ record.REF for record in final_records.itervalues() if record.REF != "N"]
         valid = not reference or reference.count(reference[0]) == len(reference)
 
         # Make sure reference is the same across all samples.
@@ -431,24 +431,33 @@ def main(args):
     # Exclude any samples with high Ns or gaps
     if isinstance(args["sample_Ns"], float):
         for sample_name in samples:
-            if sample == "reference":
+            if sample_name == "reference":
                 continue
-            n_fraction = sample_stats[sample_name].N / sample_stats[sample_name].total
+            n_fraction = float(sample_stats[sample_name].N) / sample_stats[sample_name].total
             if n_fraction > args["sample_Ns"]:
                 logging.info("Removing %s due to high sample Ns fraction %s", sample_name, n_fraction)
-                samples.remove(sample_name)
+
+                sample_seqs[sample_name].close()
+                del sample_seqs[sample_name]
+                del sample_stats[sample_name]
+
     # Exclude any samples with high gap fraction.
     if isinstance(args["sample_gaps"], float):
         for sample_name in samples:
             if sample == "reference":
                 continue
 
-            gap_fractoin = sample_stats[sample_name].gaps / sample_stats[sample_name].total
+            gap_fractoin = float(sample_stats[sample_name].gaps) / sample_stats[sample_name].total
             if gap_fractoin > args["sample_gaps"]:
                 logging.info("Removing %s due to high sample gaps fraction %s", sample_name, gap_fractoin)
-                samples.remove(sample_name)
+
+                sample_seqs[sample_name].close()
+                del sample_seqs[sample_name]
+                del sample_stats[sample_name]
 
     try:
+        assert len(sample_seqs) > 0, "All samples have been filtered out."
+
         with open(args["out"], "w") as fp:
             fp.write(">reference\n%s\n" % reference)
             reference_length = len(reference)
@@ -458,12 +467,11 @@ def main(args):
                 tmp_iter.seek(0)
                 # These are dumped as single long string of data. Calling next() should read it all.
                 snp_sequence = tmp_iter.next()
-                assert len(snp_sequence) == reference_length, "Sample %s has length %s, but should be %s (reference)" % (i, len(snp_sequence), reference_length)
+                assert len(snp_sequence) == reference_length, "Sample %s has length %s, but should be %s (reference)" % (sample_name, len(snp_sequence), reference_length)
 
                 fp.write(">%s\n%s\n" % (sample_name, ''.join(snp_sequence)))
     except AssertionError as e:
         logging.error(e.message)
-        logging.error("Uneven length FASTA is detected. Final FASTA file is not going to be written.")
 
         # Need to delete the malformed file.
         os.unlink(args["out"])
