@@ -10,15 +10,16 @@ from collections import OrderedDict
 import glob
 import logging
 import os
+import shutil
 import tempfile
 
 from Bio import SeqIO
 from bintrees import FastRBTree
 
 from phe.utils.reader import ParallelVCFReader
+
+
 # from phe.variant_filters import IUPAC_CODES
-
-
 # Try importing the matplotlib and numpy for stats.
 try:
     from matplotlib import pyplot as plt
@@ -480,7 +481,7 @@ def main(args):
         # Close all the tmp handles.
         for tmp_iter in sample_seqs.itervalues():
             tmp_iter.close()
-        os.rmdir(out_dir)
+        shutil.rmtree(out_dir)
 
         if args["with_stats"] is not None:
             args["with_stats"].close()
