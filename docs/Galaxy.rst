@@ -66,10 +66,10 @@ And on OpenSUSE the commands should be:
 
 .. code-block:: bash
 
-    sudo sypper install gcc
-    sudo sypper install gcc-fortran
-    sudo sypper install zlib-devel
-    sudo sypper install samtools
+    sudo zypper install gcc
+    sudo zypper install gcc-fortran
+    sudo zypper install zlib-devel
+    sudo zypper install samtools
 
 For more esoteric Linux distributions please refer to your local IT expert and/or Google. After you have successfully installed these packages, follow the instructions below.
 
