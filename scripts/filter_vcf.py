@@ -40,6 +40,8 @@ def get_args():
     group.add_argument("--config", "-c", help="Config with filters in YAML format. E.g.filters:-key:value")
 
     args.add_argument("--output", "-o", required=True, help="Location for filtered VCF to be written.")
+    
+    args.add_argument("--reference", "-r", help="mpileup version <= 1.3 do not output all positions. This is required to fix refrence base in VCF.")
 
     args.add_argument("--only-good", action="store_true", default=False, help="Write only variants that PASS all filters (default all variants are written).")
 
