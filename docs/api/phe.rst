@@ -12,6 +12,7 @@ Subpackages
     phe.metadata
     phe.variant
     phe.variant_filters
+    phe.utils
 
 Module contents
 ---------------

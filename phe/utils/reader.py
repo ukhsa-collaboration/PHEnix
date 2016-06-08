@@ -7,7 +7,16 @@ from collections import Counter, defaultdict
 import vcf
 
 def is_uncallable(record):
-    """Is the Record uncallable?"""
+    """Is the Record uncallable? Currently the record is **uncallable** iff:
+
+     * GT field is **./.**
+     * **LowQual** is in the filter.
+
+    Returns
+    -------
+    uncall: bool
+        True if any of the above items are true, False otherwise.
+    """
 
     uncall = False
     try:
@@ -51,16 +60,19 @@ class ParallelVCFReader(object):
         return counts
 
     def get_samples(self):
-        """Get the samples from the VCFs."""
+        """Get the list of sample names from the VCFs."""
         return [reader.samples[0] for reader in self._readers.itervalues()]
 
     def update(self, ids=None):
-        """Update all records in the readers.
+        """Update records in the readers. If *ids* is **not**
+        specified, then all readers are updated. Otherwise, only
+        those with the same *id* are updated.
 
         Parameters
         ----------
         ids: list, optional
             Optional list of IDs to update. If **None**, all will be updated.
+
         """
         if ids is None:
             ids = self._readers.keys()
@@ -73,14 +85,26 @@ class ParallelVCFReader(object):
                 self._records[k] = None
 
     def get_records(self):
-        """Generator of records, one position at the time.
+        """Generator of records, one position at the time. If a position has
+        more than 1 record in any of the readers, a list of all records with that
+        position is returned. The user can deal appropriately with the records list.
 
         Returns
         -------
-        str: Chromosome
-        int: Position
-        dict: Records in dictionary of lists for each sample.
-            E.e. {"sample1":[r1, r2], "sample2": [r3]}
+        chrom: str
+            Chromosome
+        pos: int
+            Position
+        records: dict
+            Records in dictionary of lists for each sample.
+            
+            .. code-block:: python
+
+                {
+                    "sample1": [record1, record2], 
+                    "sample2": [record3]
+                }
+
         """
 
         chrom = None
