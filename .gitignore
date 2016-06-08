@@ -4,3 +4,4 @@
 *.pyc
 /cover/
 docs/_build
+.settings

@@ -243,10 +243,8 @@ def main(args):
         for annotator_md in annotators_metadata:
             var_set.add_metadata(annotator_md)
 
-        var_set.filter_variants()
-
         final_vcf = os.path.join(args["outdir"], "%s.filtered.vcf" % args["sample_name"])
-        var_set.write_variants(final_vcf)
+        var_set.filter_variants(out_vcf=final_vcf)
 
     if args["workflow"] and args["input"]:
         component_complete = os.path.join(args["outdir"], "ComponentComplete.txt")

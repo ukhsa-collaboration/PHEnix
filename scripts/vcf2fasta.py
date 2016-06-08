@@ -4,69 +4,67 @@ Merge SNP data from multiple VCF files into a single fasta file.
 :Date: 5 October, 2015
 :Author: Alex Jironkin
 '''
+
 import argparse
 from collections import OrderedDict
 import glob
-import itertools
 import logging
 import os
+import shutil
+import tempfile
 
 from Bio import SeqIO
 from bintrees import FastRBTree
-import vcf
 
-from phe.variant_filters import IUPAC_CODES
+from phe.utils.reader import ParallelVCFReader
 
 
+# from phe.variant_filters import IUPAC_CODES
 # Try importing the matplotlib and numpy for stats.
 try:
     from matplotlib import pyplot as plt
     import numpy
-    can_stats = True
+    CAN_STATS = True
 except ImportError:
-    can_stats = False
+    CAN_STATS = False
 
-def is_uncallable(record):
-
-    uncall = False
-    try:
-        if record.samples[0].data.GT in ("./.", None):
-            uncall = True
-    except:
-        uncall = None
-
-    if record.FILTER is not None and "LowQual" in record.FILTER:
-        uncall = True
-
-    return uncall
-
-
-class base_stats(object):
-    def __init__(self):
+class BaseStats(object):
+    """Simple class to keep statistics about a base."""
+    def __init__(self, records=None):
         self.N = 0
         self.mut = 0
         self.gap = 0
         self.mix = 0
         self.total = 0
+        self.NA = 0
 
     def __str__(self):
-        return "N: %i, mut: %i, mix: %i, gap: %i, total: %i" % (self.N, self.mut, self.mix, self.gap, self.total)
+        return "N: %i, mut: %i, mix: %i, gap: %i, total: %i" % (self.N,
+                                                                self.mut,
+                                                                self.mix,
+                                                                self.gap,
+                                                                self.total)
+    def __add__(self, other):
+        self.mut += other.mut
+        self.N += other.N
+        self.gap += other.gap
+        self.mix += other.mix
+        self.total += other.total
+        self.NA += other.NA
 
-def get_sample_stats(all_positions, samples):
-    sample_stats = {sample: base_stats() for sample in samples }
-    for positions in all_positions.itervalues():
-        for position in positions:
-            for sample in samples:
-                base = positions[position].get(sample)
+        return self
 
-                if base == "-":
-                    sample_stats[sample].gap += 1
-                elif base == "N":
-                    sample_stats[sample].N += 1
-                elif base is not None and base != positions[position].get("reference"):
-                    sample_stats[sample].mut += 1
-
-    return sample_stats
+    def update(self, position_data, sample, reference):
+        for k, v in position_data.iteritems():
+            if k != sample:
+                continue
+            if v == "-":
+                self.gap += 1
+            elif v == "N":
+                self.N += 1
+            elif v != reference:
+                self.mut += 1
+        self.total += 1
 
 def _make_ref_insert(start, stop, reference, exclude):
     '''Create reference insert taking account exclude positions.'''
@@ -106,50 +104,95 @@ def plot_stats(pos_stats, total_samples, plots_dir="plots", discarded={}):
         contig = contig.replace("/", "-")
         plt.savefig(os.path.join(plots_dir, "%s.png" % contig), dpi=100)
 
-def get_mixture(record, threshold):
-    mixtures = {}
-    try:
-        if len(record.samples[0].data.AD) > 1:
+def validate_record(record):
+    """Validate the record."""
+    if record.is_indel and not (record.is_uncallable or record.is_monomorphic) or len(record.REF) > 1:
+        return False
+    else:
+        return True
 
-            total_depth = sum(record.samples[0].data.AD)
-            # Go over all combinations of touples.
-            for comb in itertools.combinations(range(0, len(record.samples[0].data.AD)), 2):
-                i = comb[0]
-                j = comb[1]
+def pick_best_records(records):
+    """ Pick single record from multiple records for the same position.
 
-                alleles = list()
+    Parameters
+    ----------
+    records: dict
+        Dictionary of lists containing records for the samples (1-many).
 
-                if 0 in comb:
-                    alleles.append(str(record.REF))
+    Returns
+    -------
+    dict: Dictionary with a 1-1 mapping of samples to records.
+    """
 
-                if i != 0:
-                    alleles.append(str(record.ALT[i - 1]))
-                    mixture = record.samples[0].data.AD[i]
-                if j != 0:
-                    alleles.append(str(record.ALT[j - 1]))
-                    mixture = record.samples[0].data.AD[j]
+    final_selection = {}
+    for k, v in records.iteritems():
+        if len(v) == 1:
+            if validate_record(v[0]):
+                final_selection[k] = v[0]
+            else:
+                logging.debug("Discarding %s:%s from %s", v[0].CHROM, v[0].POS, k)
+        else:
+            logging.debug("Resolving multi-record ambiguity for %s (%s)", k, ",".join(str(r) for r in v))
+            r = None
+            for record in v:
+                if not validate_record(record):
+                    continue
+                elif r is None:
+                    r = record
+                else:
+                    if len(record.FILTER) > len(r.FILTER):
+                        # Pick only those that have more failed filters, than current.
+                        r = record
+            if r is None:
+                logging.error("Should have picked something, but everything failed.")
+            final_selection[k] = r
 
-                ratio = float(mixture) / total_depth
-                if ratio == 1.0:
-                    logging.debug("This is only designed for mixtures! %s %s %s %s", record, ratio, record.samples[0].data.AD, record.FILTER)
+    return final_selection
 
-                    if ratio not in mixtures:
-                        mixtures[ratio] = []
-                    mixtures[ratio].append(alleles.pop())
 
-                elif ratio >= threshold:
-                    try:
-                        code = IUPAC_CODES[frozenset(alleles)]
-                        if ratio not in mixtures:
-                            mixtures[ratio] = []
-                            mixtures[ratio].append(code)
-                    except KeyError:
-                        logging.warn("Could not retrieve IUPAC code for %s from %s", alleles, record)
-    except AttributeError:
-        mixtures = {}
-
-    return mixtures
-
+# def get_mixture(record, threshold):
+#     mixtures = {}
+#     try:
+#         if len(record.samples[0].data.AD) > 1:
+#
+#             total_depth = sum(record.samples[0].data.AD)
+#             # Go over all combinations of touples.
+#             for comb in itertools.combinations(range(0, len(record.samples[0].data.AD)), 2):
+#                 i = comb[0]
+#                 j = comb[1]
+#
+#                 alleles = list()
+#
+#                 if 0 in comb:
+#                     alleles.append(str(record.REF))
+#
+#                 if i != 0:
+#                     alleles.append(str(record.ALT[i - 1]))
+#                     mixture = record.samples[0].data.AD[i]
+#                 if j != 0:
+#                     alleles.append(str(record.ALT[j - 1]))
+#                     mixture = record.samples[0].data.AD[j]
+#
+#                 ratio = float(mixture) / total_depth
+#                 if ratio == 1.0:
+#                     logging.debug("This is only designed for mixtures! %s %s %s %s", record, ratio, record.samples[0].data.AD, record.FILTER)
+#
+#                     if ratio not in mixtures:
+#                         mixtures[ratio] = []
+#                     mixtures[ratio].append(alleles.pop())
+#
+#                 elif ratio >= threshold:
+#                     try:
+#                         code = IUPAC_CODES[frozenset(alleles)]
+#                         if ratio not in mixtures:
+#                             mixtures[ratio] = []
+#                             mixtures[ratio].append(code)
+#                     except KeyError:
+#                         logging.warn("Could not retrieve IUPAC code for %s from %s", alleles, record)
+#     except AttributeError:
+#         mixtures = {}
+#
+#     return mixtures
 
 def print_stats(stats, pos_stats, total_vars):
     for contig in stats:
@@ -160,11 +203,18 @@ def print_stats(stats, pos_stats, total_vars):
         for pos, info in pos_stats[contig].iteritems():
             print "%s,%i,%i,%i,%i" % (contig, pos, info.get("N", "NA"), info.get("-", "NA"), info.get("mut", "NA"))
 
-
 def get_desc():
     return "Combine multiple VCFs into a single FASTA file."
 
 def get_args():
+
+    def positive_float(value):
+        """Make type for float 0<x<1."""
+        x = float(value)
+        if not 0.0 <= x <= 1.0:
+            raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % x)
+        return x
+
     args = argparse.ArgumentParser(description=get_desc())
 
     group = args.add_mutually_exclusive_group(required=True)
@@ -175,12 +225,13 @@ def get_args():
 
     args.add_argument("--out", "-o", required=True, help="Path to the output FASTA file.")
 
-    args.add_argument("--with-mixtures", type=float, help="Specify this option with a threshold to output mixtures above this threshold.")
+#     args.add_argument("--with-mixtures", type=positive_float, help="Specify this option with a threshold to output mixtures above this threshold.")
 
-    args.add_argument("--column-Ns", type=float, help="Keeps columns with fraction of Ns below specified threshold.")
-    args.add_argument("--column-gaps", type=float, help="Keeps columns with fraction of Ns below specified threshold.")
+    args.add_argument("--column-Ns", type=positive_float, help="Keeps columns with fraction of Ns below specified threshold.")
+    args.add_argument("--column-gaps", type=positive_float, help="Keeps columns with fraction of Ns below specified threshold.")
 
-    args.add_argument("--sample-Ns", type=float, help="Keeps samples with fraction of Ns below specified threshold.")
+    args.add_argument("--sample-Ns", type=positive_float, help="Keeps samples with fraction of Ns below specified threshold.")
+    args.add_argument("--sample-gaps", type=positive_float, help="Keeps samples with fraction of gaps below specified threshold.")
 
     args.add_argument("--reference", type=str, help="If path to reference specified (FASTA), then whole genome will be written.")
 
@@ -190,11 +241,7 @@ def get_args():
     group.add_argument("--exclude", help="Exclude any positions specified in the BED file.")
 
     args.add_argument("--with-stats", help="If a path is specified, then position of the outputed SNPs is stored in this file. Requires mumpy and matplotlib.")
-    args.add_argument("--plots-dir", default="plots", help="Where to write summary plots on SNPs extracted. Requires mumpy and matplotlib.")
-
-    args.add_argument("--with-dist-mat", help="If this option is specified, then distance matrix is calculated for the samples.")
-    args.add_argument("--count-dist-gaps", action="store_true", help="Counr gaps as valid character in distance matrix.")
-    args.add_argument("--count-dist-Ns", action="store_true", help="Counr Ns as valid character in distance matrix.")
+#     args.add_argument("--plots-dir", default="plots", help="Where to write summary plots on SNPs extracted. Requires mumpy and matplotlib.")
 
     return args
 
@@ -205,22 +252,13 @@ def main(args):
 
     contigs = list()
 
-    samples = list()
-    valid_chars = ["A", "C", "G", "T"]
-
-    if args["count_dist_gaps"]:
-        valid_chars.append("-")
-
-    if args["count_dist_Ns"]:
-        valid_chars.append("N")
-
-    # All positions available for analysis.
-    avail_pos = dict()
-
     empty_tree = FastRBTree()
 
     exclude = {}
     include = {}
+    out_dir = os.path.join(os.path.dirname(args["out"]), "tmp")
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
 
     if args["reference"]:
         ref_seq = OrderedDict()
@@ -262,48 +300,45 @@ def main(args):
         logging.warn("No VCFs found.")
         return 0
 
-    # First pass to get the references and the positions to be analysed.
-    for vcf_in in args["input"]:
 
-        reader = vcf.Reader(filename=vcf_in)
+    # If we can stats and asked to stats, then output the data
+    if args["with_stats"] is not None:
+        args["with_stats"] = open(args["with_stats"], "wb")
+        args["with_stats"].write("contig,position,mutations,n_frac,n_gaps\n")
 
-        # Get the sample name from the VCF file (usually the read group).
-        sample_name = reader.samples[0]
-        samples.append(sample_name)
 
-        # Go over every position in the reader.
-        for record in reader:
+    parallel_reader = ParallelVCFReader(args["input"])
 
-            # Inject a property about uncallable genotypes into record.
-            record.__setattr__("is_uncallable", is_uncallable(record))  # is_uncallable = types.MethodType(is_uncallable, record)
+    sample_seqs = { sample_name: tempfile.NamedTemporaryFile(prefix=sample_name, dir=out_dir) for sample_name in parallel_reader.get_samples() }
+    sample_seqs["reference"] = tempfile.NamedTemporaryFile(prefix="reference", dir=out_dir)
 
-            # SKIP indels, if not handled then can cause REF base to be >1
-            if record.is_indel and not (record.is_uncallable or record.is_monomorphic) or len(record.REF) > 1:
-            # if len(record.REF) > 1:
-                # print "%s\t%s\t%s\t%s\t%s" % (sample_name,record.POS,-1,record.FILTER,record)
-                continue
-                # if record.is_deletion and not record.is_uncallable:
-                #    continue
+    samples = parallel_reader.get_samples() + ["reference"]
+    sample_stats = {sample: BaseStats() for sample in samples }
+    last_base = 0
 
-            # SKIP (or include) any pre-specified regions.
-            if include and record.POS not in include.get(record.CHROM, empty_tree) or exclude and record.POS in exclude.get(record.CHROM, empty_tree):
-#             if include.get(record.CHROM, empty_tree).get(record.POS, False) or \
-#                 not exclude.get(record.CHROM, empty_tree).get(record.POS, True):
-                continue
+    for chrom, pos, records in parallel_reader:
 
-            # Setup the RB tree for contigs not in the data structure.
-            if record.CHROM not in contigs:
-                contigs.append(record.CHROM)
-                avail_pos[record.CHROM] = FastRBTree()
+        final_records = pick_best_records(records)
+        reference = [ record.REF for record in final_records.itervalues() if record.REF != "N"]
+        valid = not reference or reference.count(reference[0]) == len(reference)
 
-            # Setup the position data to contain reference and stats.
-            if avail_pos[record.CHROM].get(record.POS, None) is None:
-                avail_pos[record.CHROM].insert(record.POS, {"reference": str(record.REF),
-                                                            "stats": base_stats()})
+        # Make sure reference is the same across all samples.
+        assert valid, "Position %s is not valid as multiple references found: %s" % (pos, reference)
 
-            position_data = avail_pos[record.CHROM].get(record.POS)
+        if not reference:
+            continue
+        else:
+            reference = reference[0]
 
-            assert len(position_data["reference"]) == 1, "Reference base must be singluar: in %s found %s @ %s" % (position_data["reference"], sample_name, record.POS)
+        # SKIP (or include) any pre-specified regions.
+        if include and pos not in include.get(chrom, empty_tree) or exclude and pos in exclude.get(chrom, empty_tree):
+            continue
+
+        position_data = {"reference": str(reference), "stats": BaseStats()}
+
+        for sample_name, record in final_records.iteritems():
+
+            position_data["stats"].total += 1
 
             # IF this is uncallable genotype, add gap "-"
             if record.is_uncallable:
@@ -317,13 +352,13 @@ def main(args):
             elif not record.FILTER:
                 # If filter PASSED!
                 # Make sure the reference base is the same. Maybe a vcf from different species snuck in here?!
-                assert str(record.REF) == position_data["reference"] or str(record.REF) == 'N' or position_data["reference"] == 'N', "SOMETHING IS REALLY WRONG because reference for the same position is DIFFERENT! %s in %s (%s, %s)" % (record.POS, vcf_in, str(record.REF), position_data["reference"])
+                assert str(record.REF) == position_data["reference"] or str(record.REF) == 'N' or position_data["reference"] == 'N', "SOMETHING IS REALLY WRONG because reference for the same position is DIFFERENT! %s in %s (%s, %s)" % (record.POS, sample_name, str(record.REF), position_data["reference"])
                 # update position_data['reference'] to a real base if possible
                 if position_data['reference'] == 'N' and str(record.REF) != 'N':
                     position_data['reference'] = str(record.REF)
                 if record.is_snp:
                     if len(record.ALT) > 1:
-                        logging.info("POS %s passed filters but has multiple alleles REF: %s, ALT: %s. Inserting N" % (record.POS, str(record.REF), str(record.ALT)))
+                        logging.info("POS %s passed filters but has multiple alleles REF: %s, ALT: %s. Inserting N", record.POS, str(record.REF), str(record.ALT))
                         position_data[sample_name] = "N"
                         position_data["stats"].N += 1
 
@@ -350,149 +385,114 @@ def main(args):
 
             # Filter columns when threashold reaches user specified value.
             if isinstance(args["column_Ns"], float) and float(position_data["stats"].N) / len(args["input"]) > args["column_Ns"]:
-                avail_pos[record.CHROM].remove(record.POS)
-
-                # print "excluding %s" % record.POS
-                if record.CHROM not in exclude:
-                    exclude[record.CHROM] = FastRBTree()
-                exclude[record.CHROM].insert(record.POS, False)
+                break
+#                 del position_data[sample_name]
 
             if isinstance(args["column_gaps"], float) and float(position_data["stats"].gap) / len(args["input"]) > args["column_gaps"]:
-                avail_pos[record.CHROM].remove(record.POS)
+                break
+#                 del position_data[sample_name]
 
-                if record.CHROM not in exclude:
-                    exclude[record.CHROM] = FastRBTree()
-                exclude[record.CHROM].insert(record.POS, False)
+        else:
+            if args["reference"]:
+                seq = _make_ref_insert(last_base, pos, args["reference"][chrom], exclude.get(chrom, empty_tree))
+                for sample in samples:
+#                     sample_seqs[sample] += seq
+                    sample_seqs[sample].write(''.join(seq))
 
-    # Compute per sample statistics.
-    sample_stats = get_sample_stats(avail_pos, samples)
+            for i, sample_name in enumerate(samples):
+                sample_base = position_data.get(sample_name, reference)
+
+#                 sample_seqs[sample_name] += [sample_base]
+                sample_seqs[sample_name].write(sample_base)
+                sample_stats[sample_name].update(position_data, sample_name, reference)
+
+            if args["with_stats"] is not None:
+                args["with_stats"].write("%s,%i,%0.5f,%0.5f,%0.5f\n" % (chrom,
+                                             pos,
+                                             float(position_data["stats"].mut) / len(args["input"]),
+                                             float(position_data["stats"].N) / len(args["input"]),
+                                             float(position_data["stats"].gap) / len(args["input"]))
+                         )
+
+            last_base = pos
+
+    # Fill from last snp to the end of reference.
+    # FIXME: A little naughty to use chrom outside the loop!
+    if args["reference"]:
+        seq = _make_ref_insert(last_base, None, args["reference"][chrom], exclude.get(chrom, empty_tree))
+        for sample in samples:
+#             sample_seqs[sample] += seq
+            sample_seqs[sample].write(''.join(seq))
+
+    sample_seqs["reference"].seek(0)
+    reference = sample_seqs["reference"].next()
+    sample_seqs["reference"].close()
+    del sample_seqs["reference"]
 
     # Exclude any samples with high Ns or gaps
     if isinstance(args["sample_Ns"], float):
-        ss = []
         for sample_name in samples:
-            total_positions = 0
-            for contig in contigs:
-                # FIXME: Is that correct? Doesn't this need to check same dict inside that?
-                total_positions += len(avail_pos[contig])
-            if sample_stats[sample_name].N / total_positions <= args["sample_Ns"]:
-                ss.append(sample_name)
-            else:
-                pass
-                # print "EXCLUDING: %s for high N fraction: %s" % (sample_name, sample_stats[sample_name].N / total_positions)
+            if sample_name == "reference":
+                continue
+            n_fraction = float(sample_stats[sample_name].N) / sample_stats[sample_name].total
+            if n_fraction > args["sample_Ns"]:
+                logging.info("Removing %s due to high sample Ns fraction %s", sample_name, n_fraction)
 
-        samples = ss
+                sample_seqs[sample_name].close()
+                del sample_seqs[sample_name]
+                del sample_stats[sample_name]
 
-    # ALWAYS APPEND reference
-    samples.append("reference")
-    dist_mat = {}
-    sample_seqs = { sample_name: [] for sample_name in samples }
-    c = 0
+    # Exclude any samples with high gap fraction.
+    if isinstance(args["sample_gaps"], float):
+        for sample_name in samples:
+            if sample == "reference":
+                continue
 
-    if args["with_dist_mat"]:
-        for i, sample_1 in enumerate(samples):
-            dist_mat[sample_1] = {}
-            for j, sample_2 in enumerate(samples):
-                if j < i:
-                    continue
-                dist_mat[sample_1][sample_2] = 0
+            gap_fractoin = float(sample_stats[sample_name].gaps) / sample_stats[sample_name].total
+            if gap_fractoin > args["sample_gaps"]:
+                logging.info("Removing %s due to high sample gaps fraction %s", sample_name, gap_fractoin)
 
-    # For each contig concatinate sequences.
-    for contig in contigs:
+                sample_seqs[sample_name].close()
+                del sample_seqs[sample_name]
+                del sample_stats[sample_name]
 
-        # if contig is not in the avail pos then concatinate the whole reference.
-        if args["reference"] and contig not in avail_pos:
-            for sample in samples:
-                sample_seqs[sample] += args["reference"][contig]
-            continue
+    try:
+        assert len(sample_seqs) > 0, "All samples have been filtered out."
 
-        last_base = 0
-        for pos in avail_pos[contig]:
-            c += 1
-            if args["reference"]:
-                # If need to output the whole reference, pad the spaces
-                #    between records with reference bases, excluding any excludes.
-                seq = _make_ref_insert(last_base, pos, args["reference"][contig], exclude.get(contig, empty_tree))
-                for sample in samples:
-                    sample_seqs[sample] += seq
+        with open(args["out"], "w") as fp:
+            fp.write(">reference\n%s\n" % reference)
+            reference_length = len(reference)
+            del reference
 
-            bases = set()
-            ref_base = avail_pos[contig][pos].get("reference")
-            # Position has been seen or no reference available.
-            for i, sample in enumerate(samples):
+            for sample_name, tmp_iter in sample_seqs.iteritems():
+                tmp_iter.seek(0)
+                # These are dumped as single long string of data. Calling next() should read it all.
+                snp_sequence = tmp_iter.next()
+                assert len(snp_sequence) == reference_length, "Sample %s has length %s, but should be %s (reference)" % (sample_name, len(snp_sequence), reference_length)
 
-                sample_base = avail_pos[contig][pos].get(sample, ref_base)
+                fp.write(">%s\n%s\n" % (sample_name, ''.join(snp_sequence)))
+    except AssertionError as e:
+        logging.error(e.message)
 
-                sample_seqs[sample] += [sample_base]
-                bases.add(sample_base)
+        # Need to delete the malformed file.
+        os.unlink(args["out"])
 
-                # If we don't need distance matrix, then continue from top.
-                if not args["with_dist_mat"] or sample_base.upper() not in valid_chars:
-                    continue
+    finally:
+        # Close all the tmp handles.
+        for tmp_iter in sample_seqs.itervalues():
+            tmp_iter.close()
+        shutil.rmtree(out_dir)
 
-                for j, sample_2 in enumerate(samples):
-                    if j <= i:
-                        continue
-
-                    s2_base = avail_pos[contig][pos].get(sample_2, ref_base)
-
-                    if sample_base != s2_base and s2_base.upper() in valid_chars:
-                        dist_mat[sample][sample_2] += 1
-
-            # Do the internal check that positions have at least 2 different characters.
-            # assert len(bases) > 1, "Internal consustency check failed for position %s bases: %s" % (pos, bases)
-            # removed the check because when removing a sample based on sample-Ns can lead to non SNP bases in column.
-
-            # Keep track of the last processed position.
-            last_base = pos
-
-        # Fill from last snp to the end of reference.
-        if args["reference"]:
-            seq = _make_ref_insert(last_base, None, args["reference"][contig], exclude.get(contig, empty_tree))  # args.reference[contig][last_base:]
-            for sample in samples:
-                sample_seqs[sample] += seq
-
-    # Write the sequences out.
-    with open(args["out"], "w") as fp:
-        for sample in sample_seqs:
-            fp.write(">%s\n%s\n" % (sample, ''.join(sample_seqs[sample])))
+        if args["with_stats"] is not None:
+            args["with_stats"].close()
 
     # Compute the stats.
     for sample in sample_stats:
-        total_positions = 0
-        for contig in contigs:
-            total_positions += len(avail_pos[contig])
-        sample_stats[sample].total = total_positions
-        print "%s\t%s" % (sample, str(sample_stats[sample]))
+        if sample != "reference":
+            print "%s\t%s" % (sample, str(sample_stats[sample]))
 
-    if args["with_dist_mat"]:
-        with open(args["with_dist_mat"], "wb") as fp:
-            fp.write(",%s\n" % ",".join(samples))
-            for i, sample_1 in enumerate(samples):
-                row = "%s" % sample_1
-                for j, sample_2 in enumerate(samples):
-                    if j < i:
-                        dist = dist_mat[sample_2][sample_1]
-                    else:
-                        dist = dist_mat[sample_1][sample_2]
-                    row += ",%i" % dist
-                fp.write("%s\n" % row)
-
-    # If we can stats and asked to stats, then output the data
-    if args["with_stats"]:
-        with open(args["with_stats"], "wb") as fp:
-            fp.write("contig,position,mutations,n_frac,n_gaps\n")
-            for contig in contigs:
-                for pos in avail_pos[contig]:
-                    position_data = avail_pos[contig][pos]
-                    fp.write("%s,%i,%0.5f,%0.5f,%0.5f\n" % (contig,
-                                                 pos,
-                                                 float(position_data["stats"].mut) / len(args["input"]),
-                                                 float(position_data["stats"].N) / len(args["input"]),
-                                                 float(position_data["stats"].gap) / len(args["input"]))
-                             )
-        if can_stats:
-            plot_stats(avail_pos, len(samples) - 1, plots_dir=os.path.abspath(args["plots_dir"]))
+#         if CAN_STATS:
+#             plot_stats(avail_pos, len(samples) - 1, plots_dir=os.path.abspath(args["plots_dir"]))
 
     return 0
 
