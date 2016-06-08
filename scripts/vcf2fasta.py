@@ -225,7 +225,7 @@ def get_args():
 
     args.add_argument("--out", "-o", required=True, help="Path to the output FASTA file.")
 
-    args.add_argument("--with-mixtures", type=positive_float, help="Specify this option with a threshold to output mixtures above this threshold.")
+#     args.add_argument("--with-mixtures", type=positive_float, help="Specify this option with a threshold to output mixtures above this threshold.")
 
     args.add_argument("--column-Ns", type=positive_float, help="Keeps columns with fraction of Ns below specified threshold.")
     args.add_argument("--column-gaps", type=positive_float, help="Keeps columns with fraction of Ns below specified threshold.")
