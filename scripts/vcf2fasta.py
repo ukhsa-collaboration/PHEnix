@@ -8,6 +8,7 @@ Merge SNP data from multiple VCF files into a single fasta file.
 import argparse
 from collections import OrderedDict
 import glob
+import itertools
 import logging
 import os
 import shutil
@@ -17,6 +18,7 @@ from Bio import SeqIO
 from bintrees import FastRBTree
 
 from phe.utils.reader import ParallelVCFReader
+from phe.variant_filters import IUPAC_CODES
 
 
 # from phe.variant_filters import IUPAC_CODES
@@ -62,8 +64,10 @@ class BaseStats(object):
                 self.gap += 1
             elif v == "N":
                 self.N += 1
-            elif v != reference:
+            elif v in ["A", "C", "G", "T"]:
                 self.mut += 1
+            else:
+                self.mix += 1
         self.total += 1
 
 def _make_ref_insert(start, stop, reference, exclude):
@@ -150,49 +154,55 @@ def pick_best_records(records):
     return final_selection
 
 
-# def get_mixture(record, threshold):
-#     mixtures = {}
-#     try:
-#         if len(record.samples[0].data.AD) > 1:
-#
-#             total_depth = sum(record.samples[0].data.AD)
-#             # Go over all combinations of touples.
-#             for comb in itertools.combinations(range(0, len(record.samples[0].data.AD)), 2):
-#                 i = comb[0]
-#                 j = comb[1]
-#
-#                 alleles = list()
-#
-#                 if 0 in comb:
-#                     alleles.append(str(record.REF))
-#
-#                 if i != 0:
-#                     alleles.append(str(record.ALT[i - 1]))
-#                     mixture = record.samples[0].data.AD[i]
-#                 if j != 0:
-#                     alleles.append(str(record.ALT[j - 1]))
-#                     mixture = record.samples[0].data.AD[j]
-#
-#                 ratio = float(mixture) / total_depth
-#                 if ratio == 1.0:
-#                     logging.debug("This is only designed for mixtures! %s %s %s %s", record, ratio, record.samples[0].data.AD, record.FILTER)
-#
-#                     if ratio not in mixtures:
-#                         mixtures[ratio] = []
-#                     mixtures[ratio].append(alleles.pop())
-#
-#                 elif ratio >= threshold:
-#                     try:
-#                         code = IUPAC_CODES[frozenset(alleles)]
-#                         if ratio not in mixtures:
-#                             mixtures[ratio] = []
-#                             mixtures[ratio].append(code)
-#                     except KeyError:
-#                         logging.warn("Could not retrieve IUPAC code for %s from %s", alleles, record)
-#     except AttributeError:
-#         mixtures = {}
-#
-#     return mixtures
+def get_mixture(record, threshold):
+    """Generate proper UIPAC letter for mixture.
+    
+    Mixture is determined for any positions where ALT depth/total depth
+    is **>=** than ``threshold``.
+
+    Parameters
+    ----------
+    record: :py:class:`vcf._Record`
+        Record to assign mixtures to.
+    threshold: float
+        Threshold above which mixtures are calculated
+    """
+
+    mixture = "N"
+    try:
+        if len(record.samples[0].data.AD) > 1:
+
+            total_depth = sum(record.samples[0].data.AD)
+            # Go over all combinations of touples.
+            alleles = list()
+            for i in range(0, len(record.samples[0].data.AD)):
+
+                mixture = record.samples[0].data.AD[i]
+
+                ratio = float(mixture) / total_depth
+                if ratio == 1.0:
+                    logging.debug("This is only designed for mixtures! %s %s %s %s", record, ratio, record.samples[0].data.AD, record.FILTER)
+
+                elif ratio >= threshold:
+                    if i == 0:
+                        alleles.append(str(record.REF))
+                    else:
+                        alleles.append(str(record.ALT[i - 1]))
+                else:
+                    logging.debug("Discarding allele %s to be below threshold %s", record.ALT[i - 1], ratio)
+            try:
+                mixture = IUPAC_CODES[frozenset(alleles)]
+
+            except KeyError:
+                # This happens when we have empty set of alleles.
+                #    So we don't know what to put in there -> N.
+                logging.debug("Could not retrieve IUPAC code for %s from %s", alleles, record)
+                mixture = "N"
+
+    except AttributeError:
+        mixture = "N"
+
+    return mixture
 
 def print_stats(stats, pos_stats, total_vars):
     for contig in stats:
@@ -225,7 +235,7 @@ def get_args():
 
     args.add_argument("--out", "-o", required=True, help="Path to the output FASTA file.")
 
-#     args.add_argument("--with-mixtures", type=positive_float, help="Specify this option with a threshold to output mixtures above this threshold.")
+    args.add_argument("--with-mixtures", type=positive_float, help="Specify this option with a threshold to output mixtures above this threshold.")
 
     args.add_argument("--column-Ns", type=positive_float, help="Keeps columns with fraction of Ns below specified threshold.")
     args.add_argument("--column-gaps", type=positive_float, help="Keeps columns with fraction of Ns below specified threshold.")
@@ -369,12 +379,17 @@ def main(args):
 
             # Filter(s) failed
             elif record.is_snp:
-                # mix = get_mixture(record, args.with_mixtures)
-                # Currently we are only using first filter to call consensus.
-                extended_code = "N"
+                if args["with_mixtures"]:
+                    extended_code = get_mixture(record, args["with_mixtures"])
+                else:
+                    extended_code = "N"
 
                 if extended_code == "N":
                     position_data["stats"].N += 1
+                elif extended_code in ["A", "C", "G", "T"]:
+                    position_data["stats"].mut += 1
+                else:
+                    position_data["stats"].mix += 1
 
                 position_data[sample_name] = extended_code
 
