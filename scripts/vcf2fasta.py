@@ -153,10 +153,9 @@ def pick_best_records(records):
 
     return final_selection
 
-
 def get_mixture(record, threshold):
     """Generate proper UIPAC letter for mixture.
-    
+
     Mixture is determined for any positions where ALT depth/total depth
     is **>=** than ``threshold``.
 
@@ -203,6 +202,15 @@ def get_mixture(record, threshold):
         mixture = "N"
 
     return mixture
+
+def is_above_min_depth(record):
+
+    above = True
+    for f in record.FILTER:
+        if "min_depth" in f:
+            above = False
+            break
+    return above
 
 def print_stats(stats, pos_stats, total_vars):
     for contig in stats:
@@ -378,7 +386,7 @@ def main(args):
                         position_data["stats"].mut += 1
 
             # Filter(s) failed
-            elif record.is_snp:
+            elif record.is_snp and is_above_min_depth(record):
                 if args["with_mixtures"]:
                     extended_code = get_mixture(record, args["with_mixtures"])
                 else:
