@@ -3,6 +3,7 @@
 :Author: Public Health England
 '''
 
+import os
 import vcf
 from bintrees import FastRBTree
 import math
@@ -117,7 +118,14 @@ def precompute_snp_densities(avail_pos, sample_names, k):
                     flSNPsInWin = 0.0
                     for x in range((iPos - 499), (iPos + 501)):
                         try:
-                            if oBT[x][sname] != oBT[x]['reference']:
+
+                            window_base = oBT[x][sname]
+                            if dValChars.get(window_base, None) == None:
+                                continue
+                            window_ref = oBT[x]['reference']
+                            if dValChars.get(window_ref, None) == None:
+                                continue
+                            if window_base != window_ref:
                                 flSNPsInWin += 1.0
                         except KeyError:
                             continue
@@ -132,8 +140,14 @@ def precompute_snp_densities(avail_pos, sample_names, k):
                         dDen[contig][iPos] = {}
                         dDen[contig][iPos][sname] = flDnsty
 
-    dDen['per_samplepair_threshold'] = {}
+    # for samples that are identical to the reference dPerSample has no entry
+    for i, sname1 in enumerate(sample_names):
+        try:
+            _ = dPerSample[sname1]
+        except KeyError:
+            dPerSample[sname1] = [0.0]
 
+    dDen['per_samplepair_threshold'] = {}
     for i, sname1 in enumerate(sample_names):
         dDen['per_samplepair_threshold'][sname1] = {}
         for j, sname2 in enumerate(sample_names):
@@ -294,8 +308,16 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
     """
 
     dDen = None
+    dRemovals = None
     if dArgs['remove_recombination'] == True:
         dDen = precompute_snp_densities(avail_pos, aSampleNames, dArgs['k'])
+        dRemovals = {}
+        for i, sample_1 in enumerate(aSampleNames):
+            dRemovals[sample_1] = {}
+            for j, sample_2 in enumerate(aSampleNames):
+                if j <= i:
+                    dRemovals[sample_1][sample_2] = 0
+
 
     # initialise empty matrix
     dist_mat = {}
@@ -315,6 +337,7 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
             else: # j > i
                 pass
 
+    aStats = []
     for sContig in avail_pos.keys():
         for pos in avail_pos[sContig]:
             ref_base = avail_pos[sContig][pos].get("reference")
@@ -336,6 +359,8 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
                             flLocalDensity2 = dDen[sContig][pos].get(sample_2, 0.0)
                             flPairThreshold = dDen['per_samplepair_threshold'][sample_1][sample_2]
                             if (flLocalDensity1 > flPairThreshold) or (flLocalDensity2 > flPairThreshold):
+                                aStats.append("%s\t%s\t%i\t%.3f\t%.3f\t%.3f\n" % (sample_1, sample_2, pos, flLocalDensity1, flLocalDensity2, flPairThreshold))
+                                dRemovals[sample_1][sample_2] += 1
                                 continue
 
                         if dArgs['substitution'] == 'k80' or dArgs['substitution'] == 't93':
@@ -361,6 +386,33 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
                             raise NotImplementedError
                     else: # j >= i
                         pass
+
+    # write additional stats if required
+    if dArgs['remove_recombination'] == True and dArgs['with_stats'] == True:
+        sOutBase = os.path.splitext(dArgs['out'])[0]
+        with open("%s.removals.tsv" % (sOutBase), 'w') as fOut:
+            for i, sample_1 in enumerate(aSampleNames):
+                row = sample_1
+                for j, sample_2 in enumerate(aSampleNames):
+                    if j < i:
+                        row += "%s%i" % ('\t', dRemovals[sample_1][sample_2])
+                fOut.write("%s\n" % row)
+        with open("%s.proportion_removed.tsv" % (sOutBase), 'w') as fOut:
+            for i, sample_1 in enumerate(aSampleNames):
+                row = sample_1
+                for j, sample_2 in enumerate(aSampleNames):
+                    if j < i:
+                        try:
+                            row += "%s%f" % ('\t', dRemovals[sample_1][sample_2] \
+                                                 / (dist_mat[sample_1][sample_2] \
+                                                 + dRemovals[sample_1][sample_2]))
+                        except ZeroDivisionError:
+                            row += "\tNAN"
+                fOut.write("%s\n" % row)
+        with open("%s.removed_snps.tsv" % (sOutBase), 'w') as fOut:
+            fOut.write("sample_1\tsample_2\tposition\tdensity_in_sample1\tdensity_in_sample2\tthreshold_for_pair\n")
+            for sLine in aStats:
+                fOut.write(sLine)
 
     if dArgs['substitution'] == 'jc69':
         dist_mat = normalise_jc69(dist_mat, dArgs['refgenome'], aSampleNames)
