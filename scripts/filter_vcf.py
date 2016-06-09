@@ -41,6 +41,8 @@ def get_args():
 
     args.add_argument("--output", "-o", required=True, help="Location for filtered VCF to be written.")
 
+    args.add_argument("--reference", "-r", help="mpileup version <= 1.3 do not output all positions. This is required to fix rfrence base in VCF.")
+
     args.add_argument("--only-good", action="store_true", default=False, help="Write only variants that PASS all filters (default all variants are written).")
 
     return args
@@ -62,12 +64,12 @@ def main(args):
         logging.error("Either --config or --filters needs to be specified.")
         return 1
 
-    var_set = VariantSet(args["vcf"], filters=args["filters"])
+    var_set = VariantSet(args["vcf"], filters=args["filters"], reference=args["reference"])
 
     if args.get("version") is not None:
         var_set.add_metadata(OrderedDict({"PHEnix-Version": (args["version"],)}))
 
-    var_set.filter_variants(out_vcf=args["output"])
+    var_set.filter_variants(out_vcf=args["output"], only_good=args["only_good"])
 
     logging.info("Finished filtering")
     return 0

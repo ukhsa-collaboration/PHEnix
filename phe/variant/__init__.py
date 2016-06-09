@@ -36,6 +36,7 @@ import logging
 import operator
 import pickle
 
+from Bio import SeqIO
 from vcf import filters
 import vcf
 from vcf.model import make_calldata_tuple
@@ -66,7 +67,7 @@ class VariantSet(object):
 
     _reader = None
 
-    def __init__(self, vcf_in, filters=None):
+    def __init__(self, vcf_in, filters=None, reference=None):
         """Constructor of variant set.
         
         Parameters
@@ -101,6 +102,8 @@ class VariantSet(object):
 
         self._variants = []
 
+        self._read_reference(reference)
+
     def __iter__(self):
         '''Iterator over **all** variants'''
         return self.variants(only_good=False)
@@ -120,7 +123,7 @@ class VariantSet(object):
             elif not var.FILTER :
                 yield var
 
-    def filter_variants(self, keep_only_snps=True, out_vcf=None):
+    def filter_variants(self, keep_only_snps=False, out_vcf=None, only_good=False):
         """Filter the VCF records.
 
         Parameters
@@ -130,6 +133,8 @@ class VariantSet(object):
         out_vcf: str, optional
             If specified, filtered record will be written to *out_vcf*
             instead of being retianed in memory.
+        only_good: bool, optional
+            True/False if only SNPs that PASS should output.
         
         Returns
         -------
@@ -195,7 +200,10 @@ class VariantSet(object):
                 else:
                     # This is a padding "N" record when records do not follow each other,
                     #    and there is a gap. e,g, 1,2,3,5,6 -> in 4 "N" will be inserted.
-                    _record = vcf.model._Record(record.CHROM, _pos, ".", "N", [None], 0, [], {}, 'GT', None)
+
+                    _ref = self._get_reference_base(record.CHROM, _pos)
+
+                    _record = vcf.model._Record(record.CHROM, _pos, ".", _ref, [None], 0, [], {}, 'GT', None)
                     _calls = []
                     sorted_samples = sorted(record._sample_indexes.items(), key=operator.itemgetter(1))
                     for sample, i in sorted_samples:
@@ -215,16 +223,23 @@ class VariantSet(object):
                 # After applying all filters, check if FILTER is None.
                 # If it is, then record PASSED all filters.
                 if _record.FILTER is None or _record.FILTER == []:
-                    _record.FILTER = []
-                    # FIXME: Does this work for indels?
-                    if keep_only_snps and _record.is_snp:
-                        if _writer is not None:
-                            _writer.write_record(_record)
-                            records += 1
-                        else:
-                            self._variants.append(_record)
-                elif _writer is None:
-                    self._variants.append(_record)
+                    if not record.is_monomorphic:
+                        _record.FILTER = []
+
+                        if not keep_only_snps or (_record.is_snp and keep_only_snps):
+
+                            if _writer is not None:
+                                _writer.write_record(_record)
+                                records += 1
+                            else:
+                                self._variants.append(_record)
+
+                elif not only_good:
+                    if _writer is not None:
+                        _writer.write_record(_record)
+                        records += 1
+                    else:
+                        self._variants.append(_record)
 
                 _pos += 1
                 if _chrom is None:
@@ -262,6 +277,61 @@ class VariantSet(object):
 
             # If we got this far, then record is filtered OUT.
             record.add_filter(record_filter.filter_name())
+
+    def _get_reference_base(self, chrom, pos):
+        """Get the reference base at chromosome *chrom* and position
+        *pos*. If it is not found, **N** is returned.
+
+        Parameters
+        ----------
+        reference: dict
+            Dictionary of chromosome to sequence map.
+        chrom: str
+            Chromosome to access.
+        pos: int
+            Position to retrieve.
+
+        Returns
+        -------
+        _ref: str
+            Reference base to use.
+        """
+
+        if self._reference is None:
+            _ref = "N"
+        else:
+            try:
+                _chrom = self._reference.get(chrom, [])
+
+                _ref = _chrom[pos]
+            except ValueError:
+                logging.error("Could not retrieve reference base for %s @ %s", chrom, pos)
+                _ref = "N"
+
+        return _ref
+
+    def _read_reference(self, reference):
+        """Read in the reference from the file into a dictionary.
+
+        Parameters
+        ----------
+        reference: str
+            Path to the reference.
+
+        Returns
+        -------
+        reference: dict
+            Dictionary with chromosome - sequence mapping.
+        """
+
+        if reference is None:
+            self._reference = None
+        else:
+            self._reference = {}
+
+            with open(reference) as reference_fp:
+                for record in SeqIO.parse(reference_fp, "fasta"):
+                    self._reference[record.id] = list(record.seq)
 
     def add_metadata(self, info):
         """Add metadata to the variant set.

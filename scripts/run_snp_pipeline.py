@@ -232,7 +232,7 @@ def main(args):
 
     if args["filters"] and vcf_file:
         logging.info("Applying filters: %s", [str(f) for f in args["filters"]])
-        var_set = VariantSet(vcf_file, filters=args["filters"])
+        var_set = VariantSet(vcf_file, filters=args["filters"], reference=args["reference"])
 
         var_set.add_metadata(mapper.get_meta())
         var_set.add_metadata(variant.get_meta())
