@@ -124,6 +124,11 @@ def get_args():
                         default=None,
                         help="Make an NJ tree and write it to the given file in newick format. [Default: Don't make tree, only matrix]")
 
+    parser.add_argument('--with-stats',
+                        action="store_true",
+                        default=False,
+                        help="Write additional files with information on removed recombinant SNPs. [don't]")
+
     return parser
 
 # --------------------------------------------------------------------------------------------------
@@ -160,7 +165,7 @@ def main(dArgs):
     parse_vcf_files(dArgs, avail_pos, aSampleNames)
 
     """
-    avail_pos:
+    avail_pos looks like this:
     {'gi|194097589|ref|NC_011035.1|':
         FastRBTree({2329: {'stats': <vcf2distancematrix.base_stats object at 0x40fb590>,
                            'reference': 'A',
@@ -201,13 +206,16 @@ def main(dArgs):
         write_mega_file(dArgs, aSampleNames, dist_mat, number_of_sites)
     else:
         sep = '\t' if dArgs['format'] == 'tsv' else ','
+        sform = "%s%e"
+        if dArgs['substitution'] == 'number_of_differences':
+            sform = "%s%i"
         with open(dArgs['out'], "wb") as fp:
             for i, sample_1 in enumerate(aSampleNames):
                 row = sample_1
                 for j, sample_2 in enumerate(aSampleNames):
                     if j < i:
                         dist = dist_mat[sample_1][sample_2]
-                        row += "%s%e" % (sep, dist)
+                        row += sform % (sep, dist)
                 fp.write("%s\n" % row)
 
     if dArgs['tree'] != None:
