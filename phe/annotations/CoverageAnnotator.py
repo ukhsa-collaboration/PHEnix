@@ -22,20 +22,22 @@ class CoverageAnnotator(Annotator):
         super(CoverageAnnotator, self).__init__(self.name)
 
         self.mean = 0
+        self._mean_sqr = 0
         self.dev = 0
 
     def annotate(self, vcf_path=None):
-        dp = []
         reader = vcf.Reader(filename=vcf_path)
-
+        total = 0
         for record in reader:
 
-            dp.append(record.INFO.get("DP", 0))
+            self.mean += record.INFO.get("DP", 0)
+            self._mean_sqr += record.INFO.get("DP", 0) ** 2
+            total += 1
 
 
-        self.mean = sum(dp) * 1.0 / len(dp)
-        mean_sqr = sum([i ** 2 for i in dp]) * 1.0 / len(dp)
-        self.dev = math.sqrt(mean_sqr - self.mean ** 2)
+        self.mean = self.mean * 1.0 / total
+        self._mean_sqr = self._mean_sqr * 1.0 / total
+        self.dev = math.sqrt(self._mean_sqr - self.mean ** 2)
 
     def get_meta_values(self):
         return OrderedDict({"mean": "%.2f" % self.mean, "dev": "%.2f" % self.dev})
