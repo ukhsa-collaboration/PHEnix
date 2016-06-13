@@ -15,21 +15,20 @@ class CoverageAnnotator(Annotator):
     classdocs
     '''
 
-    mean = None
-    dev = None
     name = "coverage"
 
     def __init__(self, config=None):
         '''Constructor'''
         super(CoverageAnnotator, self).__init__(self.name)
 
+        self.mean = 0
+        self.dev = 0
+
     def annotate(self, vcf_path=None):
-        records = []
         dp = []
         reader = vcf.Reader(filename=vcf_path)
 
         for record in reader:
-            records.append(record)
 
             dp.append(record.INFO.get("DP", 0))
 
