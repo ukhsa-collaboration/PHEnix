@@ -1,7 +1,6 @@
 from math import floor
-
-import psutil
-
+import multiprocessing
+import os
 
 def calculate_memory_for_sort():
     """Calculate available memory for ``samtools sort`` function.
@@ -13,8 +12,8 @@ def calculate_memory_for_sort():
     sort_memory: str or None
         String to use directly with *-m* option in sort, or None.
     """
-    avail_memory = psutil.virtual_memory().total
-    avail_cpu = psutil.cpu_count()
+    avail_memory = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')  # e.g. 4015976448
+    avail_cpu = multiprocessing.cpu_count()
 
     sort_memory = avail_memory / avail_cpu / 1024 ** 2
 
