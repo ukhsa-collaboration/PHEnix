@@ -47,6 +47,7 @@ import subprocess
 import tempfile
 
 from phe.metadata import PHEMetaData
+from phe.utils import calculate_memory_for_sort
 
 
 class Mapper(PHEMetaData):
@@ -150,16 +151,25 @@ class Mapper(PHEMetaData):
 
             # Convert reads sam to bam filtering on MQ > 0.
             samtools_version = self.get_samtools_version()
+            sort_memory = calculate_memory_for_sort()
+
 
             with tempfile.NamedTemporaryFile(suffix=".bam") as tmp_bam:
 
                 if samtools_version[0] >= 1 and samtools_version[1] >= 3:
                     out_file += ".bam"
                     view_cmd = "samtools view -bhS %s" % tmp.name  #  samtools view -bq 1 -
-                    sort_cmd = "samtools sort %s -o %s" % (tmp_bam.name, out_file)
+                    if sort_memory is None:
+                        sort_cmd = "samtools sort %s -o %s" % (tmp_bam.name, out_file)
+                    else:
+                        sort_cmd = "samtools sort -m %s %s -o %s" % (sort_memory, tmp_bam.name, out_file)
                 else:
                     view_cmd = "samtools view -bhS %s" % tmp.name  #  samtools view -bq 1 -
-                    sort_cmd = "samtools sort %s %s" % (tmp_bam.name, out_file)
+                    if sort_memory is None:
+                        sort_cmd = "samtools sort %s %s" % (tmp_bam.name, out_file)
+                    else:
+                        sort_cmd = "samtools sort -m %s %s %s" % (sort_memory, tmp_bam.name, out_file)
+
 
                 logging.debug("SAMTOOLS VERSION: %s, CMD: %s && %s", samtools_version, view_cmd, sort_cmd)
 
