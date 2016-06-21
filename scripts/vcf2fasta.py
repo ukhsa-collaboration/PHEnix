@@ -334,7 +334,7 @@ def main(args):
     sample_seqs["reference"] = tempfile.NamedTemporaryFile(prefix="reference", dir=out_dir)
 
     samples = parallel_reader.get_samples() + ["reference"]
-    sample_stats = {sample: BaseStats() for sample in samples }
+    sample_stats = {sample: base_stats() for sample in samples }
     last_base = 0
 
     total_records = 0
@@ -361,7 +361,7 @@ def main(args):
         if include and pos not in include.get(chrom, empty_tree) or exclude and pos in exclude.get(chrom, empty_tree):
             continue
 
-        position_data = {"reference": str(reference), "stats": BaseStats()}
+        position_data = {"reference": str(reference), "stats": base_stats()}
 
         for sample_name, record in final_records.iteritems():
 
