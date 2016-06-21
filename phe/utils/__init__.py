@@ -3,6 +3,7 @@
 :Author: Public Health England
 '''
 
+import sys
 import os
 import vcf
 from bintrees import FastRBTree
@@ -36,8 +37,36 @@ class base_stats(object):
         self.total = 0
 
     def __str__(self):
-        return "N: %i, mut: %i, mix: %i, gap: %i, total: %i" % \
-               (self.N, self.mut, self.mix, self.gap, self.total)
+        return "N: %i, mut: %i, mix: %i, gap: %i, total: %i" % (self.N,
+                                                                self.mut,
+                                                                self.mix,
+                                                                self.gap,
+                                                                self.total)
+
+    def __add__(self, other):
+        self.mut += other.mut
+        self.N += other.N
+        self.gap += other.gap
+        self.mix += other.mix
+        self.total += other.total
+        self.NA += other.NA
+
+        return self
+
+    def update(self, position_data, sample, reference):
+        for k, v in position_data.iteritems():
+            if k != sample:
+                continue
+            if v == "-":
+                self.gap += 1
+            elif v == "N":
+                self.N += 1
+            elif v in ["A", "C", "G", "T"]:
+                self.mut += 1
+            else:
+                self.mix += 1
+        self.total += 1
+
 
 # --------------------------------------------------------------------------------------------------
 
@@ -57,7 +86,7 @@ def is_uncallable(record):
 
 # --------------------------------------------------------------------------------------------------
 
-def precompute_snp_densities(avail_pos, sample_names, k):
+def precompute_snp_densities(avail_pos, sample_names, ref, k):
     """
     avail_pos:
     {'gi|194097589|ref|NC_011035.1|':
@@ -99,6 +128,31 @@ def precompute_snp_densities(avail_pos, sample_names, k):
                                                           '211701_H15510030401': 0.20455899117993009}}}
     """
 
+    iWINSIZE = 1000
+    flWINSIZE = float(iWINSIZE)
+
+    dSNPWins = {}
+    (dRefFreq, flGenLen) = get_ref_freqs(ref)
+    for i, sname1 in enumerate(sample_names):
+        dSNPWins[sname1] = []
+        for j in range(0, int(flGenLen), iWINSIZE):
+            dSNPWins[sname1].append(0.0)
+
+    for contig, oBT in avail_pos.items():
+        for iPos in oBT:
+            ref_base = oBT[iPos]['reference']
+            if dValChars.get(ref_base, None) == None:
+                continue
+            for sname in sample_names:
+                try:
+                    sam_base = oBT[iPos][sname]
+                except KeyError:
+                    continue
+                if dValChars.get(sam_base, None) == None:
+                    continue
+                if sam_base != ref_base:
+                    dSNPWins[sname][iPos/iWINSIZE] += 1/flWINSIZE
+
     dDen = {}
     dPerSample = {}
     for contig, oBT in avail_pos.items():
@@ -116,9 +170,8 @@ def precompute_snp_densities(avail_pos, sample_names, k):
                     continue
                 if sam_base != ref_base:
                     flSNPsInWin = 0.0
-                    for x in range((iPos - 499), (iPos + 501)):
+                    for x in range((iPos - ((iWINSIZE/2)-1)), (iPos + (iWINSIZE/2) + 1)):
                         try:
-
                             window_base = oBT[x][sname]
                             if dValChars.get(window_base, None) == None:
                                 continue
@@ -129,23 +182,12 @@ def precompute_snp_densities(avail_pos, sample_names, k):
                                 flSNPsInWin += 1.0
                         except KeyError:
                             continue
-                    flDnsty = flSNPsInWin / 1000.0
-                    try:
-                        dPerSample[sname].append(flDnsty)
-                    except KeyError:
-                        dPerSample[sname] = [flDnsty]
+                    flDnsty = flSNPsInWin / flWINSIZE
                     try:
                         dDen[contig][iPos][sname] = flDnsty
                     except KeyError:
                         dDen[contig][iPos] = {}
                         dDen[contig][iPos][sname] = flDnsty
-
-    # for samples that are identical to the reference dPerSample has no entry
-    for i, sname1 in enumerate(sample_names):
-        try:
-            _ = dPerSample[sname1]
-        except KeyError:
-            dPerSample[sname1] = [0.0]
 
     dDen['per_samplepair_threshold'] = {}
     for i, sname1 in enumerate(sample_names):
@@ -154,11 +196,11 @@ def precompute_snp_densities(avail_pos, sample_names, k):
             if j < i:
                 density_windows = []
                 if sname1 != 'reference':
-                    density_windows += dPerSample[sname1]
+                    density_windows += dSNPWins[sname1]
                 if sname2 != 'reference':
-                    density_windows += dPerSample[sname2]
-                dDen['per_samplepair_threshold'][sname1][sname2] = mean(density_windows) + \
-                                                                   (k * std(density_windows))
+                    density_windows += dSNPWins[sname2]
+                tmp_thresh = mean(density_windows) + (k * std(density_windows))
+                dDen['per_samplepair_threshold'][sname1][sname2] = max(1.0/flWINSIZE, tmp_thresh)
 
     return dDen
 
@@ -310,7 +352,7 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
     dDen = None
     dRemovals = None
     if dArgs['remove_recombination'] == True:
-        dDen = precompute_snp_densities(avail_pos, aSampleNames, dArgs['k'])
+        dDen = precompute_snp_densities(avail_pos, aSampleNames, dArgs['refgenome'], dArgs['k'])
         dRemovals = {}
         for i, sample_1 in enumerate(aSampleNames):
             dRemovals[sample_1] = {}
@@ -358,6 +400,7 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
                             flLocalDensity1 = dDen[sContig][pos].get(sample_1, 0.0)
                             flLocalDensity2 = dDen[sContig][pos].get(sample_2, 0.0)
                             flPairThreshold = dDen['per_samplepair_threshold'][sample_1][sample_2]
+                            # aStats.append("%s\t%s\t%i\t%.3f\t%.3f\t%.3f\n" % (sample_1, sample_2, pos, flLocalDensity1, flLocalDensity2, flPairThreshold))
                             if (flLocalDensity1 > flPairThreshold) or (flLocalDensity2 > flPairThreshold):
                                 aStats.append("%s\t%s\t%i\t%.3f\t%.3f\t%.3f\n" % (sample_1, sample_2, pos, flLocalDensity1, flLocalDensity2, flPairThreshold))
                                 dRemovals[sample_1][sample_2] += 1
