@@ -96,9 +96,9 @@ If that does not download a file named 'libtool-2.4.tar.gz' to your current fold
 - Click 'Install to Galaxy'.
 - Type 'PHE TOOLS' into the 'Add new tool panel section:' textbox.
 - Click 'Install'.
-- You will be presented with a long list of packages that need to be installed. This will take a while. Wait until everything is green.
+- You will be presented with a long list of packages that need to be installed. This will take a while. Wait until everything is green. If nothing happens for a little while, try reloading the page.
 
-In your admin tool panel the menu item "Manage installed tools" was added.
+In your admin tool panel the menu item "Manage installed tools" was added. You can check the status of your installed packages there.
 
 You need to install two more tools that are part of the Phenix workflow:
 
@@ -127,7 +127,8 @@ Remark: Processing a single sample with the Phenix workflow can use up to 1.5GB 
 .. NOTE:: Make sure that the order of highlighted files in the R1 and R2 fastq selection boxes are corresponding, i.e. the first highlighted files in the top box will be run together with the first highlighted file in the bottom box, the second with the second and so on. Are the highlighted files in the same rank in both boxes always matching pairs from the same sample?
 
 - If you are happy with the above, click 'Run workflow'.
-- Wait until three new history items per sample processed appear.
-- Click on PHE TOOLS in the tool panel on the left hand side and select the "VCFs to fasta" tool.
+- Wait until three new history items per sample processed appear. These will be one bam file, one raw vcf, and one filtered vcf per sample.
+- Click on PHE TOOLS in the tool panel on the left hand side and select the "VCFs to fasta" tool. This tool will create a multi-fasta file from your filtered vcfs.
 - Select all files ending with filtered.vcf in the top file selection box under 'Input VCF files(s)', by holding down the Ctrl key.
 - Click 'Execute'. Once everything is completed the "VCFs to fasta" tool with have produced your SNP alignment that can now be used for further processing.
+

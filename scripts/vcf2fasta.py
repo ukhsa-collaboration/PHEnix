@@ -445,10 +445,10 @@ def main(args):
     # Exclude any samples with high gap fraction.
     if isinstance(args["sample_gaps"], float):
         for sample_name in samples:
-            if sample == "reference":
+            if sample_name == "reference":
                 continue
 
-            gap_fractoin = float(sample_stats[sample_name].gaps) / sample_stats[sample_name].total
+            gap_fractoin = float(sample_stats[sample_name].gap) / sample_stats[sample_name].total
             if gap_fractoin > args["sample_gaps"]:
                 logging.info("Removing %s due to high sample gaps fraction %s", sample_name, gap_fractoin)
 
