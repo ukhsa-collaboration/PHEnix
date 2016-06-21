@@ -3,6 +3,7 @@
 :Author: Public Health England
 '''
 
+
 import sys
 import os
 import vcf
@@ -66,7 +67,6 @@ class base_stats(object):
             else:
                 self.mix += 1
         self.total += 1
-
 
 # --------------------------------------------------------------------------------------------------
 
@@ -172,6 +172,7 @@ def precompute_snp_densities(avail_pos, sample_names, ref, k):
                     flSNPsInWin = 0.0
                     for x in range((iPos - ((iWINSIZE/2)-1)), (iPos + (iWINSIZE/2) + 1)):
                         try:
+
                             window_base = oBT[x][sname]
                             if dValChars.get(window_base, None) == None:
                                 continue
@@ -183,6 +184,10 @@ def precompute_snp_densities(avail_pos, sample_names, ref, k):
                         except KeyError:
                             continue
                     flDnsty = flSNPsInWin / flWINSIZE
+                    try:
+                        dPerSample[sname].append(flDnsty)
+                    except KeyError:
+                        dPerSample[sname] = [flDnsty]
                     try:
                         dDen[contig][iPos][sname] = flDnsty
                     except KeyError:
@@ -686,10 +691,6 @@ def get_ref_freqs(ref):
 
 # --------------------------------------------------------------------------------------------------
 
-from math import floor
-import multiprocessing
-import os
-
 def calculate_memory_for_sort():
     """Calculate available memory for ``samtools sort`` function.
     If there is enough memory, no temp files are created. **Enough**
@@ -700,6 +701,10 @@ def calculate_memory_for_sort():
     sort_memory: str or None
         String to use directly with *-m* option in sort, or None.
     """
+
+    from math import floor
+    import multiprocessing
+
     avail_memory = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')  # e.g. 4015976448
     avail_cpu = multiprocessing.cpu_count()
 
@@ -715,6 +720,7 @@ def calculate_memory_for_sort():
 
     return sort_memory
 
+# --------------------------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     print calculate_memory_for_sort()

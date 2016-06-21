@@ -31,6 +31,7 @@ try:
 except ImportError:
     CAN_STATS = False
 
+
 def get_sample_stats(all_positions, samples):
     sample_stats = {sample: base_stats() for sample in samples }
     for positions in all_positions.itervalues():
