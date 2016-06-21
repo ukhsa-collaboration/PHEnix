@@ -303,9 +303,10 @@ class VariantSet(object):
             try:
                 _chrom = self._reference.get(chrom, [])
 
-                _ref = _chrom[pos]
+                # VCFs are 1-base indexed, strings are 0-base indexed.
+                _ref = _chrom[pos - 1]
             except ValueError:
-                logging.error("Could not retrieve reference base for %s @ %s", chrom, pos)
+                logging.error("Could not retrieve reference base for %s @ %s", chrom, pos - 1)
                 _ref = "N"
 
         return _ref
