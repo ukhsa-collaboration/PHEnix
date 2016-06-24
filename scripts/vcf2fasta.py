@@ -261,6 +261,8 @@ def get_args():
     args.add_argument("--with-stats", help="If a path is specified, then position of the outputed SNPs is stored in this file. Requires mumpy and matplotlib.")
 #     args.add_argument("--plots-dir", default="plots", help="Where to write summary plots on SNPs extracted. Requires mumpy and matplotlib.")
 
+    args.add_argument("--tmp", help="Location for writing temp files (default: /tmp).")
+
     return args
 
 def main(args):
@@ -274,9 +276,13 @@ def main(args):
 
     exclude = {}
     include = {}
-    out_dir = os.path.join(os.path.dirname(args["out"]), "tmp")
-    if not os.path.exists(out_dir):
-        os.mkdir(out_dir)
+
+    if args["tmp"]:
+        out_dir = os.path.join(args["tmp"])
+        if not os.path.exists(out_dir):
+            os.mkdir(out_dir)
+    else:
+        out_dir = tempfile.gettempdir()
 
     if args["reference"]:
         ref_seq = OrderedDict()
@@ -504,7 +510,10 @@ def main(args):
         # Close all the tmp handles.
         for tmp_iter in sample_seqs.itervalues():
             tmp_iter.close()
-        shutil.rmtree(out_dir)
+
+        # Only remove tmp is it was specified.
+        if not args["tmp"]:
+            shutil.rmtree(out_dir)
 
         if args["with_stats"] is not None:
             args["with_stats"].close()
