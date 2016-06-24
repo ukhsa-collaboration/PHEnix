@@ -203,6 +203,15 @@ def get_mixture(record, threshold):
 
     return mixture
 
+def guess_total_records(vcfs):
+    total_records = 0
+    with open(vcfs[0]) as fp:
+        for _ in fp:
+            total_records += 1
+
+    logging.debug("Guestimated %s records", total_records)
+    return total_records
+
 def is_above_min_depth(record):
 
     above = True
@@ -264,6 +273,17 @@ def get_args():
     args.add_argument("--tmp", help="Location for writing temp files (default: /tmp).")
 
     return args
+
+
+def log_progress(total_records, guesstimate_records):
+    """Logger of progress."""
+    n_times = 10
+    interval = guesstimate_records / n_times
+    if total_records % interval == 0:
+        frac = float(total_records) / guesstimate_records
+        if frac > 1.0:
+            frac = 0.99
+        logging.info("Processed %s%% records (%s of guestimated %s)", int(frac * 100), total_records, guesstimate_records)
 
 def main(args):
     """
@@ -340,7 +360,13 @@ def main(args):
     sample_stats = {sample: BaseStats() for sample in samples }
     last_base = 0
 
+    total_records = 0
+    guesstimate_records = guess_total_records(args["input"])
+
     for chrom, pos, records in parallel_reader:
+        total_records += 1
+
+        log_progress(total_records, guesstimate_records)
 
         final_records = pick_best_records(records)
         reference = [ record.REF for record in final_records.itervalues() if record.REF != "N"]
