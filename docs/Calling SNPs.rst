@@ -7,7 +7,7 @@ following:
 
 .. code-block:: bash 
 
-   $ run_snp_pipeline.py \
+   $ phenix.py run_snp_pipeline \
    -r1 <path to R1.fastq> \
    -r2 <path to R2.fastq> \
    -r <path to reference> \
