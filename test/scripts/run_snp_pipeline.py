@@ -75,7 +75,8 @@ class RunSnpPipeline(unittest.TestCase):
                 "outdir": "results",
                 "bam": None,
                 "vcf": None,
-                "sample_name": "test_sample"
+                "sample_name": "test_sample",
+                "keep_temp": True
                 }
 
         if not os.path.exists(self.args["outdir"]):
