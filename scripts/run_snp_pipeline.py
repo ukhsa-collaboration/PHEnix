@@ -113,6 +113,8 @@ def get_args():
 
     args.add_argument("--annotators", nargs="+", help="List of annotators to run before filters. Available: %s" % available_annotators())
 
+    args.add_argument("--keep-temp", action="store_true", help="Keep intermediate files like BAMs and VCFs (default: False).")
+
     return args
 
 def load_config(args):
@@ -215,6 +217,12 @@ def main(args):
         if variant and not variant.make_vcf(ref=args["reference"], bam=bam_file, vcf_file=vcf_file, make_aux=make_aux):
             logging.error("VCF was not created.")
             return 2
+
+        # Remove BAM file if it was generated and not kept.
+        if not args["bam"] and not args["keep_temp"]:
+            logging.debug("Removing BAM file: %s", bam_file)
+            os.unlink(bam_file)
+            os.unlink("%s.bai" % bam_file)
     else:
         vcf_file = None
 
@@ -245,6 +253,10 @@ def main(args):
 
         final_vcf = os.path.join(args["outdir"], "%s.filtered.vcf" % args["sample_name"])
         var_set.filter_variants(out_vcf=final_vcf)
+
+        if not args["vcf"] and not args["keep_temp"]:
+            logging.debug("Removing VCF file: %s", vcf_file)
+            os.unlink(vcf_file)
 
     if args["workflow"] and args["input"]:
         component_complete = os.path.join(args["outdir"], "ComponentComplete.txt")
