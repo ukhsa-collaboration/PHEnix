@@ -16,6 +16,8 @@ from numpy import mean
 from pprint import pprint
 from collections import OrderedDict
 
+from scipy.stats import binom_test
+
 dValChars = {'A': 1, 'C': 1, 'G': 1, 'T': 1}
 
 # --------------------------------------------------------------------------------------------------
@@ -86,7 +88,7 @@ def is_uncallable(record):
 
 # --------------------------------------------------------------------------------------------------
 
-def precompute_snp_densities(avail_pos, sample_names, ref, k):
+def precompute_snp_densities(avail_pos, sample_names, args):
     """
     avail_pos:
     {'gi|194097589|ref|NC_011035.1|':
@@ -107,105 +109,93 @@ def precompute_snp_densities(avail_pos, sample_names, ref, k):
                            '211702_H15522021601': 'A'}})}
 
     returns dDen:
-    {'gi|194097589|ref|NC_011035.1|': {2329: {'211700_H15498026501': 0.001,
-                                              '211701_H15510030401': 0.001,
-                                              '211702_H15522021601': 0.001},
-                                       3837: {'211700_H15498026501': 0.002,
-                                              '211701_H15510030401': 0.002,
-                                              '211702_H15522021601': 0.002},
-                                       4140: {'211700_H15498026501': 0.002,
-                                              '211701_H15510030401': 0.002,
-                                              '211702_H15522021601': 0.002},
-                                       12159: {'211700_H15498026501': 0.009,
-                                               '211701_H15510030401': 0.008,
-                                               '211702_H15522021601': 0.008},
-                                       12309: {'211700_H15498026501': 0.149,
-                                               '211701_H15510030401': 0.148,
-                                               '211702_H15522021601': 0.148}},
-     'per_samplepair_threshold': {'211700_H15498026501': {},
-                                  '211701_H15510030401': {'211700_H15498026501': 0.20127650534341832},
-                                  '211702_H15522021601': {'211700_H15498026501': 0.20836662410991291,
-                                                          '211701_H15510030401': 0.20455899117993009}}}
+    {'gi|194097589|ref|NC_011035.1|': {2329: {'211700_H15498026501': 1,
+                                              '211701_H15510030401': 1,
+                                              '211702_H15522021601': 1},
+                                       3837: {'211700_H15498026501': 2,
+                                              '211701_H15510030401': 2,
+                                              '211702_H15522021601': 2},
+                                       4140: {'211700_H15498026501': 2,
+                                              '211701_H15510030401': 2,
+                                              '211702_H15522021601': 2},
+                                       12159: {'211700_H15498026501': 9,
+                                               '211701_H15510030401': 8,
+                                               '211702_H15522021601': 8},
+                                       12309: {'211700_H15498026501': 149,
+                                               '211701_H15510030401': 148,
+                                               '211702_H15522021601': 148}},
+     'diffs': {'211700_H15498026501': {},
+                                  '211701_H15510030401': {'211700_H15498026501': 10},
+                                  '211702_H15522021601': {'211700_H15498026501': 20,
+                                                          '211701_H15510030401': 0}}}
     """
 
-    iWINSIZE = 1000
+    iWINSIZE = args['winsize']
     flWINSIZE = float(iWINSIZE)
 
-    dSNPWins = {}
-    (dRefFreq, flGenLen) = get_ref_freqs(ref)
-    for i, sname1 in enumerate(sample_names):
-        dSNPWins[sname1] = []
-        for j in range(0, int(flGenLen), iWINSIZE):
-            dSNPWins[sname1].append(0.0)
-
-    for contig, oBT in avail_pos.items():
-        for iPos in oBT:
-            ref_base = oBT[iPos]['reference']
-            if dValChars.get(ref_base, None) == None:
-                continue
-            for sname in sample_names:
-                try:
-                    sam_base = oBT[iPos][sname]
-                except KeyError:
-                    continue
-                if dValChars.get(sam_base, None) == None:
-                    continue
-                if sam_base != ref_base:
-                    dSNPWins[sname][iPos/iWINSIZE] += 1/flWINSIZE
+    (_, flGenLen) = get_ref_freqs(args['refgenome'], len_only=True)
 
     dDen = {}
-    dPerSample = {}
+    dDen['diffs'] = {}
+    for i, sample_1 in enumerate(sample_names):
+        dDen['diffs'][sample_1] = {}
+        for j, sample_2 in enumerate(sample_names):
+            if j <= i:
+                dDen['diffs'][sample_1][sample_2] = 0
+
     for contig, oBT in avail_pos.items():
         dDen[contig] = {}
-        for iPos in oBT:
-            ref_base = oBT[iPos]['reference']
-            if dValChars.get(ref_base, None) == None:
-                continue
-            for sname in sample_names:
-                try:
-                    sam_base = oBT[iPos][sname]
-                except KeyError:
+        for pos in oBT:
+            ref_base = oBT[pos].get("reference")
+            for i, sample_1 in enumerate(sample_names):
+                s1_base = oBT[pos].get(sample_1, ref_base)
+                # consider only differences between valid characters -> pairwise deletion
+                if dValChars.get(s1_base.upper(), None) == None:
                     continue
-                if dValChars.get(sam_base, None) == None:
-                    continue
-                if sam_base != ref_base:
-                    flSNPsInWin = 0.0
-                    for x in range((iPos - ((iWINSIZE/2)-1)), (iPos + (iWINSIZE/2) + 1)):
-                        try:
-
-                            window_base = oBT[x][sname]
-                            if dValChars.get(window_base, None) == None:
-                                continue
-                            window_ref = oBT[x]['reference']
-                            if dValChars.get(window_ref, None) == None:
-                                continue
-                            if window_base != window_ref:
-                                flSNPsInWin += 1.0
-                        except KeyError:
+                for j, sample_2 in enumerate(sample_names):
+                    if j < i:
+                        s2_base = oBT[pos].get(sample_2, ref_base)
+                        # consider only differences between valid characters -> pairwise deletion
+                        if dValChars.get(s2_base.upper(), None) == None:
                             continue
-                    flDnsty = flSNPsInWin / flWINSIZE
-                    try:
-                        dPerSample[sname].append(flDnsty)
-                    except KeyError:
-                        dPerSample[sname] = [flDnsty]
-                    try:
-                        dDen[contig][iPos][sname] = flDnsty
-                    except KeyError:
-                        dDen[contig][iPos] = {}
-                        dDen[contig][iPos][sname] = flDnsty
+                        if s1_base != s2_base:
+                            dDen['diffs'][sample_1][sample_2] += 1
+                            iDiffsInWin = 0
+                            iWinStart = max(0, pos - ((iWINSIZE/2)-1))
+                            iWinStop = min(int(flGenLen), (pos + (iWINSIZE/2) + 1))
+                            for x in range(iWinStart, iWinStop):
+                                try:
+                                    winbase_1 = 'ref' if sample_1 == 'reference' else oBT[x].get(sample_1, 'ref')
+                                    winbase_2 = 'ref' if sample_2 == 'reference' else oBT[x].get(sample_2, 'ref')
+                                except KeyError:
+                                    # x is a point in the alignment where everything is ref
+                                    continue
+                                # now x is a point in the alignment where there is at least one SNP but not necessarity in s1 or s2
+                                if winbase_1 != 'ref':
+                                    # if not ref check for valid char
+                                    if dValChars.get(winbase_1.upper(), None) == None:
+                                        continue
+                                if winbase_2 != 'ref':
+                                    # if not ref check for valid char
+                                    if dValChars.get(winbase_2.upper(), None) == None:
+                                        continue
+                                if winbase_1 != winbase_2:
+                                    iDiffsInWin += 1
+                            try:
+                                dDen[contig][pos][sample_1][sample_2] = iDiffsInWin
+                            except KeyError:
+                                try:
+                                    dDen[contig][pos][sample_1] = {}
+                                    dDen[contig][pos][sample_1][sample_2] = iDiffsInWin
+                                except KeyError:
+                                    dDen[contig][pos] = {}
+                                    dDen[contig][pos][sample_1] = {}
+                                    dDen[contig][pos][sample_1][sample_2] = iDiffsInWin
 
-    dDen['per_samplepair_threshold'] = {}
-    for i, sname1 in enumerate(sample_names):
-        dDen['per_samplepair_threshold'][sname1] = {}
-        for j, sname2 in enumerate(sample_names):
-            if j < i:
-                density_windows = []
-                if sname1 != 'reference':
-                    density_windows += dSNPWins[sname1]
-                if sname2 != 'reference':
-                    density_windows += dSNPWins[sname2]
-                tmp_thresh = mean(density_windows) + (k * std(density_windows))
-                dDen['per_samplepair_threshold'][sname1][sname2] = max(1.0/flWINSIZE, tmp_thresh)
+    # debug
+    #sOutBase = os.path.splitext(args['out'])[0]
+    #with open('%s_dDen.txt' % (sOutBase), 'w') as f:
+    #    pprint(dDen, f)
 
     return dDen
 
@@ -357,14 +347,13 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
     dDen = None
     dRemovals = None
     if dArgs['remove_recombination'] == True:
-        dDen = precompute_snp_densities(avail_pos, aSampleNames, dArgs['refgenome'], dArgs['k'])
+        dDen = precompute_snp_densities(avail_pos, aSampleNames, dArgs)
         dRemovals = {}
         for i, sample_1 in enumerate(aSampleNames):
             dRemovals[sample_1] = {}
             for j, sample_2 in enumerate(aSampleNames):
                 if j <= i:
                     dRemovals[sample_1][sample_2] = 0
-
 
     # initialise empty matrix
     dist_mat = {}
@@ -384,6 +373,11 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
             else: # j > i
                 pass
 
+    flNofWins = 0.0
+    if dDen != None:
+        (_, flGenLen) = get_ref_freqs(dArgs['refgenome'], len_only=True)
+        flNofWins = flGenLen / dArgs['winsize']
+
     aStats = []
     for sContig in avail_pos.keys():
         for pos in avail_pos[sContig]:
@@ -400,14 +394,35 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
                         if dValChars.get(s2_base.upper(), None) == None:
                             continue
 
+                        # Recombination removal happens here
                         if dDen != None and s1_base != s2_base:
 
-                            flLocalDensity1 = dDen[sContig][pos].get(sample_1, 0.0)
-                            flLocalDensity2 = dDen[sContig][pos].get(sample_2, 0.0)
-                            flPairThreshold = dDen['per_samplepair_threshold'][sample_1][sample_2]
-                            # aStats.append("%s\t%s\t%i\t%.3f\t%.3f\t%.3f\n" % (sample_1, sample_2, pos, flLocalDensity1, flLocalDensity2, flPairThreshold))
-                            if (flLocalDensity1 > flPairThreshold) or (flLocalDensity2 > flPairThreshold):
-                                aStats.append("%s\t%s\t%i\t%.3f\t%.3f\t%.3f\n" % (sample_1, sample_2, pos, flLocalDensity1, flLocalDensity2, flPairThreshold))
+                            iDiffsInWin = dDen[sContig][pos][sample_1][sample_2]
+                            iTotalDiffs = dDen['diffs'][sample_1][sample_2]
+                            p_hitting_window = 1.0 / flNofWins
+                            p_ok = 1.0
+
+                            # sys.stdout.write("%s\t%s\t%i\t%i\t%i\t" % (sample_1, sample_2, pos, iDiffsInWin, iTotalDiffs))
+
+                            # only do binomial test if there are 'too many differences'
+                            #  => do not exclude diffs because there are 'not enough'
+                            if iDiffsInWin > 1 and iDiffsInWin > iTotalDiffs / float(flNofWins):
+                                # binomial test:
+                                # what is the probability that I have x successes (i.e. diffs in the current window)
+                                # given n trials (i.e. the total number of differences between the two samples)
+                                # and given that the probabilty of success is 1/total_num_windows
+                                p_ok = binom_test(iDiffsInWin, iTotalDiffs, p_hitting_window)
+
+                            # debug
+                            # sys.stdout.write("%e\n" % p_ok)
+                            aStats.append("%s\t%s\t%i\t%i\t%i\t%e\n" % (sample_1, sample_2, pos, iDiffsInWin, iTotalDiffs, p_ok))
+
+                            # null-hypothesis: probability of hitting it is equal for all windows, i.e.
+                            # the diffs between the samples are uniformly distributed
+                            # Bonferroni corrected p-value threshold; (0.05 / iTotalDiffs)
+                            if p_ok <= (0.01 / iTotalDiffs):
+                                # likely to be recombinat site (for a given definition of 'likely' and 'recombinant')
+                                # aStats.append("%s\t%s\t%i\t%i\t%i\t%e\n" % (sample_1, sample_2, pos, iDiffsInWin, iTotalDiffs, p_ok))
                                 dRemovals[sample_1][sample_2] += 1
                                 continue
 
@@ -458,7 +473,7 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
                             row += "\tNAN"
                 fOut.write("%s\n" % row)
         with open("%s.removed_snps.tsv" % (sOutBase), 'w') as fOut:
-            fOut.write("sample_1\tsample_2\tposition\tdensity_in_sample1\tdensity_in_sample2\tthreshold_for_pair\n")
+            fOut.write("sample_1\tsample_2\tposition\tdiffs_in_win\ttotal_diffs\tp_ok\n")
             for sLine in aStats:
                 fOut.write(sLine)
 
@@ -569,7 +584,7 @@ def normalise_k80(d, ref, names):
          http://www.umich.edu/~zhanglab/publications/2003/a0005108.pdf, equation 9
     """
 
-    (_, flGenLen) = get_ref_freqs(ref)
+    (_, flGenLen) = get_ref_freqs(ref, len_only=True)
 
     for i, sample_1 in enumerate(names):
         for j, sample_2 in enumerate(names):
@@ -666,7 +681,7 @@ def getTotalNofDiff_tn84(d):
 
 # --------------------------------------------------------------------------------------------------
 
-def get_ref_freqs(ref):
+def get_ref_freqs(ref, len_only=False):
 
     # get frequency of a, c, g, and t in ref
     dRefFreq = {'A': 0.0, 'C': 0.0, 'G': 0.0, 'T': 0.0}
@@ -676,15 +691,18 @@ def get_ref_freqs(ref):
             if sLine.startswith(">"):
                 continue
             else:
-                sLine = sLine.upper().strip()
                 flGenLen += len(sLine)
+                if len_only == True:
+                    continue
+                sLine = sLine.upper().strip()
                 for n in sLine:
                     try:
                         dRefFreq[n] += 1.0
                     except KeyError:
                         pass
-    for (i, j) in dRefFreq.items():
-        dRefFreq[i] = j / flGenLen
+    if len_only == False:
+        for (i, j) in dRefFreq.items():
+            dRefFreq[i] = j / flGenLen
 
     logging.info("genome length: %s" % flGenLen)
     return (dRefFreq, flGenLen)

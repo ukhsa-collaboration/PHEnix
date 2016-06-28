@@ -7,7 +7,7 @@ Implementing Variant Caller
 
 
 Similarly to :ref:`implementing-mapper` and :ref:`implementing-filter`
-adding your variant caller is easy and sraight forward. Implement 
+adding your variant caller is easy and sraight forward. Implement
 :py:class:`VariantCaller` class with the following attributes/methods:
 
 - :py:attr:`VariantCaller.name` - Name of your variant caller, used to dynamically load it.
@@ -22,7 +22,7 @@ automatically picked up by the system. To verify run:
 .. code-block:: bash
 
    run_snp_pipeline.py --help
-   
+
 It should appear in the list of available callers.
 
 :Date: 22 Sep, 2015
@@ -69,7 +69,7 @@ class VariantSet(object):
 
     def __init__(self, vcf_in, filters=None, reference=None):
         """Constructor of variant set.
-        
+
         Parameters
         ----------
         vcf_in: str
@@ -110,11 +110,11 @@ class VariantSet(object):
 
     def variants(self, only_good=False):
         '''Generator over the variant set.
-        
+
         Parameters
         ----------
         only_good: bool, optional
-            Iff True good and bad variants are returned, 
+            Iff True good and bad variants are returned,
             otherwise only good are returned (default: False).
         '''
         for var in self._variants:
@@ -135,7 +135,7 @@ class VariantSet(object):
             instead of being retianed in memory.
         only_good: bool, optional
             True/False if only SNPs that PASS should output.
-        
+
         Returns
         -------
         list or int:
@@ -252,7 +252,7 @@ class VariantSet(object):
 
     def _filter_record(self, record, removed_filters=list()):
         '''**PRIVATE** Filter record.
-        
+
         Parameters
         ----------
         record: :py:class:vcf.Record
@@ -303,9 +303,10 @@ class VariantSet(object):
             try:
                 _chrom = self._reference.get(chrom, [])
 
-                _ref = _chrom[pos]
+                # VCFs are 1-base indexed, strings are 0-base indexed.
+                _ref = _chrom[pos - 1]
             except ValueError:
-                logging.error("Could not retrieve reference base for %s @ %s", chrom, pos)
+                logging.error("Could not retrieve reference base for %s @ %s", chrom, pos - 1)
                 _ref = "N"
 
         return _ref
@@ -335,7 +336,7 @@ class VariantSet(object):
 
     def add_metadata(self, info):
         """Add metadata to the variant set.
-        
+
         Parameters
         ----------
         info: dict
@@ -346,7 +347,7 @@ class VariantSet(object):
 
     def write_variants(self, vcf_out, only_snps=False, only_good=False):
         """Write _variants to a VCF file.
-        
+
         Parameters
         ----------
         vcf_out: str
@@ -356,7 +357,7 @@ class VariantSet(object):
         only_good: bool, optional
             True if only those records that PASS all filters should be written
             (default: False).
-        
+
         Returns:
         int:
             Number of records written.
@@ -411,7 +412,7 @@ class VariantCaller(PHEMetaData):
 
     def __init__(self, cmd_options=None):
         """Constructor for variant caller.
-        
+
         Parameters
         ----------
         cmd_options: str, optional
@@ -424,7 +425,7 @@ class VariantCaller(PHEMetaData):
     @abc.abstractmethod
     def make_vcf(self, *args, **kwargs):
         """Create a VCF from **BAM** file.
-        
+
         Parameters
         ----------
         ref: str
