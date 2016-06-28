@@ -14,6 +14,8 @@ from Bio.Phylo import TreeConstruction
 from phe.utils import base_stats, parse_vcf_files
 from phe.utils import is_uncallable, get_dist_mat
 
+# from pprint import pprint
+
 # --------------------------------------------------------------------------------------------------
 
 def get_desc():
@@ -108,6 +110,14 @@ def get_args():
                         default=1.0,
                         help="Density tyhreshold above mean density for relevant pair. [1.0].")
 
+    parser.add_argument("--windowsize",
+                        "-w",
+                        type=int,
+                        metavar="INT",
+                        dest="winsize",
+                        default=1000,
+                        help="Window size in genome for SNP desnity calculations. [1000].")
+
     parser.add_argument("--format",
                         type=str,
                         metavar="STRING",
@@ -163,6 +173,15 @@ def main(dArgs):
 
     # parse vcf files into avail_pos structure
     parse_vcf_files(dArgs, avail_pos, aSampleNames)
+
+    # debug
+    #sOutBase = os.path.splitext(dArgs['out'])[0]
+    #with open('%s_avail_pos.txt' % (sOutBase), 'w') as f:
+    #    for contig, oBT in avail_pos.items():
+    #        f.write("contig: %s\n" % contig)
+    #        for iPos in oBT:
+    #            f.write("pos: %i\n" % (iPos))
+    #            pprint(oBT[iPos], f)
 
     """
     avail_pos looks like this:
@@ -273,7 +292,6 @@ def write_mega_file(dArgs, aSampleNames, dist_mat, number_of_sites=0):
             fp.write("%s\n" % row)
 
     return 0
-
 
 # end of main --------------------------------------------------------------------------------------
 
