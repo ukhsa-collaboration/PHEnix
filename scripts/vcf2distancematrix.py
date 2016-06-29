@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 '''
-
+Provides the vcf to diastance matrix funtionality plus the option to remove
+differences between samples unlikely to be cause by background drift (recombination removal)
 '''
+
 import sys
 import argparse
 import glob
@@ -11,18 +13,29 @@ import os
 from Bio import Phylo
 from Bio.Phylo import TreeConstruction
 
-from phe.utils import base_stats, parse_vcf_files
-from phe.utils import is_uncallable, get_dist_mat
+from phe.utils import parse_vcf_files, get_dist_mat
 
 # from pprint import pprint
 
 # --------------------------------------------------------------------------------------------------
 
 def get_desc():
+    """
+    Get description for help text
+
+    Parameters
+    ----------
+    no inputs
+
+    Returns
+    -------
+    a string with contains the description
+    """
+
     return """Combine multiple VCFs into a distance matrix.
               Distance measures according to five different models are available:
               * Number of differences\n
-              * Page Jukes-Cantor distance (jc69)
+              * Jukes-Cantor distance (jc69)
               * Tajima-Nei distance (k80)
               * Kimura 2-parameter distance (tn84)
               * Tamura 3-parameter distance (t93)
@@ -32,10 +45,12 @@ def get_desc():
 
 def get_args():
     """
-    Parge arguments
+    Parse arguments
+
     Parameters
     ----------
     no inputs
+
     Returns
     -------
     oArgs: obj
@@ -59,21 +74,25 @@ def get_args():
     parser.add_argument("--out",
                         "-o",
                         required=True,
-                        help="Path to the maxtrix output file in given format. [REQUIRED. default format is tab separated. use --format to change format]")
+                        help="Path to the maxtrix output file in given format. \
+                              [REQUIRED. default format is tab separated. \
+                              use --format to change format]")
 
     parser.add_argument('--deletion',
                         metavar="STRING",
                         default='pairwise',
                         choices=['pairwise', 'complete'],
                         dest="deletion",
-                        help="Method of recombination filtering. Either 'pairwise' or 'complete' ['pairwise']")
+                        help="Method of recombination filtering. Either 'pairwise' \
+                              or 'complete' ['pairwise']")
 
     parser.add_argument('--substitution',
                         metavar="STRING",
                         default='number_of_differences',
                         choices=['number_of_differences', 'jc69', 'k80', 'tn84', 't93'],
                         dest="substitution",
-                        help="Substituition model. Either 'number_of_differences', 'jc69', 'k80', 'tn84' or 't93' ['number_of_differences']")
+                        help="Substituition model. Either 'number_of_differences', \
+                              'jc69', 'k80', 'tn84' or 't93' ['number_of_differences']")
 
     group = parser.add_mutually_exclusive_group()
 
@@ -100,7 +119,8 @@ def get_args():
                         metavar="FASTA FILE",
                         dest="refgenome",
                         default=None,
-                        help="Reference genome used for SNP calling [Required for 'jc69', 'k80', 'tn84' and 't93' substitution, else ignored].")
+                        help="Reference genome used for SNP calling [Required for \
+                              'jc69', 'k80', 'tn84' and 't93' substitution, else ignored].")
 
     parser.add_argument("--threshold",
                         "-k",
@@ -118,13 +138,21 @@ def get_args():
                         default=1000,
                         help="Window size in genome for SNP desnity calculations. [1000].")
 
+    parser.add_argument("--threads",
+                        type=int,
+                        metavar="INT",
+                        dest="threads",
+                        default=1,
+                        help="Number of threads to used. [1].")
+
     parser.add_argument("--format",
                         type=str,
                         metavar="STRING",
                         dest="format",
                         choices=['tsv', 'csv', 'mega'],
                         default='tsv',
-                        help="Change format for output file. Available options csv and tsv.")
+                        help="Change format for output file. Available \
+                              options csv, tsv and mega. [tsv]")
 
     parser.add_argument("--tree",
                         "-t",
@@ -132,12 +160,14 @@ def get_args():
                         metavar="FILE",
                         dest="tree",
                         default=None,
-                        help="Make an NJ tree and write it to the given file in newick format. [Default: Don't make tree, only matrix]")
+                        help="Make an NJ tree and write it to the given file in newick \
+                              format. [Default: Don't make tree, only matrix]")
 
     parser.add_argument('--with-stats',
                         action="store_true",
                         default=False,
-                        help="Write additional files with information on removed recombinant SNPs. [don't]")
+                        help="Write additional files with information on \
+                              removed recombinant SNPs. [don't]")
 
     return parser
 
@@ -146,13 +176,16 @@ def get_args():
 def main(dArgs):
     '''
     Main funtion
+
     Parameters
     ----------
-    no inputs
+    dArgs: dict
+        input parameter dictionary as created by get_args()
+
     Returns
     -------
-    0
-    Creates all logs and result files
+    returns 0
+    also creates all logs and result files
     '''
 
     if dArgs['substitution'] in ['jc69', 'k80', 'tn84', 't93'] and dArgs['refgenome'] == None:
@@ -166,7 +199,7 @@ def main(dArgs):
         sys.stderr.write("Error: No VCFs found.\n")
         return 1
     else:
-        logging.info("%i VCFs found" %(len(dArgs['input'])))
+        logging.info("%i VCFs found", len(dArgs['input']))
 
     aSampleNames = []
     avail_pos = {}
@@ -207,14 +240,15 @@ def main(dArgs):
     logging.info("%i total variant positions found" % (number_of_sites))
 
     if dArgs['deletion'] == 'complete':
-        for contig, oBT in avail_pos.items():
+        for _, oBT in avail_pos.items():
             to_del = []
             for iPos in oBT:
                 if oBT[iPos]['stats'].N > 0 or oBT[iPos]['stats'].gap > 0:
                     to_del.append(iPos)
             for r in to_del:
                 oBT.remove(r)
-        logging.info("%i total variant positions left after complete removal" % (sum([len(x) for _, x in avail_pos.items()])))
+        logging.info("%i total variant positions left after complete removal",
+                     sum([len(x) for _, x in avail_pos.items()]))
     else: # deletion is pairwise, which is implicit during matrix creation
         pass
 
@@ -247,6 +281,26 @@ def main(dArgs):
 # --------------------------------------------------------------------------------------------------
 
 def write_mega_file(dArgs, aSampleNames, dist_mat, number_of_sites=0):
+    '''
+    Writes a mega output file of a distance matrix.
+
+    Parameters
+    ----------
+    dArgs: dict
+        input argument dictionary
+    aSampleNames: list
+        list of sample names
+    dist_mat: dict
+        distance matrix as a dict of dicts
+        distance_a_to_b = dist_mat[a][b]
+    number_of_sites: int
+        number of sites to put in mega header (default 0)
+
+    Returns
+    -------
+    returns 0
+    also writes files to dArgs['out']
+    '''
 
     header = """#mega
 !Title: fasta file;
@@ -282,7 +336,8 @@ def write_mega_file(dArgs, aSampleNames, dist_mat, number_of_sites=0):
             fp.write("[%s] #%s\n" % (str(i+1).rjust(spacing1), name))
 
         fp.write('\n')
-        fp.write('[              %s ]\n' % ('            '.join([str(x) for x in range(1, len(aSampleNames) + 1)])))
+        fp.write('[              %s ]\n' \
+                 % ('            '.join([str(x) for x in range(1, len(aSampleNames) + 1)])))
         for i, sample_1 in enumerate(aSampleNames):
             row = "[%s] " % (str(i+1).rjust(spacing1))
             for j, sample_2 in enumerate(aSampleNames):
@@ -296,6 +351,24 @@ def write_mega_file(dArgs, aSampleNames, dist_mat, number_of_sites=0):
 # end of main --------------------------------------------------------------------------------------
 
 def make_nj_tree(dist_mat, dArgs, aSampleNames):
+    '''
+    Uses Biopython.Phylo to make a neighbour joining tree from a distance matrix
+
+    Parameters
+    ----------
+    dist_mat: dict
+        distance matrix as a dict of dicts
+        distance_a_to_b = dist_mat[a][b]
+    dArgs: dict
+        input argument dictionary
+    aSampleNames: list
+        list of sample names
+
+    Returns
+    -------
+    returns 0
+    also writes tree file to to dArgs['tree'] in newick format
+    '''
 
     aSimpleMatrix = []
     for i, sample_1 in enumerate(aSampleNames):

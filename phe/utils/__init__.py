@@ -16,6 +16,8 @@ from numpy import mean
 from pprint import pprint
 from collections import OrderedDict
 
+import multiprocessing
+
 from scipy.stats import binom_test
 
 dValChars = {'A': 1, 'C': 1, 'G': 1, 'T': 1}
@@ -73,6 +75,18 @@ class base_stats(object):
 # --------------------------------------------------------------------------------------------------
 
 def is_uncallable(record):
+    '''
+    Function to determine whether record is uncallable
+
+    Parameters
+    ----------
+    record: obj
+        a vcf.record object
+    Returns
+    -------
+    uncall: boolean
+        True, False or None
+    '''
 
     uncall = False
     try:
@@ -90,8 +104,13 @@ def is_uncallable(record):
 
 def precompute_snp_densities(avail_pos, sample_names, args):
     """
-    avail_pos:
-    {'gi|194097589|ref|NC_011035.1|':
+    Precompute the number of differences around each difference between each pair of samples
+
+    Parameters
+    ----------
+    avail_pos: dict
+        data structure that contains the information on all available positions, like this:
+        {'gi|194097589|ref|NC_011035.1|':
         FastRBTree({2329: {'stats': <vcf2distancematrix.base_stats object at 0x40fb590>,
                            'reference': 'A',
                            '211700_H15498026501': 'C',
@@ -107,27 +126,58 @@ def precompute_snp_densities(avail_pos, sample_names, args):
                            '211701_H15510030401': 'A',
                            'reference': 'G',
                            '211702_H15522021601': 'A'}})}
+    sample_names: list
+        list of sample names
+    args: dict
+        input parameter dictionary as created by get_args()
 
-    returns dDen:
-    {'gi|194097589|ref|NC_011035.1|': {2329: {'211700_H15498026501': 1,
-                                              '211701_H15510030401': 1,
-                                              '211702_H15522021601': 1},
-                                       3837: {'211700_H15498026501': 2,
-                                              '211701_H15510030401': 2,
-                                              '211702_H15522021601': 2},
-                                       4140: {'211700_H15498026501': 2,
-                                              '211701_H15510030401': 2,
-                                              '211702_H15522021601': 2},
-                                       12159: {'211700_H15498026501': 9,
-                                               '211701_H15510030401': 8,
-                                               '211702_H15522021601': 8},
-                                       12309: {'211700_H15498026501': 149,
-                                               '211701_H15510030401': 148,
-                                               '211702_H15522021601': 148}},
-     'diffs': {'211700_H15498026501': {},
-                                  '211701_H15510030401': {'211700_H15498026501': 10},
-                                  '211702_H15522021601': {'211700_H15498026501': 20,
-                                                          '211701_H15510030401': 0}}}
+    Returns
+    -------
+    dDen: dict
+        contains the differences between a pair in a window of given size
+        around each difference of the pair
+        {'diffs': {'187534_H153520399-1': {'187534_H153520399-1': 0,
+                                           '187536_H154060132-1': 1609,
+                                           '189918_H154320283-2': 295,
+                                           '205683_H15352039901': 0,
+                                           '211698_H15464036401': 298,
+                                           '211700_H15498026501': 298,
+                                           '211701_H15510030401': 1621,
+                                           '211702_H15522021601': 297,
+                                           '211703_H15534021301': 1632,
+                                           'reference': 4045},
+                   '187536_H154060132-1': {'187536_H154060132-1': 0,
+                                           '205683_H15352039901': 1605,
+                                           '211698_H15464036401': 1353,
+                                           '211701_H15510030401': 1,
+                                           '211702_H15522021601': 1351,
+                                           '211703_H15534021301': 7,
+                                           'reference': 5041}
+                                           ...,
+                                           },
+         'gi|194097589|ref|NC_011035.1|': {'187534_H153520399-1': {'187536_H154060132-1': {55959: 1,
+                                                                                           56617: 1,
+                                                                                           157165: 1,
+                                                                                           279950: 3,
+                                                                                           279957: 3,
+                                                                                           279959: 3,
+                                                                                           608494: 22,
+                                                                                           608537: 23,
+                                                                                           608551: 23,
+                                                                                           608604: 23,
+                                                                                           608617: 24,
+                                                                                           ...,}
+                                                                    '189918_H154320283-2': {27696: 1,
+                                                                                            55959: 1,
+                                                                                            56617: 2,
+                                                                                            56695: 2,
+                                                                                            279950: 3,
+                                                                                            279957: 3,
+                                                                                            279959: 3,
+                                                                                            520610: 1,
+                                                                                            608494: 22,
+                                                                                            ...,
+                                                                                           }}}}
     """
 
     iWINSIZE = args['winsize']
@@ -143,73 +193,144 @@ def precompute_snp_densities(avail_pos, sample_names, args):
             if j <= i:
                 dDen['diffs'][sample_1][sample_2] = 0
 
+    pool = multiprocessing.Pool(args['threads'])
+
+    parameters = []
+
     for contig, oBT in avail_pos.items():
         dDen[contig] = {}
-        for pos in oBT:
-            ref_base = oBT[pos].get("reference")
-            for i, sample_1 in enumerate(sample_names):
-                s1_base = oBT[pos].get(sample_1, ref_base)
-                # consider only differences between valid characters -> pairwise deletion
-                if dValChars.get(s1_base.upper(), None) == None:
-                    continue
-                for j, sample_2 in enumerate(sample_names):
-                    if j < i:
-                        s2_base = oBT[pos].get(sample_2, ref_base)
-                        # consider only differences between valid characters -> pairwise deletion
-                        if dValChars.get(s2_base.upper(), None) == None:
-                            continue
-                        if s1_base != s2_base:
-                            dDen['diffs'][sample_1][sample_2] += 1
-                            iDiffsInWin = 0
-                            iWinStart = max(0, pos - ((iWINSIZE/2)-1))
-                            iWinStop = min(int(flGenLen), (pos + (iWINSIZE/2) + 1))
-                            for x in range(iWinStart, iWinStop):
-                                try:
-                                    winbase_1 = 'ref' if sample_1 == 'reference' else oBT[x].get(sample_1, 'ref')
-                                    winbase_2 = 'ref' if sample_2 == 'reference' else oBT[x].get(sample_2, 'ref')
-                                except KeyError:
-                                    # x is a point in the alignment where everything is ref
-                                    continue
-                                # now x is a point in the alignment where there is at least one SNP but not necessarity in s1 or s2
-                                if winbase_1 != 'ref':
-                                    # if not ref check for valid char
-                                    if dValChars.get(winbase_1.upper(), None) == None:
-                                        continue
-                                if winbase_2 != 'ref':
-                                    # if not ref check for valid char
-                                    if dValChars.get(winbase_2.upper(), None) == None:
-                                        continue
-                                if winbase_1 != winbase_2:
-                                    iDiffsInWin += 1
-                            try:
-                                dDen[contig][pos][sample_1][sample_2] = iDiffsInWin
-                            except KeyError:
-                                try:
-                                    dDen[contig][pos][sample_1] = {}
-                                    dDen[contig][pos][sample_1][sample_2] = iDiffsInWin
-                                except KeyError:
-                                    dDen[contig][pos] = {}
-                                    dDen[contig][pos][sample_1] = {}
-                                    dDen[contig][pos][sample_1][sample_2] = iDiffsInWin
+        for i, sample_1 in enumerate(sample_names):
+            dDen[contig][sample_1] = {}
+            for j, sample_2 in enumerate(sample_names):
+                if j < i:
+                    parameters.append((sample_1, sample_2, oBT, iWINSIZE, flGenLen, ))
+
+    results = pool.map(_get_sample_pair_densities, parameters)
+
+    # Close the pool and wait for all tasks to be completed.
+    pool.close()
+    pool.join()
+
+    for contig, oBT in avail_pos.items():
+        for i, sample_1 in enumerate(sample_names):
+            for j, sample_2 in enumerate(sample_names):
+                if j < i:
+                    (x, y) = results.pop(0)
+                    dDen['diffs'][sample_1][sample_2] += x
+                    dDen[contig][sample_1][sample_2] = y
 
     # debug
-    #sOutBase = os.path.splitext(args['out'])[0]
-    #with open('%s_dDen.txt' % (sOutBase), 'w') as f:
-    #    pprint(dDen, f)
+    # sOutBase = os.path.splitext(args['out'])[0]
+    # with open('%s_dDen.txt' % (sOutBase), 'w') as f:
+    #     pprint(dDen, f)
 
     return dDen
 
 # --------------------------------------------------------------------------------------------------
 
-def parse_vcf_files(dArgs, avail_pos, aSampleNames):
-    '''
-    Function
+def _get_sample_pair_densities(ARGS):
+    """
+    This wrapper is required to call a funtion with pool.map that accepts >1 parameter.
+    (see http://stackoverflow.com/questions/5442910/python-multiprocessing-pool-map-for-multiple-arguments
+    answers by J.F. Sebastian and imotai)
+
     Parameters
     ----------
-
+    ARGS: tuple
+        tuple with parameters
     Returns
     -------
+    call to get_sample_pair_densities with parameters unpacked
+    """
 
+    return get_sample_pair_densities(*ARGS)
+
+# --------------------------------------------------------------------------------------------------
+
+def get_sample_pair_densities(sample_1, sample_2, oBT, iWINSIZE, flGenLen):
+    '''
+    Function to calculate the differecnes in a window of a given size around is
+    difference for a given pair
+
+    Parameters
+    ----------
+    sample_1: str
+        name of sample 1
+    sample_2: str
+        name of sample 2
+    oBT: obj
+        bintree object that contains all information for all available
+        positions for a given contig
+    iWINSIZE: int
+        window size
+    flGenLen: float
+        reference genome length
+    Returns
+    -------
+    (diffs, d): tuple
+        diffs: int
+            total number of differences between the pair
+        d: dict
+            dict with position of difference as key and number of differences
+            in window around it as value
+    '''
+
+    d = {}
+    diffs = 0
+    for pos in oBT:
+        ref_base = oBT[pos].get("reference")
+        s1_base = oBT[pos].get(sample_1, ref_base)
+        # consider only differences between valid characters -> pairwise deletion
+        if dValChars.get(s1_base.upper(), None) == None:
+            continue
+        s2_base = oBT[pos].get(sample_2, ref_base)
+        # consider only differences between valid characters -> pairwise deletion
+        if dValChars.get(s2_base.upper(), None) == None:
+            continue
+        if s1_base != s2_base:
+            diffs += 1
+            iDiffsInWin = 0
+            iWinStart = max(0, pos - ((iWINSIZE/2)-1))
+            iWinStop = min(int(flGenLen), (pos + (iWINSIZE/2) + 1))
+            for x in range(iWinStart, iWinStop):
+                try:
+                    winbase_1 = 'ref' if sample_1 == 'reference' else oBT[x].get(sample_1, 'ref')
+                    winbase_2 = 'ref' if sample_2 == 'reference' else oBT[x].get(sample_2, 'ref')
+                except KeyError:
+                    # x is a point in the alignment where everything is ref
+                    continue
+                # now x is a point in the alignment where there is at least one SNP but not necessarity in s1 or s2
+                if winbase_1 != 'ref':
+                    # if not ref check for valid char
+                    if dValChars.get(winbase_1.upper(), None) == None:
+                        continue
+                if winbase_2 != 'ref':
+                    # if not ref check for valid char
+                    if dValChars.get(winbase_2.upper(), None) == None:
+                        continue
+                if winbase_1 != winbase_2:
+                    iDiffsInWin += 1
+            d[pos] = iDiffsInWin
+
+    return (diffs, d)
+
+# --------------------------------------------------------------------------------------------------
+
+def parse_vcf_files(dArgs, avail_pos, aSampleNames):
+    '''
+    Parse vcf files to data structure
+    Parameters
+    ----------
+    dArgs: dict
+        input parameter dictionary as created by get_args()
+    avail_pos: dict
+        dict of bintrees for each contig
+    aSampleNames: list
+        list of sample names
+    Returns
+    -------
+    0
+    also writes all data to avail_pos
     '''
 
     empty_tree = FastRBTree()
@@ -298,7 +419,7 @@ def parse_vcf_files(dArgs, avail_pos, aSampleNames):
                     position_data['reference'] = str(record.REF).upper()
                 if record.is_snp:
                     if len(record.ALT) > 1:
-                        logging.info("POS %s passed filters but has multiple alleles REF: %s, ALT: %s. Inserting N" % (record.POS, str(record.REF), str(record.ALT)))
+                        logging.info("POS %s passed filters but has multiple alleles REF: %s, ALT: %s. Inserting N", record.POS, str(record.REF), str(record.ALT))
                         position_data[sample_name] = "N"
                         position_data["stats"].N += 1
 
@@ -325,23 +446,37 @@ def parse_vcf_files(dArgs, avail_pos, aSampleNames):
 
 def get_dist_mat(aSampleNames, avail_pos, dArgs):
     """
-    avail_pos:
-    {'gi|194097589|ref|NC_011035.1|':
-        FastRBTree({2329: {'stats': <vcf2distancematrix.base_stats object at 0x40fb590>,
-                           'reference': 'A',
-                           '211700_H15498026501': 'C',
-                           '211701_H15510030401': 'C',
-                           '211702_H15522021601': 'C'},
-                    3837: {'211700_H15498026501': 'G',
-                           'stats': <vcf2distancematrix.base_stats object at 0x40fbf90>,
-                           '211701_H15510030401': 'G',
-                           'reference': 'T',
-                           '211702_H15522021601': 'G'},
-                    4140: {'211700_H15498026501': 'A',
-                           'stats': <vcf2distancematrix.base_stats object at 0x40fb790>,
-                           '211701_H15510030401': 'A',
-                           'reference': 'G',
-                           '211702_H15522021601': 'A'}})}
+    Calculates the distance matrix, optionally removes recombination
+    from it and optionally normalises it
+
+    Parameters
+    ----------
+    aSampleNames: list
+        list of sample names
+    avail_pos: dict
+        infomatin on all available positions
+        {'gi|194097589|ref|NC_011035.1|':
+            FastRBTree({2329: {'stats': <vcf2distancematrix.base_stats object at 0x40fb590>,
+                               'reference': 'A',
+                               '211700_H15498026501': 'C',
+                               '211701_H15510030401': 'C',
+                               '211702_H15522021601': 'C'},
+                        3837: {'211700_H15498026501': 'G',
+                               'stats': <vcf2distancematrix.base_stats object at 0x40fbf90>,
+                               '211701_H15510030401': 'G',
+                               'reference': 'T',
+                               '211702_H15522021601': 'G'},
+                        4140: {'211700_H15498026501': 'A',
+                               'stats': <vcf2distancematrix.base_stats object at 0x40fb790>,
+                               '211701_H15510030401': 'A',
+                               'reference': 'G',
+                               '211702_H15522021601': 'A'}})}
+    dArgs: dict
+        input parameter dictionary as created by get_args()
+
+    Returns
+    -------
+    call to get_sample_pair_densities with parameters unpacked
     """
 
     dDen = None
@@ -397,12 +532,10 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
                         # Recombination removal happens here
                         if dDen != None and s1_base != s2_base:
 
-                            iDiffsInWin = dDen[sContig][pos][sample_1][sample_2]
+                            iDiffsInWin = dDen[sContig][sample_1][sample_2][pos]
                             iTotalDiffs = dDen['diffs'][sample_1][sample_2]
                             p_hitting_window = 1.0 / flNofWins
                             p_ok = 1.0
-
-                            # sys.stdout.write("%s\t%s\t%i\t%i\t%i\t" % (sample_1, sample_2, pos, iDiffsInWin, iTotalDiffs))
 
                             # only do binomial test if there are 'too many differences'
                             #  => do not exclude diffs because there are 'not enough'
@@ -413,14 +546,19 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
                                 # and given that the probabilty of success is 1/total_num_windows
                                 p_ok = binom_test(iDiffsInWin, iTotalDiffs, p_hitting_window)
 
-                            # debug
-                            # sys.stdout.write("%e\n" % p_ok)
-                            aStats.append("%s\t%s\t%i\t%i\t%i\t%e\n" % (sample_1, sample_2, pos, iDiffsInWin, iTotalDiffs, p_ok))
+                            corr_p_thresh = (0.01 / iTotalDiffs)
+                            aStats.append("%s\t%s\t%i\t%i\t%i\t%e\t%e\n" % (sample_1,
+                                                                            sample_2,
+                                                                            pos,
+                                                                            iDiffsInWin,
+                                                                            iTotalDiffs,
+                                                                            p_ok,
+                                                                            corr_p_thresh))
 
                             # null-hypothesis: probability of hitting it is equal for all windows, i.e.
                             # the diffs between the samples are uniformly distributed
-                            # Bonferroni corrected p-value threshold; (0.05 / iTotalDiffs)
-                            if p_ok <= (0.01 / iTotalDiffs):
+                            # Bonferroni corrected p-value threshold: (0.05 / iTotalDiffs)
+                            if p_ok <= corr_p_thresh:
                                 # likely to be recombinat site (for a given definition of 'likely' and 'recombinant')
                                 # aStats.append("%s\t%s\t%i\t%i\t%i\t%e\n" % (sample_1, sample_2, pos, iDiffsInWin, iTotalDiffs, p_ok))
                                 dRemovals[sample_1][sample_2] += 1
@@ -472,11 +610,12 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
                         except ZeroDivisionError:
                             row += "\tNAN"
                 fOut.write("%s\n" % row)
-        with open("%s.removed_snps.tsv" % (sOutBase), 'w') as fOut:
-            fOut.write("sample_1\tsample_2\tposition\tdiffs_in_win\ttotal_diffs\tp_ok\n")
+        with open("%s.all_snps.tsv" % (sOutBase), 'w') as fOut:
+            fOut.write("sample_1\tsample_2\tposition\tdiffs_in_win\ttotal_diffs\tp_ok\tthreshold\n")
             for sLine in aStats:
                 fOut.write(sLine)
 
+    # 'normalise' distance matrix according to model requested
     if dArgs['substitution'] == 'jc69':
         dist_mat = normalise_jc69(dist_mat, dArgs['refgenome'], aSampleNames)
     elif dArgs['substitution'] == 'k80':
@@ -495,12 +634,26 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
 # --------------------------------------------------------------------------------------------------
 
 def normalise_t93(d, ref, names):
-    """
+    '''
+    Normalise distance matrix according to the Tamura 3-parameter distance model
     see: Nei and Zhang: Evolutionary Distance: Estimation,
          ENCYCLOPEDIA OF LIFE SCIENCES 2005,
          doi: 10.1038/npg.els.0005108
          http://www.umich.edu/~zhanglab/publications/2003/a0005108.pdf, equation 16
-    """
+
+    Parameters
+    ----------
+    d: dict
+        distance matrix
+    ref: str
+        reference genome file name
+    names: list
+        list of sample names
+    Returns
+    -------
+    d: dict
+        normalised matrix
+    '''
 
     (dRefFreq, flGenLen) = get_ref_freqs(ref)
     flGC = dRefFreq['C'] + dRefFreq['G']
@@ -523,27 +676,41 @@ def normalise_t93(d, ref, names):
 
 def normalise_tn84(d, ref, names):
     """
+    Normalise distance matrix according to the Kimura 2-parameter distance model
+
     see: Nei and Zhang: Evolutionary Distance: Estimation,
          ENCYCLOPEDIA OF LIFE SCIENCES 2005,
          doi: 10.1038/npg.els.0005108
          http://www.umich.edu/~zhanglab/publications/2003/a0005108.pdf, equation 13 and 14
 
-    d = {'211701_H15510030401': {'211700_H15498026501': {'A': {'A': 1152.0,
-                                                               'C': 114.0,
-                                                               'G': 545.0,
-                                                               'T': 35.0},
-                                                         'C': {'A': 0.0,
-                                                               'C': 1233.0,
-                                                               'G': 108.0,
-                                                               'T': 467.0},
-                                                         'G': {'A': 0.0,
-                                                               'C': 0.0,
-                                                               'G': 1283.0,
-                                                               'T': 100.0},
-                                                         'T': {'A': 0.0,
-                                                               'C': 0.0,
-                                                               'G': 0.0,
-                                                               'T': 1177.0}}, ...}, ...}
+    Parameters
+    ----------
+    d: dict
+        distance matrix
+        d = {'211701_H15510030401': {'211700_H15498026501': {'A': {'A': 1152.0,
+                                                                   'C': 114.0,
+                                                                   'G': 545.0,
+                                                                   'T': 35.0},
+                                                             'C': {'A': 0.0,
+                                                                   'C': 1233.0,
+                                                                   'G': 108.0,
+                                                                   'T': 467.0},
+                                                             'G': {'A': 0.0,
+                                                                   'C': 0.0,
+                                                                   'G': 1283.0,
+                                                                   'T': 100.0},
+                                                             'T': {'A': 0.0,
+                                                                   'C': 0.0,
+                                                                   'G': 0.0,
+                                                                   'T': 1177.0}}, ...}, ...}
+    ref: str
+        reference genome file name
+    names: list
+        list of sample names
+    Returns
+    -------
+    d: dict
+        normalised matrix
     """
 
     (dRefFreq, flGenLen) = get_ref_freqs(ref)
@@ -577,12 +744,26 @@ def normalise_tn84(d, ref, names):
 # --------------------------------------------------------------------------------------------------
 
 def normalise_k80(d, ref, names):
-    """
+    '''
+    Normalise distance matrix according to the Tajima-Nei distance model
     see: Nei and Zhang: Evolutionary Distance: Estimation,
          ENCYCLOPEDIA OF LIFE SCIENCES 2005,
          doi: 10.1038/npg.els.0005108
          http://www.umich.edu/~zhanglab/publications/2003/a0005108.pdf, equation 9
-    """
+
+    Parameters
+    ----------
+    d: dict
+        distance matrix
+    ref: str
+        reference genome file name
+    names: list
+        list of sample names
+    Returns
+    -------
+    d: dict
+        normalised matrix
+    '''
 
     (_, flGenLen) = get_ref_freqs(ref, len_only=True)
 
@@ -602,12 +783,26 @@ def normalise_k80(d, ref, names):
 # --------------------------------------------------------------------------------------------------
 
 def normalise_jc69(d, ref, names):
-    """
+    '''
+    Normalise distance matrix according to the Jukes-Cantor distance model
     see: Nei and Zhang: Evolutionary Distance: Estimation,
          ENCYCLOPEDIA OF LIFE SCIENCES 2005,
          doi: 10.1038/npg.els.0005108
          http://www.umich.edu/~zhanglab/publications/2003/a0005108.pdf, equation 7
-    """
+
+    Parameters
+    ----------
+    d: dict
+        distance matrix
+    ref: str
+        reference genome file name
+    names: list
+        list of sample names
+    Returns
+    -------
+    d: dict
+        normalised matrix
+    '''
 
     flGenLen = 0.0
     with open(ref, 'r') as fRef:
@@ -630,9 +825,24 @@ def normalise_jc69(d, ref, names):
 # --------------------------------------------------------------------------------------------------
 
 def get_difference_value(s1_base, s2_base, sSubs):
-    """
-    todo: docstring
-    """
+    '''
+    Get difference value for a given set of bases.
+
+    Parameters
+    ----------
+    s1_base: str
+        a charcater
+    s2_base: str
+        a charcater
+    sSubs: str
+        distance model
+
+    Returns
+    -------
+    difference: float or list
+        depending on the distance model either a float 1.0 or 0.0
+        of a list of two floats
+    '''
     if sSubs == 'number_of_differences' or sSubs == 'jc69':
 
         try:
@@ -667,13 +877,22 @@ def get_difference_value(s1_base, s2_base, sSubs):
 
 def getTotalNofDiff_tn84(d):
     """
-    sum up total number of differences for a dict like this:
-    {'A': {'A': 1152.0, 'C': 114.0, 'G': 545.0, 'T': 35.0},
-     'C': {'A': 0.0, 'C': 1233.0, 'G': 108.0, 'T': 467.0},
-     'G': {'A': 0.0, 'C': 0.0, 'G': 1283.0, 'T': 100.0},
-     'T': {'A': 0.0, 'C': 0.0, 'G': 0.0, 'T': 1177.0}}
-     = 1369.0 in this case
+    Sum up total number of differences for a dict like the one in the input
+
+    Parameters
+    ----------
+    d: dict
+        {'A': {'A': 1152.0, 'C': 114.0, 'G': 545.0, 'T': 35.0},
+         'C': {'A': 0.0, 'C': 1233.0, 'G': 108.0, 'T': 467.0},
+         'G': {'A': 0.0, 'C': 0.0, 'G': 1283.0, 'T': 100.0},
+         'T': {'A': 0.0, 'C': 0.0, 'G': 0.0, 'T': 1177.0}}
+
+    Returns
+    -------
+    t: float
+        the sum of all differences(1369.0 in above example case)
     """
+
     t = 0.0
     for k, v in d.items():
         t += sum([y if x != k else 0.0 for x, y in v.items()])
@@ -682,6 +901,24 @@ def getTotalNofDiff_tn84(d):
 # --------------------------------------------------------------------------------------------------
 
 def get_ref_freqs(ref, len_only=False):
+    """
+    Get the length of the reference genome and optionally the nucleotide frequencies in it
+
+    Parameters
+    ----------
+    ref: str
+        reference genome filename
+    len_only: boolean
+        get genome lengths only [default FALSE, also get nucleotide frequencies]
+
+    Returns
+    -------
+    (dRefFreq, flGenLen): tuple
+        dRefFreq: dict
+            dRefFreq = {'A': 0.25, 'C': 0.24, 'G': 0.26, 'T': 0.25}
+        flGenLen: float
+            genome length
+    """
 
     # get frequency of a, c, g, and t in ref
     dRefFreq = {'A': 0.0, 'C': 0.0, 'G': 0.0, 'T': 0.0}
@@ -721,7 +958,6 @@ def calculate_memory_for_sort():
     """
 
     from math import floor
-    import multiprocessing
 
     avail_memory = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')  # e.g. 4015976448
     avail_cpu = multiprocessing.cpu_count()
