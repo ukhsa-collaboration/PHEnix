@@ -116,7 +116,7 @@ How to use Phenix on Galaxy:
 
 The Phenix workflow is now ready to use. You need to upload your data to a Galaxy history to use it. There are multiple options depending on your local Galaxy configuration. If you have followed the instructions above under 'Get your own Galaxy' the only available option is uploading from your local harddrive. When doing this, please make sure your fastq files are in the 'fastqsanger' format and your reference genome is in 'fasta' format. The basename of your R1 fastq files will be used as the name for the resulting bam and vcf files with appropriate file endings and will also appear as the sequence header in your resulting SNP alignment. Once your data is ready to use follow theses instructions to run the workflow.
 
-.. NOTE:: We have chosen reasonable defaults for filtering your VCF files for high-confidence SNPs (min_depth:5,mq_score:30,qual_score:30,dp4_ratio:0.9,mq0_ratio:0.1). If you would like to change these settings please see the instructions below.
+.. NOTE:: We have chosen reasonable defaults for filtering your VCF files for high-confidence SNPs (min_depth:5,mq_score:30,qual_score:30,dp4_ratio:0.9,mq0f_ratio:0.1). If you would like to change these settings please see the instructions below.
 
 .. WARNING:: Processing a single sample with the Phenix workflow can use up to 1.0GB of RAM. It is recommended you do not run more samples simultanously than your total system memory in GB or only as may samples as you have processor cores, whichever is lower.
 
