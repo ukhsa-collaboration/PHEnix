@@ -118,8 +118,6 @@ The Phenix workflow is now ready to use. You need to upload your data to a Galax
 
 .. NOTE:: We have chosen reasonable defaults for filtering your VCF files for high-confidence SNPs (min_depth:5,mq_score:30,qual_score:30,dp4_ratio:0.9,mq0f_ratio:0.1). If you would like to change these settings please see the instructions below.
 
-.. WARNING:: Processing a single sample with the Phenix workflow can use up to 1.0GB of RAM. It is recommended you do not run more samples simultanously than your total system memory in GB or only as may samples as you have processor cores, whichever is lower.
-
 - Click on workflow in the top main menu and select 'run' from the 'Phenix workflow' context menu.
 - Select your reference genome in the 'Reference fasta' selection box.
 - Click both "paper stack" icons next to 'R1 fastqs' and next to 'R2 fastqs'.
@@ -133,6 +131,11 @@ The Phenix workflow is now ready to use. You need to upload your data to a Galax
 - Click on PHE TOOLS in the tool panel on the left hand side and select the "VCFs to fasta" tool. This tool will create a multi-fasta file from your filtered vcfs.
 - Select all files ending with filtered.vcf in the top file selection box under 'Input VCF files(s)', by holding down the Ctrl key.
 - Click 'Execute'. Once everything is completed the "VCFs to fasta" tool with have produced your SNP alignment that can now be used for further processing.
+
+.. topic:: How to change the number of jobs running simultaneously?
+
+    Galaxy runs 5 jobs at the same time by default. This is appropriate for machines that have at least 5 GB of RAM and at least 5 processor cores. If you have more or less compute resources at your disposal you can change the number of concurrent jobs, if you rename the file *config/job_conf.xml.sample_basic* to *config/job_conf.xml* and change the "workers" setting in the file to the desired number. This requires a restart of Galaxy.
+
 
 Advanced - Changing the Phenix vcf filtering settings:
 ------------------------------------------------------
