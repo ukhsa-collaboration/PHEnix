@@ -18,7 +18,11 @@ from collections import OrderedDict
 
 import multiprocessing
 
-from scipy.stats import binom_test
+HAVE_SCIPY = True
+try:
+    from scipy.stats import binom_test
+except ImportError:
+    HAVE_SCIPY = False
 
 dValChars = {'A': 1, 'C': 1, 'G': 1, 'T': 1}
 
@@ -482,6 +486,9 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
     dDen = None
     dRemovals = None
     if dArgs['remove_recombination'] == True:
+        if HAVE_SCIPY == False:
+            logging.error("Cannot import scipy requied for recombination removal.")
+            return None
         dDen = precompute_snp_densities(avail_pos, aSampleNames, dArgs)
         dRemovals = {}
         for i, sample_1 in enumerate(aSampleNames):

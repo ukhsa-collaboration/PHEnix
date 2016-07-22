@@ -15,8 +15,6 @@ from Bio.Phylo import TreeConstruction
 
 from phe.utils import parse_vcf_files, get_dist_mat
 
-# from pprint import pprint
-
 # --------------------------------------------------------------------------------------------------
 
 def get_desc():
@@ -136,14 +134,14 @@ def get_args():
                         metavar="INT",
                         dest="winsize",
                         default=1000,
-                        help="Window size in genome for SNP desnity calculations. [1000].")
+                        help="Window size in genome for SNP density calculations. [1000].")
 
     parser.add_argument("--threads",
                         type=int,
                         metavar="INT",
                         dest="threads",
                         default=1,
-                        help="Number of threads to used. [1].")
+                        help="Number of threads to use. [1].")
 
     parser.add_argument("--format",
                         type=str,
@@ -201,20 +199,19 @@ def main(dArgs):
     else:
         logging.info("%i VCFs found", len(dArgs['input']))
 
+    if dArgs['remove_recombination'] == True:
+        try:
+            from scipy.stats import binom_test
+        except ImportError:
+            sys.stderr.write("ERROR: cannot import scipy which is required for recombinatin removal. Exiting!\n")
+            sys.stderr.write("Hint: You can still get a distance matrix without recombination removed.\n")
+            return 1
+
     aSampleNames = []
     avail_pos = {}
 
     # parse vcf files into avail_pos structure
     parse_vcf_files(dArgs, avail_pos, aSampleNames)
-
-    # debug
-    #sOutBase = os.path.splitext(dArgs['out'])[0]
-    #with open('%s_avail_pos.txt' % (sOutBase), 'w') as f:
-    #    for contig, oBT in avail_pos.items():
-    #        f.write("contig: %s\n" % contig)
-    #        for iPos in oBT:
-    #            f.write("pos: %i\n" % (iPos))
-    #            pprint(oBT[iPos], f)
 
     """
     avail_pos looks like this:
@@ -254,6 +251,10 @@ def main(dArgs):
 
     dist_mat = {}
     dist_mat = get_dist_mat(aSampleNames, avail_pos, dArgs)
+
+    if dist_mat == None:
+        logging.info("An error occured during matrix creation.")
+        return 1
 
     if dArgs['format'] == 'mega':
         write_mega_file(dArgs, aSampleNames, dist_mat, number_of_sites)
