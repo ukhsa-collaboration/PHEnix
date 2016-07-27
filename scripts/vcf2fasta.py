@@ -499,7 +499,7 @@ def main(args):
             tmp_iter.close()
 
         # Only remove tmp is it was specified.
-        if not args["tmp"]:
+        if args["tmp"]:
             shutil.rmtree(out_dir)
 
         if args["with_stats"] is not None:
