@@ -17,9 +17,9 @@ import tempfile
 from Bio import SeqIO
 from bintrees import FastRBTree
 
+from phe.utils import base_stats, is_uncallable
 from phe.utils.reader import ParallelVCFReader
 from phe.variant_filters import IUPAC_CODES
-from phe.utils import base_stats, is_uncallable
 
 
 # from phe.variant_filters import IUPAC_CODES
@@ -30,22 +30,6 @@ try:
     CAN_STATS = True
 except ImportError:
     CAN_STATS = False
-
-def get_sample_stats(all_positions, samples):
-    sample_stats = {sample: base_stats() for sample in samples }
-    for positions in all_positions.itervalues():
-        for position in positions:
-            for sample in samples:
-                base = positions[position].get(sample)
-
-                if base == "-":
-                    sample_stats[sample].gap += 1
-                elif base == "N":
-                    sample_stats[sample].N += 1
-                elif base is not None and base != positions[position].get("reference"):
-                    sample_stats[sample].mut += 1
-
-    return sample_stats
 
 def _make_ref_insert(start, stop, reference, exclude):
     '''Create reference insert taking account exclude positions.'''

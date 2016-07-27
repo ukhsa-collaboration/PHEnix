@@ -1,54 +1,16 @@
-from math import floor
-import multiprocessing
-import os
-
-def calculate_memory_for_sort():
-    """Calculate available memory for ``samtools sort`` function.
-    If there is enough memory, no temp files are created. **Enough**
-    is defined as at least 1G per CPU.
-
-    Returns
-    -------
-    sort_memory: str or None
-        String to use directly with *-m* option in sort, or None.
-    """
-    avail_memory = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')  # e.g. 4015976448
-    avail_cpu = multiprocessing.cpu_count()
-
-    sort_memory = avail_memory / avail_cpu / 1024 ** 2
-
-    # samtools default from documentation is 768M, to be conservative
-    #    only use -m option when there is more than 1G per CPU.
-    if sort_memory < 1024:
-        sort_memory = None
-
-    else:
-        sort_memory = "%sG" % (int(floor(sort_memory / 1024)))
-
-    return sort_memory
-
-
-if __name__ == "__main__":
-    print calculate_memory_for_sort()
-'''
-:Date: 12May2016
-:Author: Public Health England
-'''
-
-
-import sys
-import os
-import vcf
-from bintrees import FastRBTree
-import math
-import logging
-from numpy import std
-from numpy import mean
-
-from pprint import pprint
 from collections import OrderedDict
-
+import logging
+from math import floor
+import math
 import multiprocessing
+import os
+from pprint import pprint
+import sys
+
+from bintrees import FastRBTree
+from numpy import mean
+from numpy import std
+import vcf
 
 HAVE_SCIPY = True
 try:
@@ -69,7 +31,7 @@ dK80 = {'A': {'A': [0.0, 0.0], 'C': [0.0, 1.0], 'G': [1.0, 0.0], 'T': [0.0, 1.0]
 
 # --------------------------------------------------------------------------------------------------
 
-class base_stats(object):
+class BaseStats(object):
     def __init__(self):
         self.N = 0
         self.mut = 0
@@ -147,18 +109,18 @@ def precompute_snp_densities(avail_pos, sample_names, args):
     avail_pos: dict
         data structure that contains the information on all available positions, like this:
         {'gi|194097589|ref|NC_011035.1|':
-        FastRBTree({2329: {'stats': <vcf2distancematrix.base_stats object at 0x40fb590>,
+        FastRBTree({2329: {'stats': <vcf2distancematrix.BaseStats object at 0x40fb590>,
                            'reference': 'A',
                            '211700_H15498026501': 'C',
                            '211701_H15510030401': 'C',
                            '211702_H15522021601': 'C'},
                     3837: {'211700_H15498026501': 'G',
-                           'stats': <vcf2distancematrix.base_stats object at 0x40fbf90>,
+                           'stats': <vcf2distancematrix.BaseStats object at 0x40fbf90>,
                            '211701_H15510030401': 'G',
                            'reference': 'T',
                            '211702_H15522021601': 'G'},
                     4140: {'211700_H15498026501': 'A',
-                           'stats': <vcf2distancematrix.base_stats object at 0x40fb790>,
+                           'stats': <vcf2distancematrix.BaseStats object at 0x40fb790>,
                            '211701_H15510030401': 'A',
                            'reference': 'G',
                            '211702_H15522021601': 'A'}})}
@@ -239,7 +201,7 @@ def precompute_snp_densities(avail_pos, sample_names, args):
             dDen[contig][sample_1] = {}
             for j, sample_2 in enumerate(sample_names):
                 if j < i:
-                    parameters.append((sample_1, sample_2, oBT, iWINSIZE, flGenLen, ))
+                    parameters.append((sample_1, sample_2, oBT, iWINSIZE, flGenLen,))
 
     results = pool.map(_get_sample_pair_densities, parameters)
 
@@ -326,8 +288,8 @@ def get_sample_pair_densities(sample_1, sample_2, oBT, iWINSIZE, flGenLen):
         if s1_base != s2_base:
             diffs += 1
             iDiffsInWin = 0
-            iWinStart = max(0, pos - ((iWINSIZE/2)-1))
-            iWinStop = min(int(flGenLen), (pos + (iWINSIZE/2) + 1))
+            iWinStart = max(0, pos - ((iWINSIZE / 2) - 1))
+            iWinStop = min(int(flGenLen), (pos + (iWINSIZE / 2) + 1))
             for x in range(iWinStart, iWinStop):
                 try:
                     winbase_1 = 'ref' if sample_1 == 'reference' else oBT[x].get(sample_1, 'ref')
@@ -433,7 +395,7 @@ def parse_vcf_files(dArgs, avail_pos, aSampleNames):
             # Setup the position data to contain reference and stats.
             if avail_pos[record.CHROM].get(record.POS, None) is None:
                 avail_pos[record.CHROM].insert(record.POS, {"reference": str(record.REF),
-                                                            "stats": base_stats()})
+                                                            "stats": BaseStats()})
 
             position_data = avail_pos[record.CHROM].get(record.POS)
 
@@ -492,18 +454,18 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
     avail_pos: dict
         infomatin on all available positions
         {'gi|194097589|ref|NC_011035.1|':
-            FastRBTree({2329: {'stats': <vcf2distancematrix.base_stats object at 0x40fb590>,
+            FastRBTree({2329: {'stats': <vcf2distancematrix.BaseStats object at 0x40fb590>,
                                'reference': 'A',
                                '211700_H15498026501': 'C',
                                '211701_H15510030401': 'C',
                                '211702_H15522021601': 'C'},
                         3837: {'211700_H15498026501': 'G',
-                               'stats': <vcf2distancematrix.base_stats object at 0x40fbf90>,
+                               'stats': <vcf2distancematrix.BaseStats object at 0x40fbf90>,
                                '211701_H15510030401': 'G',
                                'reference': 'T',
                                '211702_H15522021601': 'G'},
                         4140: {'211700_H15498026501': 'A',
-                               'stats': <vcf2distancematrix.base_stats object at 0x40fb790>,
+                               'stats': <vcf2distancematrix.BaseStats object at 0x40fb790>,
                                '211701_H15510030401': 'A',
                                'reference': 'G',
                                '211702_H15522021601': 'A'}})}
@@ -544,7 +506,7 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
                                                     'T': {'A': 0.0, 'C': 0.0, 'G': 0.0, 'T': 0.0}}
                 else:
                     dist_mat[sample_1][sample_2] = 0.0
-            else: # j > i
+            else:  # j > i
                 pass
 
     flNofWins = 0.0
@@ -624,7 +586,7 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
                             dist_mat[sample_1][sample_2] += k
                         else:
                             raise NotImplementedError
-                    else: # j >= i
+                    else:  # j >= i
                         pass
 
     # write additional stats if required
@@ -703,7 +665,7 @@ def normalise_t93(d, ref, names):
             if j < i:
                 Q = d[sample_1][sample_2][1] / flGenLen
                 p = sum(d[sample_1][sample_2]) / flGenLen
-                x1 = -h * math.log(1.0 - p/h - Q)
+                x1 = -h * math.log(1.0 - p / h - Q)
                 x2 = 0.5 * (1.0 - h) * math.log(1.0 - (2.0 * Q))
                 d[sample_1][sample_2] = x1 - x2
             elif i == j:
@@ -754,7 +716,7 @@ def normalise_tn84(d, ref, names):
 
     (dRefFreq, flGenLen) = get_ref_freqs(ref)
 
-    sum1 = sum([x*x for x in dRefFreq.values()])
+    sum1 = sum([x * x for x in dRefFreq.values()])
 
     for i, sample_1 in enumerate(names):
         for j, sample_2 in enumerate(names):
@@ -768,14 +730,14 @@ def normalise_tn84(d, ref, names):
                         if m < n:
                             flFreqNucPair = d[sample_1][sample_2][nuc1][nuc2] / flGenLen
                             sum2 += ((flFreqNucPair ** 2.0) / (2.0 * dRefFreq[nuc1] * dRefFreq[nuc2]))
-                if sum2 == 0.0: # samples are "identical"
+                if sum2 == 0.0:  # samples are "identical"
                     d[sample_1][sample_2] = 0.0
                 else:
                     b = 0.5 * ((1.0 - sum1) + (p * p / sum2))
                     d[sample_1][sample_2] = -b * math.log(1.0 - (p / b))
             elif i == j:
                 d[sample_1][sample_2] = 0.0
-            else: # j > i
+            else:  # j > i
                 pass
 
     return d
@@ -857,7 +819,7 @@ def normalise_jc69(d, ref, names):
         for j, sample_2 in enumerate(names):
             if j < i:
                 p = d[sample_1][sample_2] / flGenLen
-                d[sample_1][sample_2] = (-3.0/4.0) * math.log(1.0-((4.0/3.0) * p))
+                d[sample_1][sample_2] = (-3.0 / 4.0) * math.log(1.0 - ((4.0 / 3.0) * p))
 
     return d
 
@@ -995,8 +957,6 @@ def calculate_memory_for_sort():
     sort_memory: str or None
         String to use directly with *-m* option in sort, or None.
     """
-
-    from math import floor
 
     avail_memory = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')  # e.g. 4015976448
     avail_cpu = multiprocessing.cpu_count()

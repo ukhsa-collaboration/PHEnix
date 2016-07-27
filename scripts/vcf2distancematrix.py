@@ -4,19 +4,19 @@ Provides the vcf to diastance matrix funtionality plus the option to remove
 differences between samples unlikely to be cause by background drift (recombination removal)
 '''
 
-import sys
 import argparse
 import glob
 import logging
 import os
+import sys
 
 from Bio import Phylo
 from Bio.Phylo import TreeConstruction
 
 from phe.utils import parse_vcf_files, get_dist_mat
 
-# --------------------------------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------------------------------
 def get_desc():
     """
     Get description for help text
@@ -246,7 +246,7 @@ def main(dArgs):
                 oBT.remove(r)
         logging.info("%i total variant positions left after complete removal",
                      sum([len(x) for _, x in avail_pos.items()]))
-    else: # deletion is pairwise, which is implicit during matrix creation
+    else:  # deletion is pairwise, which is implicit during matrix creation
         pass
 
     dist_mat = {}
@@ -334,13 +334,13 @@ def write_mega_file(dArgs, aSampleNames, dist_mat, number_of_sites=0):
     with open(dArgs['out'], "wb") as fp:
         fp.write('%s\n\n' % (header))
         for i, name in enumerate(aSampleNames):
-            fp.write("[%s] #%s\n" % (str(i+1).rjust(spacing1), name))
+            fp.write("[%s] #%s\n" % (str(i + 1).rjust(spacing1), name))
 
         fp.write('\n')
         fp.write('[              %s ]\n' \
                  % ('            '.join([str(x) for x in range(1, len(aSampleNames) + 1)])))
         for i, sample_1 in enumerate(aSampleNames):
-            row = "[%s] " % (str(i+1).rjust(spacing1))
+            row = "[%s] " % (str(i + 1).rjust(spacing1))
             for j, sample_2 in enumerate(aSampleNames):
                 if j < i:
                     dist = dist_mat[sample_1][sample_2]
@@ -394,4 +394,4 @@ def make_nj_tree(dist_mat, dArgs, aSampleNames):
 # --------------------------------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    exit(main())
+    exit(main(vars(get_args().parse_args())))
