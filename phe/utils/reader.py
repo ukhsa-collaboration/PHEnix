@@ -6,29 +6,8 @@ from collections import Counter, defaultdict
 
 import vcf
 
-def is_uncallable(record):
-    """Is the Record uncallable? Currently the record is **uncallable** iff:
+from phe.utils import is_uncallable
 
-     * GT field is **./.**
-     * **LowQual** is in the filter.
-
-    Returns
-    -------
-    uncall: bool
-        True if any of the above items are true, False otherwise.
-    """
-
-    uncall = False
-    try:
-        if record.samples[0].data.GT in ("./.", None):
-            uncall = True
-    except AttributeError:
-        uncall = None
-
-    if record.FILTER is not None and "LowQual" in record.FILTER:
-        uncall = True
-
-    return uncall
 
 class ParallelVCFReader(object):
     """Read multiple VCFs in parallel - one position at the time."""

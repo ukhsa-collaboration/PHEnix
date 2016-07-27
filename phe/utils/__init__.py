@@ -73,24 +73,22 @@ class BaseStats(object):
 # --------------------------------------------------------------------------------------------------
 
 def is_uncallable(record):
-    '''
-    Function to determine whether record is uncallable
+    """Is the Record uncallable? Currently the record is **uncallable** iff:
 
-    Parameters
-    ----------
-    record: obj
-        a vcf.record object
+     * GT field is **./.**
+     * **LowQual** is in the filter.
+
     Returns
     -------
-    uncall: boolean
-        True, False or None
-    '''
+    uncall: bool
+        True if any of the above items are true, False otherwise.
+    """
 
     uncall = False
     try:
         if record.samples[0].data.GT in ("./.", None):
             uncall = True
-    except:
+    except AttributeError:
         uncall = None
 
     if record.FILTER is not None and "LowQual" in record.FILTER:

@@ -8,7 +8,6 @@ Merge SNP data from multiple VCF files into a single fasta file.
 import argparse
 from collections import OrderedDict
 import glob
-import itertools
 import logging
 import os
 import shutil
@@ -17,7 +16,7 @@ import tempfile
 from Bio import SeqIO
 from bintrees import FastRBTree
 
-from phe.utils import base_stats, is_uncallable
+from phe.utils import BaseStats
 from phe.utils.reader import ParallelVCFReader
 from phe.variant_filters import IUPAC_CODES
 
@@ -318,7 +317,7 @@ def main(args):
     sample_seqs["reference"] = tempfile.NamedTemporaryFile(prefix="reference", dir=out_dir)
 
     samples = parallel_reader.get_samples() + ["reference"]
-    sample_stats = {sample: base_stats() for sample in samples }
+    sample_stats = {sample: BaseStats() for sample in samples }
     last_base = 0
 
     total_records = 0
@@ -345,7 +344,7 @@ def main(args):
         if include and pos not in include.get(chrom, empty_tree) or exclude and pos in exclude.get(chrom, empty_tree):
             continue
 
-        position_data = {"reference": str(reference), "stats": base_stats()}
+        position_data = {"reference": str(reference), "stats": BaseStats()}
 
         for sample_name, record in final_records.iteritems():
 
