@@ -8,7 +8,6 @@ Merge SNP data from multiple VCF files into a single fasta file.
 import argparse
 from collections import OrderedDict
 import glob
-import itertools
 import logging
 import os
 import shutil
@@ -17,6 +16,7 @@ import tempfile
 from Bio import SeqIO
 from bintrees import FastRBTree
 
+from phe.utils import BaseStats
 from phe.utils.reader import ParallelVCFReader
 from phe.variant_filters import IUPAC_CODES
 
@@ -29,46 +29,6 @@ try:
     CAN_STATS = True
 except ImportError:
     CAN_STATS = False
-
-class BaseStats(object):
-    """Simple class to keep statistics about a base."""
-    def __init__(self, records=None):
-        self.N = 0
-        self.mut = 0
-        self.gap = 0
-        self.mix = 0
-        self.total = 0
-        self.NA = 0
-
-    def __str__(self):
-        return "N: %i, mut: %i, mix: %i, gap: %i, total: %i" % (self.N,
-                                                                self.mut,
-                                                                self.mix,
-                                                                self.gap,
-                                                                self.total)
-    def __add__(self, other):
-        self.mut += other.mut
-        self.N += other.N
-        self.gap += other.gap
-        self.mix += other.mix
-        self.total += other.total
-        self.NA += other.NA
-
-        return self
-
-    def update(self, position_data, sample, reference):
-        for k, v in position_data.iteritems():
-            if k != sample:
-                continue
-            if v == "-":
-                self.gap += 1
-            elif v == "N":
-                self.N += 1
-            elif v in ["A", "C", "G", "T"]:
-                self.mut += 1
-            else:
-                self.mix += 1
-        self.total += 1
 
 def _make_ref_insert(start, stop, reference, exclude):
     '''Create reference insert taking account exclude positions.'''
@@ -538,7 +498,7 @@ def main(args):
             tmp_iter.close()
 
         # Only remove tmp is it was specified.
-        if not args["tmp"]:
+        if args["tmp"]:
             shutil.rmtree(out_dir)
 
         if args["with_stats"] is not None:

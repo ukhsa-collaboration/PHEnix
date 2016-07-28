@@ -71,7 +71,7 @@ def main():
 
 pwd
 
-module load anaconda samtools/1.3 bwa/0.7.13 jdk picard-tools gatk bowtie2
+module load anaconda/4.0.0 samtools/1.3 bwa/0.7.13 jdk picard-tools gatk bowtie2
     
 PYTHONPATH=.:$PYTHONPATH scripts/phenix.py run_snp_pipeline --keep-temp -r1 %(R1)s -r2 %(R2)s -r %(REF)s -c %(CONFIG)s --sample-name %(sample_name)s -o %(outdir)s
     

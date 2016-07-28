@@ -15,6 +15,7 @@ import filter_vcf
 import prepare_reference
 import run_snp_pipeline
 import vcf2fasta
+import vcf2distancematrix
 
 
 def get_version():
@@ -66,6 +67,12 @@ def get_args():
                           parents=[vcf2fasta.get_args()],
                           add_help=False)
 
+    subparsers.add_parser("vcf2distancematrix",
+                          description=vcf2distancematrix.get_desc(),
+                          help="Convert VCFs to a distance matrix.",
+                          parents=[vcf2distancematrix.get_args()],
+                          add_help=False)
+
     return args
 
 def main():
@@ -89,6 +96,8 @@ def main():
         return prepare_reference.main(args)
     elif args["cmd"] == "vcf2fasta":
         return vcf2fasta.main(args)
+    elif args["cmd"] == "vcf2distancematrix":
+        return vcf2distancematrix.main(args)
 
     return 1
 
