@@ -48,6 +48,8 @@ This will map with **BWA** and call variants with **GATK**. Intermediate files a
 command from. **--sample-name** option is very important, it specifies what output files will be called and the read group in the BAM
 file. If you omit it, **test_sample** will be used.
 
+`run_snp_pipeline.py` will run the appropriate part of the phenix pipeline based on the input files you give it. For example, if you pass fastq files, it will run a mapping step as well as the variant calling step. However, if you pass it a bam alignment file instead (e.g. if the SNP calling failed previously for some reason), then it will run only the variant calling section. This allows for efficient use of computational resources.
+
 ## Filters
 
 One of the key parts of the VCF processing is to filter quality calls. To do this we have created a flexible interface with
