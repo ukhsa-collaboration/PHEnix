@@ -158,7 +158,7 @@ Either set *PICARD_TOOLS_PATH* - path to directory where different Picard jars a
 Older Picard distributions have many different jars (use first suggestion), where as newer versions have merged all into one jar file. 
 
 ## Contributing to the project
-If you want to add your favourite Mapper/VariantCaller or add another Filter please refer to the documentation: [here](http://phoenix.readthedocs.org/en/latest/api/modules.html) 
+If you want to add your favourite Mapper/VariantCaller or add another Filter please refer to the documentation: [here](http://phenix.readthedocs.io/en/latest/api/modules.html) 
 
 
 ## History
