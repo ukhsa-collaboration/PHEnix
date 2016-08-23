@@ -39,7 +39,7 @@ lead to corrupted indeces.
 If you have a sample and you want to have one-stop-shop analysis run the following:
 
 ```bash
-$ phenix.py run_snp_pipeline.py -r1 <path to R1.fastq> -r2 <path to R2.fastq> \ 
+$ run_snp_pipeline.py -r1 <path to R1.fastq> -r2 <path to R2.fastq> \ 
 -r <path to reference> --sample-name <NAME> --mapper bwa --variant gatk \ 
 --filters min_depth:5,mq_score:30
 ```
