@@ -407,6 +407,7 @@ def main(args):
                 break
 #                 del position_data[sample_name]
 
+        # this is not an if-else it's a for-else, it really is!
         else:
             if args["reference"]:
                 seq = _make_ref_insert(last_base, pos, args["reference"][chrom], exclude.get(chrom, empty_tree))
@@ -444,6 +445,8 @@ def main(args):
     sample_seqs["reference"].close()
     del sample_seqs["reference"]
 
+    bSamplesExcluded = False
+
     # Exclude any samples with high Ns or gaps
     if isinstance(args["sample_Ns"], float):
         for sample_name in samples:
@@ -456,6 +459,7 @@ def main(args):
                 sample_seqs[sample_name].close()
                 del sample_seqs[sample_name]
                 del sample_stats[sample_name]
+                bSamplesExcluded = True
 
     # Exclude any samples with high gap fraction.
     if isinstance(args["sample_gaps"], float):
@@ -470,22 +474,115 @@ def main(args):
                 sample_seqs[sample_name].close()
                 del sample_seqs[sample_name]
                 del sample_stats[sample_name]
+                bSamplesExcluded = True
 
     try:
         assert len(sample_seqs) > 0, "All samples have been filtered out."
 
+        reference_length = len(reference)
+
+        dAlign = {}
+        dAlign['reference'] = reference
+        for sample_name, tmp_iter in sample_seqs.iteritems():
+            tmp_iter.seek(0)
+            # These are dumped as single long string of data. Calling next() should read it all.
+            snp_sequence = tmp_iter.next()
+            assert len(snp_sequence) == reference_length, "Sample %s has length %s, but should be %s (reference)" % (sample_name, len(snp_sequence), reference_length)
+
+            dAlign[sample_name] = snp_sequence
+
+        # if samples were excluded we need to filter the alignment for all equal positions,
+        # because we might just have removed the sequence with the difference
+        while bSamplesExcluded:
+            dFinalAlign = {} #  this is for the new alignment
+            # initialise thoes as empty
+            for sample_name in dAlign.keys():
+                dFinalAlign[sample_name] = ''
+                sample_stats[sample_name] = BaseStats()
+            # for all positions in the current alignment
+            for i in range(len(dAlign['reference'])):
+                # initialise empty stats for this position
+                pos_stats = BaseStats()
+                # get list of all nucs at this position
+                ith_nucs = [seq[i] for seq in dAlign.values()]
+                # check if all elements in the list are the same
+                if ith_nucs.count(ith_nucs[0]) != len(ith_nucs):
+                    # they are not all the same
+                    # for all samples and seqs update position stats
+                    for sample_name, seq in dAlign.iteritems():
+                        if seq[i] == 'N':
+                            pos_stats.N +=1
+                        elif seq[i] == '-':
+                            pos_stats.gap +=1
+                        elif seq[i] != dAlign['reference'][i]:
+                            pos_stats.mut +=1
+                        else:
+                            pass
+                        pos_stats.total += 1
+
+                    # check if we need to remove this column
+                    bRmCol = False
+                    if isinstance(args["column_gaps"], float):
+                        gap_fractoin = float(pos_stats.gap) / pos_stats.total
+                        if gap_fractoin > args["column_gaps"]:
+                            bRmCol = True
+                    if isinstance(args["column_Ns"], float):
+                        n_fraction = float(pos_stats.N) / pos_stats.total
+                        if n_fraction > args["column_Ns"]:
+                            bRmCol = True
+
+                    # remove col if necessary
+                    if bRmCol == False:
+                        # we don't remove it
+                        for sample_name, seq in dAlign.iteritems():
+                            dFinalAlign[sample_name] += seq[i]
+                            # only update sample stats now that we have decided to keep the column
+                            sample_stats[sample_name].total += 1
+                            if seq[i] == 'N':
+                                sample_stats[sample_name].N += 1
+                            elif seq[i] == '-':
+                                sample_stats[sample_name].gap += 1
+                            elif seq[i] != dAlign['reference'][i]:
+                                sample_stats[sample_name].mut += 1
+                            else:
+                                pass
+                    else:
+                        # we are removing it
+                        logging.info("Removing column %i due to high Ns or gaps fraction, gaps: %s, Ns: %s", i, gap_fractoin, n_fraction)
+                else:
+                    # all positions they're all the same
+                    pass
+
+            # check all seqs are of the same lengths still
+            seq_lens = [len(seq) for seq in dFinalAlign.values()]
+            assert seq_lens.count(seq_lens[0]) == len(seq_lens), "ERROR: Not all samples in final alignment are equally long!"
+
+            # check if additional samples need to be removed
+            bSamplesExcluded = False
+            for sample_name in dFinalAlign.keys():
+                n_fraction = float(sample_stats[sample_name].N) / seq_lens[0]
+                if n_fraction > args["sample_Ns"]:
+                    logging.info("Removing %s due to high sample Ns fraction %s", sample_name, n_fraction)
+                    bSamplesExcluded = True
+                    del dFinalAlign[sample_name]
+                    del sample_stats[sample_name]
+
+            for sample_name in dFinalAlign.keys():
+                gap_fractoin = float(sample_stats[sample_name].gap) / seq_lens[0]
+                if gap_fractoin > args["sample_gaps"]:
+                    logging.info("Removing %s due to high sample gaps fraction %s", sample_name, gap_fractoin)
+                    bSamplesExcluded = True
+                    del dFinalAlign[sample_name]
+                    del sample_stats[sample_name]
+
+            # in case we need to go again ...
+            dAlign = dFinalAlign
+
         with open(args["out"], "w") as fp:
-            fp.write(">reference\n%s\n" % reference)
-            reference_length = len(reference)
-            del reference
+            # write seqs to file
+            for name, seq in dAlign.iteritems():
+                fp.write(">%s\n%s\n" % (name, seq))
 
-            for sample_name, tmp_iter in sample_seqs.iteritems():
-                tmp_iter.seek(0)
-                # These are dumped as single long string of data. Calling next() should read it all.
-                snp_sequence = tmp_iter.next()
-                assert len(snp_sequence) == reference_length, "Sample %s has length %s, but should be %s (reference)" % (sample_name, len(snp_sequence), reference_length)
-
-                fp.write(">%s\n%s\n" % (sample_name, ''.join(snp_sequence)))
     except AssertionError as e:
         logging.error(e.message)
 
