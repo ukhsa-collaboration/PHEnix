@@ -116,7 +116,7 @@ How to use Phenix on Galaxy:
 
 The Phenix workflow is now ready to use. You need to upload your data to a Galaxy history to use it. There are multiple options depending on your local Galaxy configuration. If you have followed the instructions above under 'Get your own Galaxy' the only available option is uploading from your local harddrive. When doing this, please make sure your fastq files are in the 'fastqsanger' format and your reference genome is in 'fasta' format. The basename of your R1 fastq files will be used as the name for the resulting bam and vcf files with appropriate file endings and will also appear as the sequence header in your resulting SNP alignment. Once your data is ready to use follow theses instructions to run the workflow.
 
-Remark: Processing a single sample with the Phenix workflow can use up to 1.5GB of RAM. It is recommended you do not run more samples than your total system memory divided by 1.5 (2 for 4GB, 5 for 8GB, ...) or only as may samples as you have processor cores, whichever is lower.
+.. NOTE:: We have chosen reasonable defaults for filtering your VCF files for high-confidence SNPs (min_depth:5,mq_score:30,qual_score:30,dp4_ratio:0.9,mq0f_ratio:0.1). If you would like to change these settings please see the instructions below.
 
 - Click on workflow in the top main menu and select 'run' from the 'Phenix workflow' context menu.
 - Select your reference genome in the 'Reference fasta' selection box.
@@ -132,3 +132,24 @@ Remark: Processing a single sample with the Phenix workflow can use up to 1.5GB 
 - Select all files ending with filtered.vcf in the top file selection box under 'Input VCF files(s)', by holding down the Ctrl key.
 - Click 'Execute'. Once everything is completed the "VCFs to fasta" tool with have produced your SNP alignment that can now be used for further processing.
 
+.. topic:: How to change the number of jobs running simultaneously?
+
+    Galaxy runs 5 jobs at the same time by default. This is appropriate for machines that have at least 5 GB of RAM and at least 5 processor cores. If you have more or less compute resources at your disposal you can change the number of concurrent jobs, if you rename the file *config/job_conf.xml.sample_basic* to *config/job_conf.xml* and change the "workers" setting in the file to the desired number. This requires a restart of Galaxy.
+
+
+Advanced - Changing the Phenix vcf filtering settings:
+------------------------------------------------------
+
+- Click on workflow in the top main menu and select 'edit' from the 'Phenix workflow' context menu.
+- Click on the 'Filter VCF' tool box to highlight it.
+- The parameters for this tool can now be edited in the panel on the right hand side of the browser window.
+- Use the little trash can in the top right corner of each individual filter to remove it.
+- Use the button labelled '+ Insert SNP filter' to add a new one.
+- Use the drop-down menu to select a new filter type and the corresponding text box to set the threshold value.
+
+.. figure:: workflow_editor.png
+   :align: center
+
+   The Galaxy workflow editor.
+
+.. WARNING:: Not all filters are suitable for all variant callers. Please refer to the table under :doc:`/Filters`.
