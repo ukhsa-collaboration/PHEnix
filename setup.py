@@ -11,14 +11,13 @@ import pip
 from pip.req import parse_requirements
 
 def get_version():
-    version_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "VERSION")
+    version_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), "VERSION")
     version = "N/A"
 
     if os.path.exists(version_file):
         try:
             with open(version_file) as fp:
                 version = fp.next().strip()
-                version += "-static"
         except IOError:
             pass
     return version
@@ -47,6 +46,8 @@ setup(name='PHEnix',
       scripts=['scripts/run_snp_pipeline.py',
                "scripts/filter_vcf.py",
                "scripts/prepare_reference.py",
-               "scripts/vcf2fasta.py"],
+               "scripts/vcf2fasta.py",
+               "scripts/phenix.py",
+               "scripts/vcf2distancematrix.py"],
       install_requires=install_requires
      )
