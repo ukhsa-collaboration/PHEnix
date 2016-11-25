@@ -164,8 +164,9 @@ def get_mixture(record, threshold):
     return mixture
 
 def guess_total_records(vcfs):
+    largest_vcf = [vcf for vcf in vcfs if os.path.getsize(vcf) == max([os.path.getsize(vcf) for vcf  in vcf])][0]
     total_records = 0
-    with open(vcfs[0]) as fp:
+    with open(largest_vcf) as fp:
         for _ in fp:
             total_records += 1
 
