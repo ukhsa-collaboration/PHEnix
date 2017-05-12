@@ -176,9 +176,6 @@ def precompute_snp_densities(avail_pos, sample_names, args):
                                                                                            }}}}
     """
 
-    iWINSIZE = args['winsize']
-    flWINSIZE = float(iWINSIZE)
-
     (_, flGenLen) = get_ref_freqs(args['refgenome'], len_only=True)
 
     dDen = {}
@@ -199,7 +196,7 @@ def precompute_snp_densities(avail_pos, sample_names, args):
             dDen[contig][sample_1] = {}
             for j, sample_2 in enumerate(sample_names):
                 if j < i:
-                    parameters.append((sample_1, sample_2, oBT, iWINSIZE, flGenLen,))
+                    parameters.append((sample_1, sample_2, oBT, flGenLen,))
 
     results = pool.map(_get_sample_pair_densities, parameters)
 
@@ -243,7 +240,7 @@ def _get_sample_pair_densities(ARGS):
 
 # --------------------------------------------------------------------------------------------------
 
-def get_sample_pair_densities(sample_1, sample_2, oBT, iWINSIZE, flGenLen):
+def get_sample_pair_densities(sample_1, sample_2, oBT, flGenLen):
     '''
     Function to calculate the differecnes in a window of a given size around is
     difference for a given pair
@@ -257,8 +254,6 @@ def get_sample_pair_densities(sample_1, sample_2, oBT, iWINSIZE, flGenLen):
     oBT: obj
         bintree object that contains all information for all available
         positions for a given contig
-    iWINSIZE: int
-        window size
     flGenLen: float
         reference genome length
     Returns
@@ -271,7 +266,7 @@ def get_sample_pair_densities(sample_1, sample_2, oBT, iWINSIZE, flGenLen):
             in window around it as value
     '''
 
-    d = {}
+    # first find out the total number of diff between the two samples
     diffs = 0
     for pos in oBT:
         ref_base = oBT[pos].get("reference")
@@ -285,9 +280,32 @@ def get_sample_pair_densities(sample_1, sample_2, oBT, iWINSIZE, flGenLen):
             continue
         if s1_base != s2_base:
             diffs += 1
+
+
+    d = {}
+
+    # use win size of avg nof nucleotides per difference, i.e. each window should have one diff on average
+    # for very similar sample pairs (very few diffs) do not impose max win size
+    # if >1% of genome is different use win size 100
+    try:
+        iWinsize = max([int(round(flGenLen/diffs)), 100])
+    except ZeroDivisionError:
+        return (diffs, d)
+
+    for pos in oBT:
+        ref_base = oBT[pos].get("reference")
+        s1_base = oBT[pos].get(sample_1, ref_base)
+        # consider only differences between valid characters -> pairwise deletion
+        if dValChars.get(s1_base.upper(), None) == None:
+            continue
+        s2_base = oBT[pos].get(sample_2, ref_base)
+        # consider only differences between valid characters -> pairwise deletion
+        if dValChars.get(s2_base.upper(), None) == None:
+            continue
+        if s1_base != s2_base:
             iDiffsInWin = 0
-            iWinStart = max(0, pos - ((iWINSIZE / 2) - 1))
-            iWinStop = min(int(flGenLen), (pos + (iWINSIZE / 2) + 1))
+            iWinStart = max(0, pos - ((iWinsize / 2) - 1))
+            iWinStop = min(int(flGenLen), (pos + (iWinsize / 2) + 1))
             for x in range(iWinStart, iWinStop):
                 try:
                     winbase_1 = 'ref' if sample_1 == 'reference' else oBT[x].get(sample_1, 'ref')
@@ -309,6 +327,116 @@ def get_sample_pair_densities(sample_1, sample_2, oBT, iWINSIZE, flGenLen):
             d[pos] = iDiffsInWin
 
     return (diffs, d)
+
+# --------------------------------------------------------------------------------------------------
+
+def parse_wg_alignment(dArgs, avail_pos, aSampleNames):
+    '''
+    Parse alignment to data structure
+    Parameters
+    ----------
+    dArgs: dict
+        input parameter dictionary as created by get_args()
+    avail_pos: dict
+        dict of bintrees for each contig
+    aSampleNames: list
+        list of sample names
+    Returns
+    -------
+    0
+    also writes all data to avail_pos
+    '''
+
+    """
+    avail_pos looks like this:
+    {'gi|194097589|ref|NC_011035.1|':
+        FastRBTree({2329: {'stats': <vcf2distancematrix.base_stats object at 0x40fb590>,
+                           'reference': 'A',
+                           '211700_H15498026501': 'C',
+                           '211701_H15510030401': 'C',
+                           '211702_H15522021601': 'C'},
+                    3837: {'211700_H15498026501': 'G',
+                           'stats': <vcf2distancematrix.base_stats object at 0x40fbf90>,
+                           '211701_H15510030401': 'G',
+                           'reference': 'T',
+                           '211702_H15522021601': 'G'},
+                    4140: {'211700_H15498026501': 'A',
+                           'stats': <vcf2distancematrix.base_stats object at 0x40fb790>,
+                           '211701_H15510030401': 'A',
+                           'reference': 'G',
+                           '211702_H15522021601': 'A'}})}
+    """
+
+    if os.path.exists(dArgs['alignment_input']) == False:
+        logging.error("Input alignment file not found.")
+        return 1
+
+    dSeqs = {}
+
+    with open(dArgs['alignment_input'], 'r') as algn:
+        # parse the fa file
+        sSeq = ""
+        sName = ""
+        for sLine in algn:
+            sLine = sLine.strip()
+            if sLine.startswith(">"):
+                if len(sSeq) > 0:
+                    dSeqs[sName] = sSeq.upper()
+                    sSeq = ""
+                sName = sLine[1:].split(' ')[0]
+                continue
+            sSeq = sSeq + sLine
+        dSeqs[sName] = sSeq.upper()
+
+    sRefName = 'reference'
+    if dSeqs.has_key(sRefName) == False:
+        if dArgs['refgenomename'] is not None and dSeqs.has_key(dArgs['refgenomename']) == True:
+            sRefName = dArgs['refgenomename']
+        else:
+            logging.error("No seq named 'reference' in your alignment AND alternative name not found or not given either.")
+            return 1
+    else:
+        logging.info("Your reference appears to be named 'reference'")
+
+    for sn in dSeqs.keys():
+        aSampleNames.append(sn)
+
+    all_seq_len = [len(x) for x in dSeqs.values()]
+    try:
+        assert len(all_seq_len) == all_seq_len.count(all_seq_len[0])
+    except AssertionError:
+        logging.error("Not all seqs in your alignment have the same length")
+        return 1
+
+    avail_pos['alignment_contig'] = FastRBTree()
+
+    iSeqLen = all_seq_len[0]
+
+    for i in range(0, iSeqLen):
+        d = {}
+        for sn in aSampleNames:
+            d[sn] = dSeqs[sn][i]
+        # are the nt at this pos all the same?
+        if len(d.values()) == d.values().count(d.values()[0]):
+            continue
+        # make sure reference is called 'reference'
+        if sRefName != 'reference':
+            d['reference'] = d[sRefName]
+            del d[sRefName]
+        oBS = BaseStats()
+        for sn in aSampleNames:
+            oBS.update(d, sn, '_')
+        d['stats'] = oBS
+        avail_pos['alignment_contig'][i] = d
+
+    #for i in avail_pos['alignment_contig']:
+    #    print "---"
+    #    print i
+    #    for n in avail_pos['alignment_contig'][i]:
+    #        print n,
+    #        print avail_pos['alignment_contig'][i][n]
+
+    return 0
 
 # --------------------------------------------------------------------------------------------------
 
@@ -507,10 +635,9 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
             else:  # j > i
                 pass
 
-    flNofWins = 0.0
+    flGenLen = 0.0
     if dDen != None:
         (_, flGenLen) = get_ref_freqs(dArgs['refgenome'], len_only=True)
-        flNofWins = flGenLen / dArgs['winsize']
 
     aStats = []
     for sContig in avail_pos.keys():
@@ -533,6 +660,7 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
 
                             iDiffsInWin = dDen[sContig][sample_1][sample_2][pos]
                             iTotalDiffs = dDen['diffs'][sample_1][sample_2]
+                            flNofWins = flGenLen / max([int(round(flGenLen/iTotalDiffs)), 100])
                             p_hitting_window = 1.0 / flNofWins
                             p_ok = 1.0
 
@@ -545,7 +673,7 @@ def get_dist_mat(aSampleNames, avail_pos, dArgs):
                                 # and given that the probabilty of success is 1/total_num_windows
                                 p_ok = binom_test(iDiffsInWin, iTotalDiffs, p_hitting_window)
 
-                            corr_p_thresh = (0.01 / iTotalDiffs)
+                            corr_p_thresh = (0.05 / iTotalDiffs)
                             aStats.append("%s\t%s\t%i\t%i\t%i\t%e\t%e\n" % (sample_1,
                                                                             sample_2,
                                                                             pos,
@@ -927,10 +1055,11 @@ def get_ref_freqs(ref, len_only=False):
             if sLine.startswith(">"):
                 continue
             else:
+                sLine = sLine.strip()
                 flGenLen += len(sLine)
                 if len_only == True:
                     continue
-                sLine = sLine.upper().strip()
+                sLine = sLine.upper()
                 for n in sLine:
                     try:
                         dRefFreq[n] += 1.0

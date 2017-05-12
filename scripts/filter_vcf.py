@@ -36,7 +36,11 @@ def get_args():
 
     group = args.add_mutually_exclusive_group()
 
-    group.add_argument("--filters", "-f", help="Filter(s) to apply as key:threshold pairs, separated by comma.")
+    group.add_argument("--filters",
+                       "-f",
+                       help="Filter(s) to apply as key:threshold pairs, separated by comma. \
+                            Recommendations: GATK: mq_score:30,min_depth:10,ad_ratio:0.9 \
+                                             Mpileup: mq_score:30,min_depth:10,dp4_ratio:0.9")
     group.add_argument("--config", "-c", help="Config with filters in YAML format. E.g.filters:-key:value")
 
     args.add_argument("--output", "-o", required=True, help="Location for filtered VCF to be written.")

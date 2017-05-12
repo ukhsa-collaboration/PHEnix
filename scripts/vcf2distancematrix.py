@@ -13,7 +13,7 @@ import sys
 from Bio import Phylo
 from Bio.Phylo import TreeConstruction
 
-from phe.utils import parse_vcf_files, get_dist_mat
+from phe.utils import parse_vcf_files, get_dist_mat, parse_wg_alignment
 
 
 # --------------------------------------------------------------------------------------------------
@@ -61,13 +61,18 @@ def get_args():
 
     group.add_argument("--directory",
                        "-d",
-                       help="Path to the directory with .vcf files.")
+                       help="Path to the directory with .vcf files. Input option 1.")
 
     group.add_argument("--input",
                        "-i",
                        type=str,
                        nargs='+',
-                       help="List of VCF files to process.")
+                       help="List of VCF files to process. Input option 2.")
+
+    group.add_argument("--alignment-input",
+                       "-a",
+                       metavar="MULTI FASTA FILE",
+                       help="Multi fasta file with whole genome input alignment. Input option 3.")
 
     parser.add_argument("--out",
                         "-o",
@@ -117,8 +122,15 @@ def get_args():
                         metavar="FASTA FILE",
                         dest="refgenome",
                         default=None,
-                        help="Reference genome used for SNP calling [Required for \
-                              'jc69', 'k80', 'tn84' and 't93' substitution, else ignored].")
+                        help="Reference genome used for SNP calling [Required for recombination removal].")
+
+    parser.add_argument("--refgenomename",
+                        "-n",
+                        type=str,
+                        metavar="STRING",
+                        dest="refgenomename",
+                        default=None,
+                        help="Name of reference genome in input alignment [Required if input option 3 is used and reference is not named 'reference'].")
 
     parser.add_argument("--threshold",
                         "-k",
@@ -127,14 +139,6 @@ def get_args():
                         dest="k",
                         default=1.0,
                         help="Density tyhreshold above mean density for relevant pair. [1.0].")
-
-    parser.add_argument("--windowsize",
-                        "-w",
-                        type=int,
-                        metavar="INT",
-                        dest="winsize",
-                        default=1000,
-                        help="Window size in genome for SNP density calculations. [1000].")
 
     parser.add_argument("--threads",
                         type=int,
@@ -190,15 +194,6 @@ def main(dArgs):
         sys.stderr.write("Error: Please specify reference genome for substitution model.\n")
         return 1
 
-    if dArgs['directory'] is not None and dArgs['input'] is None:
-        dArgs['input'] = glob.glob(os.path.join(dArgs['directory'], "*.vcf"))
-
-    if len(dArgs['input']) <= 0:
-        sys.stderr.write("Error: No VCFs found.\n")
-        return 1
-    else:
-        logging.info("%i VCFs found", len(dArgs['input']))
-
     if dArgs['remove_recombination'] == True:
         try:
             from scipy.stats import binom_test
@@ -210,8 +205,21 @@ def main(dArgs):
     aSampleNames = []
     avail_pos = {}
 
-    # parse vcf files into avail_pos structure
-    parse_vcf_files(dArgs, avail_pos, aSampleNames)
+    if dArgs['alignment_input'] is None:
+
+        if dArgs['directory'] is not None and dArgs['input'] is None:
+            dArgs['input'] = glob.glob(os.path.join(dArgs['directory'], "*.vcf"))
+
+        if len(dArgs['input']) <= 0:
+            sys.stderr.write("Error: No VCFs found.\n")
+            return 1
+        else:
+            logging.info("%i VCFs found", len(dArgs['input']))
+            # parse vcf files into avail_pos structure
+            parse_vcf_files(dArgs, avail_pos, aSampleNames)
+    else:
+        logging.info("Submitted input as multi fasta aligment")
+        parse_wg_alignment(dArgs, avail_pos, aSampleNames)
 
     """
     avail_pos looks like this:

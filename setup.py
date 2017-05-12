@@ -48,6 +48,7 @@ setup(name='PHEnix',
                "scripts/prepare_reference.py",
                "scripts/vcf2fasta.py",
                "scripts/phenix.py",
-               "scripts/vcf2distancematrix.py"],
+               "scripts/vcf2distancematrix.py",
+               "scripts/vcf2json.py"],
       install_requires=install_requires
      )

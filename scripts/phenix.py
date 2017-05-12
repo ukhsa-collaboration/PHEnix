@@ -16,6 +16,7 @@ import prepare_reference
 import run_snp_pipeline
 import vcf2fasta
 import vcf2distancematrix
+import vcf2json
 
 
 def get_version():
@@ -73,6 +74,12 @@ def get_args():
                           parents=[vcf2distancematrix.get_args()],
                           add_help=False)
 
+    subparsers.add_parser("vcf2json",
+                          description=vcf2json.get_desc(),
+                          help="Convert VCFs to a JSON file containing variants and ignored positions as arrays of positions relative to reference chromosomes.",
+                          parents=[vcf2json.get_args()],
+                          add_help=False)
+
     return args
 
 def main():
@@ -98,7 +105,8 @@ def main():
         return vcf2fasta.main(args)
     elif args["cmd"] == "vcf2distancematrix":
         return vcf2distancematrix.main(args)
-
+    elif args["cmd"] == "vcf2json":
+        return vcf2json.main(args)
     return 1
 
 if __name__ == '__main__':

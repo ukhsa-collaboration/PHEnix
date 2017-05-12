@@ -35,6 +35,7 @@ import gzip
 import logging
 import operator
 import pickle
+import json
 
 from Bio import SeqIO
 from vcf import filters
@@ -44,6 +45,7 @@ from vcf.parser import _Filter
 
 from phe.metadata import PHEMetaData
 from phe.variant_filters import make_filters, PHEFilterBase, str_to_filters
+from phe.utils import is_uncallable
 
 
 class VCFTemplate(object):
@@ -123,24 +125,19 @@ class VariantSet(object):
             elif not var.FILTER :
                 yield var
 
-    def filter_variants(self, keep_only_snps=False, out_vcf=None, only_good=False):
+    def filter_variants(self, keep_only_snps=False, only_good=False):
         """Filter the VCF records.
 
         Parameters
         ----------
         keep_only_snps: bool, optional
             Retain only SNP variants (default: False).
-        out_vcf: str, optional
-            If specified, filtered record will be written to *out_vcf*
-            instead of being retianed in memory.
         only_good: bool, optional
             True/False if only SNPs that PASS should output.
 
         Returns
         -------
-        list or int:
-            If *out_vcf* is specified, then total number of written records is returned.
-            Otherwise, list of records is returned.
+        list of records is returned.
          """
 
         if self._reader is None:
@@ -177,14 +174,6 @@ class VariantSet(object):
         # Update the filters for output.
         self._update_filters(self._reader.filters)
 
-        if out_vcf:
-            out_vcf_fp = gzip.open(out_vcf, "wb") if out_vcf.endswith(".gz") else open(out_vcf, "wb")
-#             close_func = gzip.close if out_vcf.endswith(".gz") else close
-            _writer = vcf.Writer(out_vcf_fp, self.out_template)
-        else:
-            _writer = None
-
-        records = 0
         _pos = 1
         _chrom = None
         # For each record (POSITION) apply set of filters.
@@ -228,27 +217,18 @@ class VariantSet(object):
 
                         if not keep_only_snps or (_record.is_snp and keep_only_snps):
 
-                            if _writer is not None:
-                                _writer.write_record(_record)
-                                records += 1
-                            else:
-                                self._variants.append(_record)
+                            self._variants.append(_record)
 
                 elif not only_good:
-                    if _writer is not None:
-                        _writer.write_record(_record)
-                        records += 1
-                    else:
-                        self._variants.append(_record)
+                    self._variants.append(_record)
 
                 _pos += 1
                 if _chrom is None:
                     _chrom = record.CHROM
-        if _writer is None:
-            return [ variant for variant in self._variants if not variant.FILTER]
-        else:
-            out_vcf_fp.close()
-            return records
+        return [ variant for variant in self._variants if not variant.FILTER]
+
+
+# --------------------------------------------------------------------------------------------------
 
     def _filter_record(self, record, removed_filters=list()):
         '''**PRIVATE** Filter record.
@@ -385,6 +365,82 @@ class VariantSet(object):
                 written_variants += 1
 
         return written_variants
+
+# --------------------------------------------------------------------------------------------------
+
+    def write_to_json(self, vcf_file_name, verbose=False):
+        """Write _variants to a json file.
+
+        Parameters:
+        -----------
+
+
+        Returns:
+        --------
+        0
+        """
+
+        data = {'annotations': {}, 'positions': {}}
+
+        for info_key, metadata in self.out_template.metadata.iteritems():
+            data['annotations'][info_key] = metadata
+
+        for record in self._variants:
+            # Inject a property about uncallable genotypes into record.
+            record.__setattr__("is_uncallable", is_uncallable(record))  # is_uncallable = types.MethodType(is_uncallable, record)
+
+            # SKIP indels, if not handled then can cause REF base to be >1
+            if record.is_indel and not (record.is_uncallable or record.is_monomorphic) or len(record.REF) > 1:
+            # if len(record.REF) > 1:
+                # print "%s\t%s\t%s\t%s\t%s" % (sample_name,record.POS,-1,record.FILTER,record)
+                continue
+                # if record.is_deletion and not record.is_uncallable:
+                #    continue
+
+            try:
+                _ = data['positions'][record.CHROM]
+            except KeyError:
+                data['positions'][record.CHROM] = {"G": [], "A": [], "T": [], "C": [], "N": [], "-": []}
+
+            # IF this is uncallable genotype, add gap "-"
+            if record.is_uncallable:
+                data['positions'][record.CHROM]["-"].append(record.POS)
+
+            elif not record.FILTER:
+                # If filter PASSED!
+                if record.is_snp:
+                    if len(record.ALT) > 1:
+                        logging.info("POS %s passed filters but has multiple alleles REF: %s, ALT: %s. Inserting N", record.POS, str(record.REF), str(record.ALT))
+                        data['positions'][record.CHROM]["N"].append(record.POS)
+
+                    else:
+                        data['positions'][record.CHROM][str(record.ALT[0]).upper()].append(record.POS)
+
+            # Filter(s) failed
+            elif record.is_snp:
+                data['positions'][record.CHROM]["N"].append(record.POS)
+            else:
+                data['positions'][record.CHROM]["N"].append(record.POS)
+
+        # print summary information if requested
+        if verbose == True:
+            logging.info("%s chromosomes were found in the VCF file" % len(data['positions']))
+            for chromosome in data['positions']:
+                logging.info("")
+                logging.info("%s: " % chromosome)
+                for position_type in ["G", "A", "T", "C", "N", "-"]:
+                    logging.info("\t%s: %s" % (position_type, len(data['positions'][chromosome][position_type])))
+                logging.info("-----------------")
+
+        json_string = json.dumps(data)
+        json_file_name = vcf_file_name.replace('.vcf', '.json.gz')
+
+        with gzip.open(json_file_name, 'wb') as fJson:
+            fJson.write(json_string)
+
+        return 0
+
+# --------------------------------------------------------------------------------------------------
 
     def _write_bad_variants(self, vcf_out):
         """**PRIVATE:** Write only those records that **haven't** passed."""

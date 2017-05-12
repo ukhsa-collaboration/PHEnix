@@ -31,14 +31,14 @@ def get_version():
 
 def pipeline(workflow, input_dir):
     '''Setup config for pipeline run.
-    
+
     Parameters:
     -----------
     workflow: str
         Name of the workflow running.
     input_dir: str
         Path to the input directory where the fastQ files are kept.
-        
+
     Returns:
     --------
     dict:
@@ -109,11 +109,14 @@ def get_args():
     args.add_argument("--variant", "-v", default="gatk", help="Available variant callers: %s" % available_callers())
     args.add_argument("--variant-options", help="Custom variant options (advanced)")
     args.add_argument("--vcf")
-    args.add_argument("--filters", type=str, help="Filters to be applied to the VCF in key:value pairs, separated by comma (,). Available_filters: %s" % available_filters())
+    args.add_argument("--filters", type=str, help="Filters to be applied to the VCF in key:value pairs, separated by comma (,). Available_filters: %s. Recommendations: GATK: mq_score:30,min_depth:10,ad_ratio:0.9 Mpileup: mq_score:30,min_depth:10,dp4_ratio:0.9" % available_filters())
 
     args.add_argument("--annotators", nargs="+", help="List of annotators to run before filters. Available: %s" % available_annotators())
 
     args.add_argument("--keep-temp", action="store_true", help="Keep intermediate files like BAMs and VCFs (default: False).")
+
+    args.add_argument("--json", action="store_true", help="Also write variant positions in filtered vcf as json file (default: False).")
+    args.add_argument("--json-info", action="store_true", help="When writing a json file, log some stats to stdout. (default: False).")
 
     return args
 
@@ -252,7 +255,11 @@ def main(args):
             var_set.add_metadata(annotator_md)
 
         final_vcf = os.path.join(args["outdir"], "%s.filtered.vcf" % args["sample_name"])
-        var_set.filter_variants(out_vcf=final_vcf)
+        var_set.filter_variants()
+        var_set.write_variants(final_vcf)
+
+        if args['json'] == True:
+            var_set.write_to_json(final_vcf, args["json_info"])
 
         if not args["vcf"] and not args["keep_temp"]:
             logging.debug("Removing VCF file: %s", vcf_file)
