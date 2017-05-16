@@ -414,27 +414,18 @@ def parse_wg_alignment(dArgs, avail_pos, aSampleNames):
 
     for i in range(0, iSeqLen):
         d = {}
+        d['reference'] = dSeqs[sRefName][i]
         for sn in aSampleNames:
-            d[sn] = dSeqs[sn][i]
+            if sn != sRefName and dSeqs[sn][i] != d['reference']:
+                d[sn] = dSeqs[sn][i]
         # are the nt at this pos all the same?
         if len(d.values()) == d.values().count(d.values()[0]):
             continue
-        # make sure reference is called 'reference'
-        if sRefName != 'reference':
-            d['reference'] = d[sRefName]
-            del d[sRefName]
         oBS = BaseStats()
         for sn in aSampleNames:
             oBS.update(d, sn, '_')
         d['stats'] = oBS
-        avail_pos['alignment_contig'][i] = d
-
-    #for i in avail_pos['alignment_contig']:
-    #    print "---"
-    #    print i
-    #    for n in avail_pos['alignment_contig'][i]:
-    #        print n,
-    #        print avail_pos['alignment_contig'][i][n]
+        avail_pos['alignment_contig'][i+1] = d
 
     return 0
 
