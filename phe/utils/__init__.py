@@ -18,6 +18,12 @@ try:
 except ImportError:
     HAVE_SCIPY = False
 
+HAVE_PSUTIL = True
+try:
+    from psutil import virtual_memory
+except ImportError:
+    HAVE_PSUTIL = False
+
 dValChars = {'A': 1, 'C': 1, 'G': 1, 'T': 1}
 
 # --------------------------------------------------------------------------------------------------
@@ -1076,7 +1082,17 @@ def calculate_memory_for_sort():
         String to use directly with *-m* option in sort, or None.
     """
 
-    avail_memory = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')  # e.g. 4015976448
+    avail_memory = None
+    if HAVE_PSUTIL == True:
+        mem = virtual_memory()
+        avail_memory = mem.total
+    else:
+        try:
+            avail_memory = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')  # e.g. 4015976448
+        except ValueError:
+            logging.error("If you're in Mac OS you need to have the psutil Python library.")
+            raise SystemExit
+
     avail_cpu = multiprocessing.cpu_count()
 
     sort_memory = avail_memory / avail_cpu / 1024 ** 2
