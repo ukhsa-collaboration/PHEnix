@@ -87,7 +87,7 @@ A lot of downstream applications take on FASTA formated files, not VCFs. We have
 FASTA format.
 
 ```bash
-$ phenix.py vcfs2fasta -d <path to directory of VCFs> -o <path to output FASTA>
+$ phenix.py vcf2fasta -d <path to directory of VCFs> -o <path to output FASTA>
 ```
 
 This tool is also able to filter out samples and columns that may be bad quality. E.g. **--sample-Ns** specifies maximum fraction of Ns
