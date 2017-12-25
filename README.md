@@ -39,7 +39,7 @@ lead to corrupted indeces.
 If you have a sample and you want to have one-stop-shop analysis run the following:
 
 ```bash
-$ phenix.py run_snp_pipeline.py -r1 <path to R1.fastq> -r2 <path to R2.fastq> \ 
+$ run_snp_pipeline.py -r1 <path to R1.fastq> -r2 <path to R2.fastq> \ 
 -r <path to reference> --sample-name <NAME> --mapper bwa --variant gatk \ 
 --filters min_depth:5,mq_score:30
 ```
@@ -47,6 +47,8 @@ $ phenix.py run_snp_pipeline.py -r1 <path to R1.fastq> -r2 <path to R2.fastq> \
 This will map with **BWA** and call variants with **GATK**. Intermediate files are written into the same directory you run this 
 command from. **--sample-name** option is very important, it specifies what output files will be called and the read group in the BAM
 file. If you omit it, **test_sample** will be used.
+
+`run_snp_pipeline.py` will run the appropriate part of the phenix pipeline based on the input files you give it. For example, if you pass fastq files, it will run a mapping step as well as the variant calling step. However, if you pass it a bam alignment file instead (e.g. if the SNP calling failed previously for some reason), then it will run only the variant calling section. This allows for efficient use of computational resources.
 
 ## Filters
 
@@ -158,7 +160,7 @@ Either set *PICARD_TOOLS_PATH* - path to directory where different Picard jars a
 Older Picard distributions have many different jars (use first suggestion), where as newer versions have merged all into one jar file. 
 
 ## Contributing to the project
-If you want to add your favourite Mapper/VariantCaller or add another Filter please refer to the documentation: [here](http://phoenix.readthedocs.org/en/latest/api/modules.html) 
+If you want to add your favourite Mapper/VariantCaller or add another Filter please refer to the documentation: [here](http://phenix.readthedocs.io/en/latest/api/modules.html) 
 
 
 ## History
