@@ -3,7 +3,7 @@
 :Date: 7 Apr, 2016
 :Author: Alex Jironkin
 '''
-from distutils.core import setup
+from setuptools import setup
 import os
 import sys
 
@@ -37,12 +37,13 @@ setup(name='PHEnix',
       author='Public Health England',
       author_email='NGSSBioinformatics@phe.gov.uk',
       url='http://phoenix.readthedocs.org/en/latest/index.html',
-      package=['phe',
+      packages=['phe',
                'phe.mapping',
                'phe.variant',
                'phe.variant_filters',
                "phe.metadata",
-               "phe.annotations"],
+               "phe.annotations",
+               "phe.utils"],
       scripts=['scripts/run_snp_pipeline.py',
                "scripts/filter_vcf.py",
                "scripts/prepare_reference.py",
