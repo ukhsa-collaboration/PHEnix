@@ -17,7 +17,11 @@ Directly from github:
 $ pip install git+https://github.com/phe-bioinformatics/PHEnix.git
 ```
 
-Installing from Pip - **Coming Soon**.
+Installing from Pip:
+
+```bash
+$ pip install PHEnix
+```
 
 ## Prereq
 
