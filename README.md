@@ -14,13 +14,13 @@ $ pip2 install -e PHEnix
 Directly from github:
 
 ```bash
-$ pip install git+https://github.com/phe-bioinformatics/PHEnix.git
+$ pip2 install git+https://github.com/phe-bioinformatics/PHEnix.git
 ```
 
 Installing from Pip:
 
 ```bash
-$ pip install PHEnix
+$ pip2 install PHEnix
 ```
 
 ## Prereq
