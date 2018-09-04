@@ -8,8 +8,6 @@ from pprint import pprint
 import sys
 
 from bintrees import FastRBTree
-from numpy import mean
-from numpy import std
 import vcf
 
 HAVE_SCIPY = True
